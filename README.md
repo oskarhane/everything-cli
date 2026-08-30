@@ -1,0 +1,130 @@
+# google-cli
+
+Command-line client for Gmail and Google Calendar, across multiple Google accounts (Workspace or personal).
+
+```
+google-cli account list
+google-cli gmail message list --query "from:boss" --unread-only
+google-cli calendar event decline kq3abc123_20260901T100000Z   # one occurrence
+google-cli calendar freebusy --from -1d --to +7d
+```
+
+## Build & development
+
+Requires Go (the repo pins a `toolchain` line — any Go ≥ 1.26.2 auto-downloads it).
+
+```sh
+make build      # -> bin/google-cli
+make test       # hermetic test suite (no network, no real credentials)
+make lint       # golangci-lint (govet, errcheck, staticcheck)
+make fmt-check  # gofmt gate (CI-failing)
+make fmt        # rewrite formatting
+```
+
+Smoke tests against a real account (read-only, skip cleanly when none is configured):
+
+```sh
+go test -tags=smoke ./test/smoke/... -v
+```
+
+Conventions for contributing: see [CLAUDE.md](CLAUDE.md).
+
+## Getting started
+
+1. **OAuth app credentials.** Create an OAuth *Desktop app* client in Google Cloud Console and download the client JSON. Put it at `~/.config/google-cli/credentials.json` (or pass `--credentials <path>`). Only this one file is read from the working directory's perspective — the CLI never picks up a `./credentials.json` from the CWD, and it always talks to Google's OAuth endpoints regardless of what the file claims.
+
+2. **Add an account** (opens a browser; loopback redirect, PKCE, CSRF state):
+
+```sh
+google-cli account add personal
+```
+
+The flow requests Gmail + Calendar + userinfo scopes and stores the token at `~/.config/google-cli/accounts/personal.json` (0600, atomic writes, auto-refreshed on use).
+
+3. **Add more accounts** and switch between them:
+
+```sh
+google-cli account add work
+google-cli account use work          # set default
+google-cli gmail label list --account personal   # one-off override
+```
+
+## Usage
+
+### Gmail
+
+```sh
+google-cli gmail label list
+google-cli gmail label create news --color-bg #fb4c2f
+
+google-cli gmail message list --query "invoice" --max 50
+google-cli gmail message get 19c2a4b7 [--raw]     # --raw prints the RFC 2822 source (control bytes stripped)
+google-cli gmail message send --to a@x.com --subject "Hi" --body "text" [--attachment report.pdf]
+google-cli gmail message mark 19c2a4b7 --read
+google-cli gmail message trash 19c2a4b7          # recoverable
+google-cli gmail message delete 19c2a4b7 --force # permanent
+
+google-cli gmail thread list / get
+google-cli gmail draft create --to a@x.com --subject "Draft" --body-file notes.txt
+google-cli gmail draft send draft_19c2a4b7
+google-cli gmail attachment get <attachment-id> --message-id <id> [--out report.pdf]
+```
+
+### Calendar
+
+```sh
+google-cli calendar list
+google-cli calendar create "Team Sync" --timezone Europe/Stockholm
+
+google-cli calendar event list --from -1d --to +7d [--recurring instances|masters|all]
+google-cli calendar event create --summary "Standup" --start "2026-09-01T09:00" --end "2026-09-01T09:30" \
+    --attendee a@x.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10'
+google-cli calendar event get <id>              # master or <masterId>_<time> instance id
+
+# Recurring events: respond to or delete ONE occurrence (default) or the whole series
+google-cli calendar event decline kq3abc123_20260901T100000Z          # just that occurrence
+google-cli calendar event decline kq3abc123 --all                    # the series
+google-cli calendar event delete kq3abc123_20260901T100000Z --force  # cancels 1 occurrence
+google-cli calendar event instances kq3abc123                        # list occurrences
+
+google-cli calendar freebusy --from now --to +1d [--calendar work@group.calendar.google.com]
+google-cli calendar acl list primary
+google-cli calendar acl add primary --scope-user a@x.com --role reader
+```
+
+Dates accept RFC3339, `YYYY-MM-DD` (with `--all-day`), and relative forms (`now`, `-1d`, `+7d`, `-30m`).
+
+## Output formats
+
+`--format json|table|toon` on read commands; when unset it auto-detects:
+
+| Environment | Format |
+|---|---|
+| explicit `--format` | wins |
+| agent harness (e.g. `CLAUDECODE`) | `toon` |
+| interactive terminal | `table` |
+| piped / non-TTY | `json` |
+
+Invalid values warn and fall back to auto-detection.
+
+## Global flags
+
+| Flag | Meaning |
+|---|---|
+| `--account <name>` | act as this account (default: `account use` value) |
+| `--credentials <path>` | OAuth client JSON (default: `<config>/credentials.json`) |
+| `--format` | output format (see above) |
+| `--debug` | redacted debug lines to stderr (credential paths, account names — never token values) |
+
+## Files
+
+```
+~/.config/google-cli/
+  credentials.json     # OAuth app client (yours, from Google Cloud)
+  config.json          # default account pointer
+  accounts/<name>.json # per-account tokens, 0600, atomic writes
+```
+
+`$GOOGLE_CLI_CONFIG_DIR` relocates the whole directory (used by tests).
+
+Security posture: OAuth endpoints are hard-pinned to Google, PKCE (S256) on the auth flow, refresh/exchange/API calls carry timeouts, token files are chmod-enforced and written atomically, MIME headers reject CRLF injection, `--raw` output is control-byte stripped, and `govulncheck` runs clean (module-level informational for an uncalled `x/crypto/openpgp` transitive is the only note).

@@ -30,7 +30,7 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 	if len(accounts) == 0 {
 		return "", fmt.Errorf("no Google accounts configured; run `google-cli account add`")
 	}
-	return "", fmt.Errorf("no default account set; run `google-cli account default <name>` or pass --account")
+	return "", fmt.Errorf("no default account set; run `google-cli account use <name>` or pass --account")
 }
 
 // Dial owns the whole auth chain every API-backed command shares: it opens
