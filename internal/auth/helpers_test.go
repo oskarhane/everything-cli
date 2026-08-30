@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"net"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sync"
 	"testing"
@@ -40,13 +38,14 @@ const installedAppCredentials = `{
   }
 }`
 
-// writeCredentialsFile writes the test credentials JSON to a real temp file
-// (an isolated t.TempDir, never a real credentials location) and returns its path.
-func writeCredentialsFile(t *testing.T) string {
+// writeCredentialsFile writes the test credentials JSON to an in-memory FS
+// (never a real credentials location) and returns the FS and the path.
+func writeCredentialsFile(t *testing.T) (afero.Fs, string) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "credentials.json")
-	require.NoError(t, os.WriteFile(path, []byte(installedAppCredentials), 0o600))
-	return path
+	fs := afero.NewMemMapFs()
+	path := "/config/credentials.json"
+	require.NoError(t, afero.WriteFile(fs, path, []byte(installedAppCredentials), 0o600))
+	return fs, path
 }
 
 // syncBuffer is a goroutine-safe bytes.Buffer: RunFlow writes the

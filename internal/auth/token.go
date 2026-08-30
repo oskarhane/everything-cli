@@ -3,9 +3,9 @@ package auth
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -19,12 +19,12 @@ var credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, err
 // TokenSource returns an oauth2.TokenSource for the named stored account.
 // Valid tokens are reused; expired tokens are refreshed against Google, and
 // a refreshed token is persisted back to the account file (0600).
-func TokenSource(store *config.Store, credentialsPath, name string) (oauth2.TokenSource, error) {
+func TokenSource(fs afero.Fs, store *config.Store, credentialsPath, name string) (oauth2.TokenSource, error) {
 	acct, err := store.Get(name)
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(credentialsPath)
+	data, err := afero.ReadFile(fs, credentialsPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}

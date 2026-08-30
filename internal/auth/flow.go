@@ -17,6 +17,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -92,8 +93,8 @@ var fetchEmail = func(ctx context.Context, tok *oauth2.Token) (string, error) {
 // as the redirect URI, prints the authorization URL (and tries to open a
 // browser), waits for the code callback, exchanges it, and resolves the
 // account email from the userinfo endpoint.
-func RunFlow(credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
-	data, err := os.ReadFile(credentialsPath)
+func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
+	data, err := afero.ReadFile(fs, credentialsPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}

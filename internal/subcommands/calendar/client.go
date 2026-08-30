@@ -27,7 +27,7 @@ func dial(ctx context.Context, cfg *app.Config) (service.CalendarService, error)
 	if err != nil {
 		return nil, err
 	}
-	ts, err := auth.TokenSource(store, credentials, account)
+	ts, err := auth.TokenSource(cfg.Fs, store, credentials, account)
 	if err != nil {
 		return nil, fmt.Errorf("account %q: %w", account, err)
 	}

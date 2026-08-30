@@ -84,7 +84,7 @@ func testToken(name string) *oauth2.Token {
 
 // stubRunFlow replaces the runFlow seam for the test's lifetime so no test
 // starts a real browser authorization.
-func stubRunFlow(t *testing.T, fn func(credentialsPath string, scopes []string) (*oauth2.Token, string, error)) {
+func stubRunFlow(t *testing.T, fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)) {
 	t.Helper()
 	saved := runFlow
 	runFlow = fn

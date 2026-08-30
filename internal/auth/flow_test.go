@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -23,10 +24,10 @@ type flowResult struct {
 }
 
 // startFlow runs RunFlow in the background and returns its result channel.
-func startFlow(credentialsPath string, scopes []string) chan flowResult {
+func startFlow(fs afero.Fs, credentialsPath string, scopes []string) chan flowResult {
 	res := make(chan flowResult, 1)
 	go func() {
-		token, email, err := RunFlow(credentialsPath, scopes)
+		token, email, err := RunFlow(fs, credentialsPath, scopes)
 		res <- flowResult{token: token, email: email, err: err}
 	}()
 	return res
@@ -34,7 +35,7 @@ func startFlow(credentialsPath string, scopes []string) chan flowResult {
 
 func TestRunFlow(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	credentialsPath := writeCredentialsFile(t)
+	fs, credentialsPath := writeCredentialsFile(t)
 
 	var mu sync.Mutex
 	var gotCode, gotRedirect string
@@ -58,7 +59,7 @@ func TestRunFlow(t *testing.T) {
 		return "user@example.com", nil
 	}
 
-	res := startFlow(credentialsPath, []string{"scope-a"})
+	res := startFlow(fs, credentialsPath, []string{"scope-a"})
 
 	// Act as the browser: take the printed URL, then hit the redirect URI.
 	authURL := waitAuthURL(t, hooks.output)
@@ -96,9 +97,9 @@ func TestRunFlow(t *testing.T) {
 
 func TestRunFlowStateMismatch(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	credentialsPath := writeCredentialsFile(t)
+	fs, credentialsPath := writeCredentialsFile(t)
 
-	res := startFlow(credentialsPath, nil)
+	res := startFlow(fs, credentialsPath, nil)
 
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
@@ -119,7 +120,7 @@ func TestRunFlowStateMismatch(t *testing.T) {
 func TestRunFlowMissingCredentialsFile(t *testing.T) {
 	stubFlowSeams(t)
 
-	got := <-startFlow("/definitely/not/here/credentials.json", nil)
+	got := <-startFlow(afero.NewMemMapFs(), "/definitely/not/here/credentials.json", nil)
 
 	require.Error(t, got.err)
 	assert.Contains(t, got.err.Error(), "reading credentials")
@@ -127,12 +128,12 @@ func TestRunFlowMissingCredentialsFile(t *testing.T) {
 
 func TestRunFlowExchangeError(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	credentialsPath := writeCredentialsFile(t)
+	fs, credentialsPath := writeCredentialsFile(t)
 	hooks.exchangeFn = func(*oauth2.Config, string) (*oauth2.Token, error) {
 		return nil, errors.New("bad code")
 	}
 
-	res := startFlow(credentialsPath, nil)
+	res := startFlow(fs, credentialsPath, nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -149,12 +150,12 @@ func TestRunFlowExchangeError(t *testing.T) {
 
 func TestRunFlowUserinfoError(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	credentialsPath := writeCredentialsFile(t)
+	fs, credentialsPath := writeCredentialsFile(t)
 	hooks.emailFn = func(*oauth2.Token) (string, error) {
 		return "", errors.New("userinfo unreachable")
 	}
 
-	res := startFlow(credentialsPath, nil)
+	res := startFlow(fs, credentialsPath, nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -173,7 +174,8 @@ func TestRunFlowPrintsURLWhenBrowserUnavailable(t *testing.T) {
 	hooks := stubFlowSeams(t) // stubFlowSeams' cleanup restores the browser seam
 	openBrowser = func(string) error { return errors.New("no browser") }
 
-	res := startFlow(writeCredentialsFile(t), nil)
+	fs, credentialsPath := writeCredentialsFile(t)
+	res := startFlow(fs, credentialsPath, nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)

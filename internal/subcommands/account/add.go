@@ -50,7 +50,7 @@ google-cli account add work --credentials ~/google/credentials.json --scopes htt
 			}
 
 			scopes := parseScopes(scopesFlag)
-			tok, email, err := runFlow(resolved, scopes)
+			tok, email, err := runFlow(cfg.Fs, resolved, scopes)
 			if err != nil {
 				return fmt.Errorf("authorizing account %q: %w", args[0], err)
 			}

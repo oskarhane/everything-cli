@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -93,7 +93,8 @@ func TestTokenSourceRefreshPersistsToken(t *testing.T) {
 		Expiry:       time.Now().Add(-time.Hour), // expired: forces refresh
 	})
 
-	ts, err := TokenSource(store, writeCredentialsFile(t), "work")
+	fs, credentialsPath := writeCredentialsFile(t)
+	ts, err := TokenSource(fs, store, credentialsPath, "work")
 	require.NoError(t, err)
 
 	tok, err := ts.Token()
@@ -124,7 +125,7 @@ func TestTokenSourceUnknownAccount(t *testing.T) {
 	stubTokenEndpoint(t)
 	store := newTestStore(t)
 
-	_, err := TokenSource(store, "/creds.json", "ghost")
+	_, err := TokenSource(afero.NewMemMapFs(), store, "/creds.json", "ghost")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ghost")
 }
@@ -134,7 +135,7 @@ func TestTokenSourceMissingCredentialsFile(t *testing.T) {
 	store := newTestStore(t)
 	saveAccountWithToken(t, store, &oauth2.Token{AccessToken: "a", Expiry: time.Now().Add(time.Hour)})
 
-	_, err := TokenSource(store, filepath.Join(t.TempDir(), "missing.json"), "work")
+	_, err := TokenSource(afero.NewMemMapFs(), store, "/missing/credentials.json", "work")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading credentials")
 }
