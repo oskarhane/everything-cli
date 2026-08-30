@@ -61,16 +61,9 @@ google-cli account add work --credentials ~/google/credentials.json --scopes htt
 			}
 
 			view := addedAccount{Name: saved, Email: email}
-			w := cmd.OutOrStdout()
-			switch output.ResolveOutput(cfg.Format) {
-			case output.FormatTable:
-				output.PrintTable(w, []string{"name", "email"},
-					[]map[string]any{{"name": view.Name, "email": view.Email}})
-			case output.FormatToon:
-				output.PrintToon(w, view)
-			default:
-				output.PrintJSON(w, view)
-			}
+			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format),
+				[]string{"name", "email"}, view,
+				[]map[string]any{{"name": view.Name, "email": view.Email}})
 			return nil
 		},
 	}

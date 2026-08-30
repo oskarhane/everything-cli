@@ -51,21 +51,14 @@ google-cli account get work --format json`,
 				view.TokenExpiry = a.Token.Expiry.UTC().Format(time.RFC3339)
 			}
 
-			w := cmd.OutOrStdout()
-			switch output.ResolveOutput(cfg.Format) {
-			case output.FormatTable:
-				output.PrintTable(w, []string{"name", "email", "scopes", "token_expiry"},
-					[]map[string]any{{
-						"name":         view.Name,
-						"email":        view.Email,
-						"scopes":       strings.Join(view.Scopes, ", "),
-						"token_expiry": view.TokenExpiry,
-					}})
-			case output.FormatToon:
-				output.PrintToon(w, view)
-			default:
-				output.PrintJSON(w, view)
-			}
+			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format),
+				[]string{"name", "email", "scopes", "token_expiry"}, view,
+				[]map[string]any{{
+					"name":         view.Name,
+					"email":        view.Email,
+					"scopes":       strings.Join(view.Scopes, ", "),
+					"token_expiry": view.TokenExpiry,
+				}})
 			return nil
 		},
 	}

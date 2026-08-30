@@ -46,27 +46,20 @@ google-cli account list --format json`,
 				rows = append(rows, listAccount{Name: a.Name, Email: a.Email, Default: a.Name == def})
 			}
 
-			w := cmd.OutOrStdout()
-			switch output.ResolveOutput(cfg.Format) {
-			case output.FormatTable:
-				tableRows := make([]map[string]any, 0, len(rows))
-				for _, r := range rows {
-					marker := ""
-					if r.Default {
-						marker = "(default)"
-					}
-					tableRows = append(tableRows, map[string]any{
-						"name":    r.Name,
-						"email":   r.Email,
-						"default": marker,
-					})
+			tableRows := make([]map[string]any, 0, len(rows))
+			for _, r := range rows {
+				marker := ""
+				if r.Default {
+					marker = "(default)"
 				}
-				output.PrintTable(w, []string{"name", "email", "default"}, tableRows)
-			case output.FormatToon:
-				output.PrintToon(w, rows)
-			default:
-				output.PrintJSON(w, rows)
+				tableRows = append(tableRows, map[string]any{
+					"name":    r.Name,
+					"email":   r.Email,
+					"default": marker,
+				})
 			}
+			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format),
+				[]string{"name", "email", "default"}, rows, tableRows)
 			return nil
 		},
 	}
