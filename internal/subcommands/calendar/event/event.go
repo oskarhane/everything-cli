@@ -1,0 +1,38 @@
+// Package event builds the `calendar event` command subtree: CRUD leaves
+// plus recurring-event scope handling (--this-only / --all) and the
+// accept/decline/tentative response leaves.
+package event
+
+import (
+	"context"
+
+	"github.com/spf13/cobra"
+
+	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+)
+
+// serviceFunc builds the event service a leaf's RunE uses. The calendar
+// parent injects the real dialer; tests inject fakes so no leaf ever touches
+// the network.
+type serviceFunc func(context.Context) (service.EventService, error)
+
+// NewCmd returns the `calendar event` parent with every leaf attached. Each
+// leaf lives in its own file; respond.go builds the three response verbs.
+func NewCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "event",
+		Short: "Manage calendar events, including recurring ones",
+	}
+	cmd.AddCommand(newListCmd(cfg, newSvc))
+	cmd.AddCommand(newGetCmd(cfg, newSvc))
+	cmd.AddCommand(newInstancesCmd(cfg, newSvc))
+	cmd.AddCommand(newCreateCmd(cfg, newSvc))
+	cmd.AddCommand(newUpdateCmd(cfg, newSvc))
+	cmd.AddCommand(newDeleteCmd(cfg, newSvc))
+	cmd.AddCommand(newMoveCmd(cfg, newSvc))
+	for _, verb := range []string{"accept", "decline", "tentative"} {
+		cmd.AddCommand(newRespondCmd(cfg, newSvc, verb))
+	}
+	return cmd
+}
