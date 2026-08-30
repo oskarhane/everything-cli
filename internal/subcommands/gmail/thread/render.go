@@ -1,14 +1,13 @@
 package thread
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 )
 
 // listFields is the field order for thread list output; messageFields is the
@@ -34,25 +33,11 @@ func threadRow(t *gmail.Thread) map[string]any {
 func messageRow(m *gmail.Message) map[string]any {
 	return map[string]any{
 		"id":      m.Id,
-		"from":    headerValue(m, "From"),
-		"subject": headerValue(m, "Subject"),
-		"date":    headerValue(m, "Date"),
+		"from":    message.HeaderValue(m, "From"),
+		"subject": message.HeaderValue(m, "Subject"),
+		"date":    message.HeaderValue(m, "Date"),
 		"snippet": m.Snippet,
 	}
-}
-
-// headerValue returns the named payload header (case-insensitive), or "" when
-// the message carries no such header.
-func headerValue(m *gmail.Message, name string) string {
-	if m.Payload == nil {
-		return ""
-	}
-	for _, h := range m.Payload.Headers {
-		if strings.EqualFold(h.Name, name) {
-			return h.Value
-		}
-	}
-	return ""
 }
 
 // printThreads renders zero or more threads in the resolved output format.

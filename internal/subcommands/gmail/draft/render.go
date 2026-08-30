@@ -1,14 +1,13 @@
 package draft
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 )
 
 // listFields is the field order for draft list output (and the post-create /
@@ -35,26 +34,12 @@ func draftRow(d *gmail.Draft) map[string]any {
 func draftDetailRow(d *gmail.Draft) map[string]any {
 	row := draftRow(d)
 	if d.Message != nil {
-		row["from"] = headerValue(d.Message, "From")
-		row["to"] = headerValue(d.Message, "To")
-		row["subject"] = headerValue(d.Message, "Subject")
-		row["date"] = headerValue(d.Message, "Date")
+		row["from"] = message.HeaderValue(d.Message, "From")
+		row["to"] = message.HeaderValue(d.Message, "To")
+		row["subject"] = message.HeaderValue(d.Message, "Subject")
+		row["date"] = message.HeaderValue(d.Message, "Date")
 	}
 	return row
-}
-
-// headerValue returns the named payload header (case-insensitive), or "" when
-// the message carries no such header.
-func headerValue(m *gmail.Message, name string) string {
-	if m.Payload == nil {
-		return ""
-	}
-	for _, h := range m.Payload.Headers {
-		if strings.EqualFold(h.Name, name) {
-			return h.Value
-		}
-	}
-	return ""
 }
 
 // printDrafts renders zero or more drafts in the resolved output format.

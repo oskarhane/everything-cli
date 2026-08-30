@@ -34,15 +34,16 @@ func messageRow(m *gmail.Message) map[string]any {
 // headers, the fields users read a single message for.
 func detailRow(m *gmail.Message) map[string]any {
 	row := messageRow(m)
-	row["from"] = headerValue(m, "From")
-	row["subject"] = headerValue(m, "Subject")
-	row["date"] = headerValue(m, "Date")
+	row["from"] = HeaderValue(m, "From")
+	row["subject"] = HeaderValue(m, "Subject")
+	row["date"] = HeaderValue(m, "Date")
 	return row
 }
 
-// headerValue returns the named payload header (case-insensitive), or "" when
-// the message carries no such header.
-func headerValue(m *gmail.Message, name string) string {
+// HeaderValue returns the named payload header (case-insensitive), or "" when
+// the message carries no such header. Shared by the gmail render paths
+// (message, draft, thread) that surface From/Subject/Date fields.
+func HeaderValue(m *gmail.Message, name string) string {
 	if m.Payload == nil {
 		return ""
 	}
