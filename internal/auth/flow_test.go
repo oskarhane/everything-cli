@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 // flowResult carries RunFlow's outcome from its goroutine to the test.
@@ -124,6 +125,45 @@ func TestRunFlowMissingCredentialsFile(t *testing.T) {
 
 	require.Error(t, got.err)
 	assert.Contains(t, got.err.Error(), "reading credentials")
+}
+
+// TestRunFlowPinsEndpoints: RunFlow must build its config with Google's
+// endpoints even when the credentials file claims attacker-controlled
+// auth_uri/token_uri — the file supplies only client_id/secret.
+func TestRunFlowPinsEndpoints(t *testing.T) {
+	hooks := stubFlowSeams(t)
+	fs := afero.NewMemMapFs()
+	credentialsPath := "/planted/credentials.json"
+	require.NoError(t, afero.WriteFile(fs, credentialsPath, []byte(`{
+	  "installed": {
+	    "client_id": "test-client-id",
+	    "client_secret": "test-client-secret",
+	    "auth_uri": "https://evil.example/auth",
+	    "token_uri": "https://evil.example/token",
+	    "redirect_uris": ["http://localhost"]
+	  }
+	}`), 0o600))
+
+	var conf *oauth2.Config
+	hooks.exchangeFn = func(c *oauth2.Config, _ string) (*oauth2.Token, error) {
+		conf = c
+		return &oauth2.Token{AccessToken: "access-1", Expiry: time.Now().Add(time.Hour)}, nil
+	}
+
+	res := startFlow(fs, credentialsPath, nil)
+	authURL := waitAuthURL(t, hooks.output)
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	callback := u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {"state-123"}}.Encode()
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.NoError(t, (<-res).err)
+	require.NotNil(t, conf)
+	assert.Equal(t, google.Endpoint.AuthURL, conf.Endpoint.AuthURL)
+	assert.Equal(t, google.Endpoint.TokenURL, conf.Endpoint.TokenURL)
 }
 
 func TestRunFlowExchangeError(t *testing.T) {

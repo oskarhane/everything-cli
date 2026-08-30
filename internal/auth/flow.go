@@ -19,7 +19,6 @@ import (
 
 	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 // flowTimeout bounds the interactive wait for the browser callback.
@@ -98,7 +97,7 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	if err != nil {
 		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}
-	conf, err := google.ConfigFromJSON(data, withEmailScope(scopes)...)
+	conf, err := parseGoogleCredentials(data, withEmailScope(scopes)...)
 	if err != nil {
 		return nil, "", fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
 	}

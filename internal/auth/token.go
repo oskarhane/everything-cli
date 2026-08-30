@@ -7,14 +7,13 @@ import (
 	"github.com/oskarhane/google-cli/internal/config"
 	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 // credentialsConfig parses installed-app credentials JSON into an OAuth
 // config. Seam for tests, which point the endpoints at a local server.
-var credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, error) {
-	return google.ConfigFromJSON(data, scopes...)
-}
+// Production resolves to parseGoogleCredentials, which pins the endpoints to
+// Google's regardless of what the credentials file claims.
+var credentialsConfig = parseGoogleCredentials
 
 // TokenSource returns an oauth2.TokenSource for the named stored account.
 // Valid tokens are reused; expired tokens are refreshed against Google, and
