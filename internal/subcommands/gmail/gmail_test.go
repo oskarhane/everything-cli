@@ -17,5 +17,5 @@ func TestNewCmdRegistersSubtrees(t *testing.T) {
 	for _, sub := range cmd.Commands() {
 		names = append(names, sub.Name())
 	}
-	require.Equal(t, []string{"label", "message"}, names)
+	require.Equal(t, []string{"attachment", "draft", "label", "message", "thread"}, names)
 }

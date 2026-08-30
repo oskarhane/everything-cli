@@ -7,9 +7,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/attachment"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/draft"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/label"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/thread"
 )
 
 // NewCmd returns the `gmail` parent command with its subtrees attached.
@@ -24,9 +27,8 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	}
 	cmd.AddCommand(label.NewCmd(cfg, newSvc))
 	cmd.AddCommand(message.NewCmd(cfg, newSvc))
-	// Later nodes attach the remaining subtrees here:
-	//   cmd.AddCommand(thread.NewCmd(cfg, newSvc))
-	//   cmd.AddCommand(draft.NewCmd(cfg, newSvc))
-	//   cmd.AddCommand(attachment.NewCmd(cfg, newSvc))
+	cmd.AddCommand(thread.NewCmd(cfg, newSvc))
+	cmd.AddCommand(draft.NewCmd(cfg, newSvc))
+	cmd.AddCommand(attachment.NewCmd(cfg, newSvc))
 	return cmd
 }
