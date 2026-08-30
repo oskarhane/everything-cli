@@ -31,7 +31,7 @@ func (s *realGmailService) ListDrafts(ctx context.Context, maxResults int64) ([]
 	}
 	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Draft, string, error) {
 		call := s.svc.Users.Drafts.List(userID).Context(ctx).
-			MaxResults(min(remaining, maxPageSize))
+			MaxResults(remaining)
 		if page != "" {
 			call = call.PageToken(page)
 		}

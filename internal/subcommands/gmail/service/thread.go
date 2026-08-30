@@ -29,7 +29,7 @@ func (s *realGmailService) ListThreads(ctx context.Context, q string, labelIDs [
 	}
 	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Thread, string, error) {
 		call := s.svc.Users.Threads.List(userID).Context(ctx).
-			MaxResults(min(remaining, maxPageSize)).
+			MaxResults(remaining).
 			LabelIds(labelIDs...)
 		if q != "" {
 			call = call.Q(q)

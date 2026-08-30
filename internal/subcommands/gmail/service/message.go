@@ -34,7 +34,7 @@ func (s *realGmailService) ListMessages(ctx context.Context, q string, maxResult
 	}
 	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Message, string, error) {
 		call := s.svc.Users.Messages.List(userID).Context(ctx).
-			MaxResults(min(remaining, maxPageSize))
+			MaxResults(remaining)
 		if q != "" {
 			call = call.Q(q)
 		}
