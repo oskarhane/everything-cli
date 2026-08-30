@@ -10,12 +10,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newGetCmd returns `gmail attachment get`: one attachment by id, fetched by
 // its owning message (the attachment id only names a part of one message).
 // Without --out the decoded bytes go to stdout; with --out they go to a file.
-func newGetCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.AttachmentService]) *cobra.Command {
 	var (
 		messageID string
 		out       string
@@ -33,7 +34,7 @@ google-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 > report.pdf`,
 			if messageID == "" {
 				return fmt.Errorf("--message-id is required: an attachment id only names a part of one message")
 			}
-			svc, err := newAttachmentService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

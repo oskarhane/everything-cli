@@ -13,7 +13,7 @@ import (
 // event into its occurrences. The argument is the master (recurring) event
 // id; the response carries the instance ids that per-occurrence commands
 // (`update --this-only`, `delete --this-only`, `decline`) accept.
-func newInstancesCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newInstancesCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instances <master-id>",
 		Short: "List the occurrences of a recurring event",

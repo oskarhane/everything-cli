@@ -8,11 +8,12 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newAddCmd returns `calendar acl add`: share a calendar with one user. The
 // role is validated client-side so a bad value never reaches the API.
-func newAddCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newAddCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <calendar-id>",
 		Short: "Share a calendar with a user",

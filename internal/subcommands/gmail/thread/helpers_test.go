@@ -71,14 +71,14 @@ func (f *fakeService) GetThread(_ context.Context, id string) (*gmail.Thread, er
 	return nil, fmt.Errorf("googleapi: Error 404: thread %s not found", id)
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.ThreadService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeService) serviceFunc {
-	return func(context.Context) (service.GmailService, error) { return svc, nil }
+func fakeNewSvc(svc *fakeService) service.Dialer[service.ThreadService] {
+	return func(context.Context) (service.ThreadService, error) { return svc, nil }
 }
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
-func newLeafCmd(build func(*app.Config, serviceFunc) *cobra.Command, svc *fakeService, format string) *cobra.Command {
+func newLeafCmd(build func(*app.Config, service.Dialer[service.ThreadService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(newTestConfig(format), fakeNewSvc(svc))
 }
 

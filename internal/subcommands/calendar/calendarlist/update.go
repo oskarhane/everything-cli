@@ -8,13 +8,14 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newUpdateCmd returns `calendar update`: modify an existing calendar. Only
 // the flags that were set are sent, so a partial update leaves the other
 // calendar fields untouched. --summary, --description, and --timezone patch
 // the Calendar resource; --color-id patches its calendar list entry.
-func newUpdateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <calendar-id>",
 		Short: "Update a calendar",

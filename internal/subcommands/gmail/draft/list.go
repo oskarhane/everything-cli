@@ -4,10 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newListCmd returns `gmail draft list`: the stored drafts, newest first.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *cobra.Command {
 	var maxResults int64
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -19,7 +20,7 @@ google-cli gmail draft list --format json
 google-cli gmail draft list --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, err := newDraftService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

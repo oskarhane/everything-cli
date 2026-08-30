@@ -165,14 +165,14 @@ func (f *fakeEventService) MoveEvent(_ context.Context, calendarID, eventID, des
 	return &moved, nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.EventService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeEventService) serviceFunc {
+func fakeNewSvc(svc *fakeEventService) service.Dialer[service.EventService] {
 	return func(context.Context) (service.EventService, error) { return svc, nil }
 }
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
-func newLeafCmd(build func(*app.Config, serviceFunc) *cobra.Command, svc *fakeEventService, format string) *cobra.Command {
+func newLeafCmd(build func(*app.Config, service.Dialer[service.EventService]) *cobra.Command, svc *fakeEventService, format string) *cobra.Command {
 	return build(newTestConfig(format), fakeNewSvc(svc))
 }
 

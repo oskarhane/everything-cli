@@ -10,6 +10,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // updateFlags are the update write flags; at least one must be set.
@@ -20,7 +21,7 @@ var updateFlags = []string{"summary", "start", "end", "location", "description",
 // a master id modifies the whole series. --this-only (default) patches the
 // id as given; passing --this-only=false with an instance id patches the
 // derived master id instead, i.e. the whole series.
-func newUpdateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <event-id>",
 		Short: "Update an event (one occurrence or the series)",

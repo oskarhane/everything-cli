@@ -29,21 +29,6 @@ type QueryFreeBusyParams struct {
 	CalendarIDs []string
 }
 
-// AsFreeBusyService adapts the CalendarService returned by New into a
-// FreeBusyService. The concrete service implements both interfaces; the
-// adapter exists so the calendar parent can hand the freebusy leaf a dialer
-// without leaking the concrete type.
-func AsFreeBusyService(svc CalendarService, err error) (FreeBusyService, error) {
-	if err != nil {
-		return nil, err
-	}
-	fb, ok := svc.(FreeBusyService)
-	if !ok {
-		return nil, fmt.Errorf("calendar service does not implement the freebusy API")
-	}
-	return fb, nil
-}
-
 // QueryFreeBusy implements FreeBusyService. It always sends TimeMin, TimeMax,
 // and at least one item: the API rejects an empty request.
 func (s *realCalendarService) QueryFreeBusy(ctx context.Context, p QueryFreeBusyParams) (*calendar.FreeBusyResponse, error) {

@@ -9,13 +9,14 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newSendCmd returns `gmail message send`: compose and send a message. The
 // body comes from exactly one of --body or --body-file; attachments are read
 // from disk and carried as base64 multipart parts. The MIME composition is
 // the shared BuildMIME pipeline the draft leaves use too.
-func newSendCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newSendCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	var (
 		to          string
 		cc          string
@@ -48,7 +49,7 @@ google-cli gmail message send --to a@example.com,b@example.com --subject "Report
 			if err != nil {
 				return err
 			}
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

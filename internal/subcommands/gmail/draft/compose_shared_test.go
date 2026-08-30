@@ -75,9 +75,10 @@ func (f *composeSpy) ModifyMessage(context.Context, string, *gmail.ModifyMessage
 func TestDraftAndSendShareMIMEPipeline(t *testing.T) {
 	cfg := newTestConfig("json")
 	spy := &composeSpy{}
-	newSpy := func(context.Context) (service.GmailService, error) { return spy, nil }
+	newDraftSvc := func(context.Context) (service.DraftService, error) { return spy, nil }
+	newMessageSvc := func(context.Context) (service.MessageService, error) { return spy, nil }
 
-	create := newCreateCmd(cfg, newSpy)
+	create := newCreateCmd(cfg, newDraftSvc)
 	create.SetArgs([]string{
 		"--to", "alice@example.com, bob@example.com",
 		"--subject", "Lunch",
@@ -85,7 +86,7 @@ func TestDraftAndSendShareMIMEPipeline(t *testing.T) {
 	})
 	require.NoError(t, create.Execute())
 
-	send := message.NewCmd(cfg, newSpy)
+	send := message.NewCmd(cfg, newMessageSvc)
 	send.SetArgs([]string{
 		"send",
 		"--to", "alice@example.com, bob@example.com",

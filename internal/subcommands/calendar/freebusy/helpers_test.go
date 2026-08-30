@@ -71,9 +71,9 @@ func (f *fakeFreeBusyService) QueryFreeBusy(_ context.Context, params service.Qu
 	return f.resp, nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so the leaf runs
+// fakeNewSvc returns a service.Dialer[service.FreeBusyService] handing out svc, so the leaf runs
 // hermetically with no network and no real account store.
-func fakeNewSvc(svc *fakeFreeBusyService) serviceFunc {
+func fakeNewSvc(svc *fakeFreeBusyService) service.Dialer[service.FreeBusyService] {
 	return func(context.Context) (service.FreeBusyService, error) { return svc, nil }
 }
 

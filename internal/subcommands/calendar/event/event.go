@@ -4,22 +4,15 @@
 package event
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
-// serviceFunc builds the event service a leaf's RunE uses. The calendar
-// parent injects the real dialer; tests inject fakes so no leaf ever touches
-// the network.
-type serviceFunc func(context.Context) (service.EventService, error)
-
 // NewCmd returns the `calendar event` parent with every leaf attached. Each
 // leaf lives in its own file; respond.go builds the three response verbs.
-func NewCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func NewCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "event",
 		Short: "Manage calendar events, including recurring ones",

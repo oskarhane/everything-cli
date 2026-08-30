@@ -4,12 +4,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newGetCmd returns `calendar event get`: one event by id. The id may be a
 // master id (whole series) or an instance id (`<masterId>_<UTC start>`);
 // resolve instance ids via `calendar event list` or `event instances`.
-func newGetCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <event-id>",
 		Short: "Show an event by id (master or instance)",

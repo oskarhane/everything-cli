@@ -6,12 +6,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newDeleteCmd returns `calendar delete`: remove a calendar. Deleting is
 // destructive and removes every event on the calendar, so it refuses to run
 // without --force.
-func newDeleteCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	var force bool
 	cmd := &cobra.Command{
 		Use:   "delete <calendar-id>",

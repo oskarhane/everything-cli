@@ -8,6 +8,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // respondVerbs maps each response leaf to its attendees[].responseStatus
@@ -24,7 +25,7 @@ var respondVerbs = map[string]string{
 // An instance id responds to that one occurrence only (creating an
 // exception); a master id, or --all with an instance id, responds for the
 // whole series.
-func newRespondCmd(cfg *app.Config, newSvc serviceFunc, verb string) *cobra.Command {
+func newRespondCmd(cfg *app.Config, newSvc service.Dialer[service.EventService], verb string) *cobra.Command {
 	status := respondVerbs[verb]
 	cmd := &cobra.Command{
 		Use:   verb + " <event-id>",

@@ -6,11 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newDeleteCmd returns `gmail draft delete`: permanently remove a draft.
 // Permanent deletion cannot be undone, so it refuses to run without --force.
-func newDeleteCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.DraftService]) *cobra.Command {
 	var force bool
 	cmd := &cobra.Command{
 		Use:   "delete <id>",
@@ -25,7 +26,7 @@ google-cli gmail draft delete draft_19c2a4b7 --force`,
 			if !force {
 				return fmt.Errorf("refusing to permanently delete draft %q without --force (this cannot be undone)", args[0])
 			}
-			svc, err := newDraftService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

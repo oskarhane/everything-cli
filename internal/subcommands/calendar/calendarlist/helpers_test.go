@@ -118,14 +118,14 @@ func (f *fakeService) DeleteAcl(context.Context, string, string) error {
 	return nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.CalendarService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeService) serviceFunc {
+func fakeNewSvc(svc *fakeService) service.Dialer[service.CalendarService] {
 	return func(context.Context) (service.CalendarService, error) { return svc, nil }
 }
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
-func newLeafCmd(build func(*app.Config, serviceFunc) *cobra.Command, svc *fakeService, format string) *cobra.Command {
+func newLeafCmd(build func(*app.Config, service.Dialer[service.CalendarService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(newTestConfig(format), fakeNewSvc(svc))
 }
 

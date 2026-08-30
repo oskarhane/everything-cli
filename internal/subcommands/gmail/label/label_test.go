@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
@@ -25,7 +26,7 @@ func TestLeavesHaveExamples(t *testing.T) {
 	// invocations, and reads need a --format json one.
 	tests := []struct {
 		name  string
-		build func(*app.Config, serviceFunc) *cobra.Command
+		build func(*app.Config, service.Dialer[service.GmailService]) *cobra.Command
 		json  bool // read leaf: example must include --format json
 	}{
 		{"list", newListCmd, true},

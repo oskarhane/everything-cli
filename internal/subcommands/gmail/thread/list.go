@@ -5,12 +5,13 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newListCmd returns `gmail thread list`: threads matching a Gmail search
 // query, with --label-ids narrowing results to threads whose messages carry
 // the labels.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.ThreadService]) *cobra.Command {
 	var (
 		query      string
 		labelIDs   string
@@ -26,7 +27,7 @@ google-cli gmail thread list --format json
 google-cli gmail thread list --query "subject:invoice" --label-ids Label_7 --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, err := newThreadService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

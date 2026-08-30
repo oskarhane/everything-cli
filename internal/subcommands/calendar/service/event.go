@@ -49,21 +49,6 @@ type ListInstancesParams struct {
 	MaxResults int64
 }
 
-// AsEventService adapts the CalendarService returned by New into an
-// EventService. The concrete service implements both interfaces; the adapter
-// exists so the calendar parent can hand the event subtree a dialer without
-// leaking the concrete type.
-func AsEventService(svc CalendarService, err error) (EventService, error) {
-	if err != nil {
-		return nil, err
-	}
-	es, ok := svc.(EventService)
-	if !ok {
-		return nil, fmt.Errorf("calendar service does not implement the events API")
-	}
-	return es, nil
-}
-
 // ListEvents implements EventService. Empty params are left unset so the
 // request never carries e.g. an empty timeMin, which the API rejects.
 func (s *realCalendarService) ListEvents(ctx context.Context, p ListEventsParams) ([]*calendar.Event, error) {

@@ -10,13 +10,14 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newCreateCmd returns `gmail draft create`: compose a message and store it
 // as a draft without sending. The body comes from exactly one of --body or
 // --body-file; the raw message goes through the same shared BuildMIME
 // pipeline `gmail message send` uses.
-func newCreateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *cobra.Command {
 	var (
 		to       string
 		subject  string
@@ -46,7 +47,7 @@ google-cli gmail draft create --to a@example.com,b@example.com --subject "Report
 			if err != nil {
 				return err
 			}
-			svc, err := newDraftService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

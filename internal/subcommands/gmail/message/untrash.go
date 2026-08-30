@@ -6,11 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newUntrashCmd returns `gmail message untrash`: restore a trashed message to
 // the mailbox.
-func newUntrashCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newUntrashCmd(_ *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "untrash <id>",
 		Short: "Restore a Gmail message from trash",
@@ -21,7 +22,7 @@ google-cli gmail message untrash 19c2a4b7
 google-cli gmail message untrash 19c2a4b7 --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

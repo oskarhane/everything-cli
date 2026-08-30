@@ -6,10 +6,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newRemoveCmd returns `calendar acl remove`: revoke one sharing rule.
-func newRemoveCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newRemoveCmd(_ *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <calendar-id>",
 		Short: "Revoke a calendar sharing rule",

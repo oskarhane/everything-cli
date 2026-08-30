@@ -6,12 +6,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newMoveCmd returns `calendar event move`: move an event between
 // calendars. Works for master and instance ids; moving an instance moves
 // only that occurrence.
-func newMoveCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newMoveCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "move <event-id>",
 		Short: "Move an event to another calendar",

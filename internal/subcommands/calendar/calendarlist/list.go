@@ -4,11 +4,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newListCmd returns `calendar list`: every calendar on the account's
 // calendar list.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List calendars",

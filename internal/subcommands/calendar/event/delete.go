@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newDeleteCmd returns `calendar event delete`. Deleting an instance id
@@ -14,7 +15,7 @@ import (
 // destructive, so --force is required and the refusal names the scope.
 // --this-only (default) targets the given id; --this-only=false with an
 // instance id deletes its master instead, i.e. the whole series.
-func newDeleteCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <event-id>",
 		Short: "Delete an event: one occurrence or a whole series",

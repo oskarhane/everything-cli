@@ -6,12 +6,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newDeleteCmd returns `gmail label delete`: remove a label. Deleting is
 // destructive and removes the label from every message, so it refuses to run
 // without --force.
-func newDeleteCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.GmailService]) *cobra.Command {
 	var force bool
 	cmd := &cobra.Command{
 		Use:   "delete <id>",

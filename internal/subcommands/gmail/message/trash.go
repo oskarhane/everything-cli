@@ -6,11 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newTrashCmd returns `gmail message trash`: move a message to TRASH. Trashing
 // is recoverable (see untrash), unlike delete.
-func newTrashCmd(_ *app.Config, newSvc serviceFunc) *cobra.Command {
+func newTrashCmd(_ *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "trash <id>",
 		Short: "Move a Gmail message to trash",
@@ -21,7 +22,7 @@ google-cli gmail message trash 19c2a4b7
 google-cli gmail message trash 19c2a4b7 --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

@@ -6,10 +6,11 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newCreateCmd returns `gmail label create`: a new label.
-func newCreateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a Gmail label",

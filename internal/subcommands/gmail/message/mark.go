@@ -9,11 +9,12 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newMarkCmd returns `gmail message mark`: flip read/unread and starred state
 // by adding or removing the UNSEEN and STARRED labels.
-func newMarkCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newMarkCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	var read, unread, starred, unstarred bool
 	cmd := &cobra.Command{
 		Use:   "mark <id>",
@@ -32,7 +33,7 @@ google-cli gmail message mark 19c2a4b7 --unstarred`,
 			if err != nil {
 				return err
 			}
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

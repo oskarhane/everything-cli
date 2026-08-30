@@ -6,11 +6,12 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newListCmd returns `gmail message list`: messages matching a Gmail search
 // query, composed client-side from --query, --label-ids, and --unread-only.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	var (
 		query      string
 		labelIDs   string
@@ -27,7 +28,7 @@ google-cli gmail message list --query "label:INBOX" --format json
 google-cli gmail message list --label-ids Label_7 --unread-only --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

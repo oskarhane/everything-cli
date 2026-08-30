@@ -6,12 +6,13 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newCreateCmd returns `calendar create`: a new secondary calendar. When
 // --color-id is set the created calendar's list entry is patched, because
 // colorId lives on the calendar list entry, not the Calendar resource.
-func newCreateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <summary>",
 		Short: "Create a calendar",

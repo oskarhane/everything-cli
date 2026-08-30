@@ -3,7 +3,6 @@
 package freebusy
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"sort"
@@ -19,11 +18,6 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
-// serviceFunc builds the freebusy service a leaf's RunE uses. The calendar
-// parent injects the real dialer; tests inject fakes so the leaf never
-// touches the network.
-type serviceFunc func(context.Context) (service.FreeBusyService, error)
-
 // nowFunc is the clock seam: tests pin it so the default window
 // (now .. now+1d) is deterministic.
 var nowFunc = time.Now
@@ -35,7 +29,7 @@ var busyFields = []string{"calendar_id", "start", "end"}
 
 // NewCmd returns `calendar freebusy`. Calendars default to every entry on
 // the account's calendar list; --calendar picks explicit ones (repeatable).
-func NewCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func NewCmd(cfg *app.Config, newSvc service.Dialer[service.FreeBusyService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "freebusy",
 		Short: "List busy time intervals for one or all calendars",

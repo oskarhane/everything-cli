@@ -13,7 +13,7 @@ import (
 )
 
 // newGetCmd returns `gmail label get`: one label by id or name.
-func newGetCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <id-or-name>",
 		Short: "Show a Gmail label by id or name",

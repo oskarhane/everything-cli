@@ -118,14 +118,14 @@ func (f *fakeService) ModifyMessage(_ context.Context, id string, req *gmail.Mod
 	return &gmail.Message{Id: id, ThreadId: "thread_1", Snippet: "Invoice attached", LabelIds: []string{"INBOX", "STARRED"}}, nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.MessageService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeService) serviceFunc {
-	return func(context.Context) (service.GmailService, error) { return svc, nil }
+func fakeNewSvc(svc *fakeService) service.Dialer[service.MessageService] {
+	return func(context.Context) (service.MessageService, error) { return svc, nil }
 }
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
-func newLeafCmd(build func(*app.Config, serviceFunc) *cobra.Command, svc *fakeService, format string) *cobra.Command {
+func newLeafCmd(build func(*app.Config, service.Dialer[service.MessageService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(newTestConfig(format), fakeNewSvc(svc))
 }
 

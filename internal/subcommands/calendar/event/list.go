@@ -20,7 +20,7 @@ var recurringModes = map[string]bool{"instances": true, "masters": true, "all": 
 // singleEvents=true; masters returns the raw list (masters, single events,
 // and existing exceptions); all merges both calls. Expansion is always
 // bounded by timeMax so unbounded RRULEs cannot page forever.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List events, expanding or hiding recurring series",

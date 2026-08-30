@@ -103,14 +103,14 @@ func (f *fakeService) DeleteDraft(_ context.Context, id string) error {
 	return nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.DraftService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeService) serviceFunc {
-	return func(context.Context) (service.GmailService, error) { return svc, nil }
+func fakeNewSvc(svc *fakeService) service.Dialer[service.DraftService] {
+	return func(context.Context) (service.DraftService, error) { return svc, nil }
 }
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
-func newLeafCmd(build func(*app.Config, serviceFunc) *cobra.Command, svc *fakeService, format string) *cobra.Command {
+func newLeafCmd(build func(*app.Config, service.Dialer[service.DraftService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(newTestConfig(format), fakeNewSvc(svc))
 }
 

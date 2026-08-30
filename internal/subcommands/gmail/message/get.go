@@ -8,12 +8,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newGetCmd returns `gmail message get`: one message by id. The default view
 // shows the parsed payload headers; --raw prints the decoded RFC 2822 message
 // as plain text, ignoring --format.
-func newGetCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	var raw bool
 	cmd := &cobra.Command{
 		Use:   "get <id>",
@@ -28,7 +29,7 @@ google-cli gmail message get 19c2a4b7 --raw
 google-cli gmail message get 19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			svc, err := newMessageService(cmd.Context(), newSvc)
+			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
 			}

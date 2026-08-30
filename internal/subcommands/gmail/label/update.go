@@ -8,12 +8,13 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newUpdateCmd returns `gmail label update`: modify an existing label. Only
 // the flags that were set are sent, so a partial update leaves the other
 // label fields untouched.
-func newUpdateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update <id>",
 		Short: "Update a Gmail label",

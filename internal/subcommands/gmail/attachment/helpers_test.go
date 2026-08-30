@@ -61,10 +61,10 @@ func (f *fakeService) GetAttachment(_ context.Context, messageID, attachmentID s
 	}, nil
 }
 
-// fakeNewSvc returns a serviceFunc handing out svc, so leaves run hermeti-
+// fakeNewSvc returns a service.Dialer[service.AttachmentService] handing out svc, so leaves run hermeti-
 // cally with no network and no real account store.
-func fakeNewSvc(svc *fakeService) serviceFunc {
-	return func(context.Context) (service.GmailService, error) { return svc, nil }
+func fakeNewSvc(svc *fakeService) service.Dialer[service.AttachmentService] {
+	return func(context.Context) (service.AttachmentService, error) { return svc, nil }
 }
 
 // runCmd executes a leaf cmd with its positional args and flags, returning

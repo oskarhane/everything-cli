@@ -4,10 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newListCmd returns `gmail label list`: every label on the account.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
 		Short: "List Gmail labels",

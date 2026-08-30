@@ -10,12 +10,13 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newCreateCmd returns `calendar event create`. --recurrence takes raw
 // RRULE:/RDATE:/EXDATE: values and forwards them verbatim into the event's
 // recurrence lines; --all-day switches --start/--end to YYYY-MM-DD dates.
-func newCreateCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an event",

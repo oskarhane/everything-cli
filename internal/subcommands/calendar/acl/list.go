@@ -4,10 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newListCmd returns `calendar acl list`: the sharing rules of one calendar.
-func newListCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newListCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list <calendar-id>",
 		Short: "List a calendar's sharing rules",

@@ -4,12 +4,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
 // newGetCmd returns `calendar get`: one calendar by id. The Calendar
 // resource carries id, summary, description, and timezone; its color_id
 // lives on the calendar list entry, so get also fetches that entry.
-func newGetCmd(cfg *app.Config, newSvc serviceFunc) *cobra.Command {
+func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) *cobra.Command {
 	return &cobra.Command{
 		Use:   "get <calendar-id>",
 		Short: "Show a calendar by id",

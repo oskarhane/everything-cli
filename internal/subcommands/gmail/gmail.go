@@ -25,10 +25,20 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	newSvc := func(ctx context.Context) (service.GmailService, error) {
 		return dial(ctx, cfg)
 	}
+	// The concrete service implements every gmail interface; As narrows the
+	// shared seam to each subtree's own surface.
 	cmd.AddCommand(label.NewCmd(cfg, newSvc))
-	cmd.AddCommand(message.NewCmd(cfg, newSvc))
-	cmd.AddCommand(thread.NewCmd(cfg, newSvc))
-	cmd.AddCommand(draft.NewCmd(cfg, newSvc))
-	cmd.AddCommand(attachment.NewCmd(cfg, newSvc))
+	cmd.AddCommand(message.NewCmd(cfg, func(ctx context.Context) (service.MessageService, error) {
+		return service.As[service.MessageService](newSvc(ctx))
+	}))
+	cmd.AddCommand(thread.NewCmd(cfg, func(ctx context.Context) (service.ThreadService, error) {
+		return service.As[service.ThreadService](newSvc(ctx))
+	}))
+	cmd.AddCommand(draft.NewCmd(cfg, func(ctx context.Context) (service.DraftService, error) {
+		return service.As[service.DraftService](newSvc(ctx))
+	}))
+	cmd.AddCommand(attachment.NewCmd(cfg, func(ctx context.Context) (service.AttachmentService, error) {
+		return service.As[service.AttachmentService](newSvc(ctx))
+	}))
 	return cmd
 }

@@ -29,10 +29,10 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(calendarlist.NewLeaves(cfg, newSvc)...)
 	cmd.AddCommand(acl.NewCmd(cfg, newSvc))
 	cmd.AddCommand(event.NewCmd(cfg, func(ctx context.Context) (service.EventService, error) {
-		return service.AsEventService(dial(ctx, cfg))
+		return service.As[service.EventService](dial(ctx, cfg))
 	}))
 	cmd.AddCommand(freebusy.NewCmd(cfg, func(ctx context.Context) (service.FreeBusyService, error) {
-		return service.AsFreeBusyService(dial(ctx, cfg))
+		return service.As[service.FreeBusyService](dial(ctx, cfg))
 	}))
 	return cmd
 }
