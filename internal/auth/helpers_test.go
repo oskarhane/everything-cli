@@ -71,7 +71,7 @@ func (b *syncBuffer) String() string {
 // hermetic defaults: no browser, fixed state, and stubbed exchange/userinfo.
 type flowHooks struct {
 	output     *syncBuffer
-	exchangeFn func(conf *oauth2.Config, code string) (*oauth2.Token, error)
+	exchangeFn func(conf *oauth2.Config, code, verifier string) (*oauth2.Token, error)
 	emailFn    func(tok *oauth2.Token) (string, error)
 }
 
@@ -79,10 +79,12 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	t.Helper()
 	h := &flowHooks{output: &syncBuffer{}}
 	savedOutput, savedBrowser, savedListen, savedState := flowOutput, openBrowser, listenLoopback, newState
-	savedExchange, savedEmail := exchangeCode, fetchEmail
+	savedExchange, savedEmail, savedCreds := exchangeCode, fetchEmail, credentialsConfig
+	savedRandRead := randRead
 	t.Cleanup(func() {
 		flowOutput, openBrowser, listenLoopback, newState = savedOutput, savedBrowser, savedListen, savedState
-		exchangeCode, fetchEmail = savedExchange, savedEmail
+		exchangeCode, fetchEmail, credentialsConfig = savedExchange, savedEmail, savedCreds
+		randRead = savedRandRead
 	})
 
 	flowOutput = h.output
@@ -90,10 +92,10 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	listenLoopback = func() (net.Listener, error) {
 		return net.Listen("tcp", "127.0.0.1:0")
 	}
-	newState = func() string { return "state-123" }
-	exchangeCode = func(_ context.Context, conf *oauth2.Config, code string) (*oauth2.Token, error) {
+	newState = func() (string, error) { return "state-123", nil }
+	exchangeCode = func(_ context.Context, conf *oauth2.Config, code, verifier string) (*oauth2.Token, error) {
 		if h.exchangeFn != nil {
-			return h.exchangeFn(conf, code)
+			return h.exchangeFn(conf, code, verifier)
 		}
 		return &oauth2.Token{
 			AccessToken:  "access-1",

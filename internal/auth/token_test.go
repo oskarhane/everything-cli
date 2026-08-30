@@ -139,3 +139,67 @@ func TestTokenSourceMissingCredentialsFile(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "reading credentials")
 }
+
+// TestTokenSourceIdentityMismatch: an account file whose "name" field
+// disagrees with the name it is stored under must be refused loudly.
+func TestTokenSourceIdentityMismatch(t *testing.T) {
+	stubTokenEndpoint(t)
+	fs := afero.NewMemMapFs()
+	store, err := config.NewStore(fs, "/config")
+	require.NoError(t, err)
+	require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
+		`{"name":"personal","email":"user@example.com","scopes":["scope-a"]}`), 0o600))
+
+	_, err = TokenSource(fs, store, "/config/credentials.json", "work")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `account file "work" contains name "personal"`)
+	assert.Contains(t, err.Error(), "corrupted or copied from another account")
+}
+
+// TestTokenSourceRefreshTimesOut: a token endpoint that never answers must
+// fail the refresh within the refresh deadline, not hang forever.
+func TestTokenSourceRefreshTimesOut(t *testing.T) {
+	unblock := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-unblock
+	}))
+	t.Cleanup(srv.Close)
+	// Cleanups run LIFO: release the hung handler before the server closes.
+	t.Cleanup(func() { close(unblock) })
+
+	savedTimeout := refreshTimeout
+	refreshTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { refreshTimeout = savedTimeout })
+	savedCreds := credentialsConfig
+	t.Cleanup(func() { credentialsConfig = savedCreds })
+	credentialsConfig = func([]byte, ...string) (*oauth2.Config, error) {
+		return &oauth2.Config{
+			ClientID:     "test-client-id",
+			ClientSecret: "test-client-secret",
+			Endpoint:     oauth2.Endpoint{TokenURL: srv.URL + "/token"},
+		}, nil
+	}
+
+	store := newTestStore(t)
+	saveAccountWithToken(t, store, &oauth2.Token{
+		AccessToken:  "old-access",
+		RefreshToken: "old-refresh",
+		TokenType:    "Bearer",
+		Expiry:       time.Now().Add(-time.Hour), // expired: forces refresh
+	})
+	fs, credentialsPath := writeCredentialsFile(t)
+	ts, err := TokenSource(fs, store, credentialsPath, "work")
+	require.NoError(t, err)
+
+	done := make(chan error, 1)
+	go func() { _, err := ts.Token(); done <- err }()
+
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "refreshing token for account")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the refresh did not time out on a hung token endpoint")
+	}
+}

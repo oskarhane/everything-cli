@@ -11,6 +11,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"golang.org/x/oauth2"
 	calendar "google.golang.org/api/calendar/v3"
@@ -36,9 +38,14 @@ type CalendarService interface {
 	DeleteAcl(ctx context.Context, calendarID string, ruleID string) error
 }
 
+// apiTimeout bounds each Calendar API call so a hung endpoint cannot stall a
+// command indefinitely.
+const apiTimeout = 120 * time.Second
+
 // New returns a CalendarService bound to ts.
 func New(ctx context.Context, ts oauth2.TokenSource) (CalendarService, error) {
-	svc, err := calendar.NewService(ctx, option.WithTokenSource(ts))
+	client := &http.Client{Timeout: apiTimeout}
+	svc, err := calendar.NewService(ctx, option.WithTokenSource(ts), option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("creating calendar service: %w", err)
 	}

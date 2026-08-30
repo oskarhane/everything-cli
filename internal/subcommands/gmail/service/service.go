@@ -10,6 +10,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"golang.org/x/oauth2"
 	gmail "google.golang.org/api/gmail/v1"
@@ -29,9 +31,14 @@ type GmailService interface {
 	DeleteLabel(ctx context.Context, id string) error
 }
 
+// apiTimeout bounds each Gmail API call so a hung endpoint cannot stall a
+// command indefinitely.
+const apiTimeout = 120 * time.Second
+
 // New returns a GmailService bound to ts.
 func New(ctx context.Context, ts oauth2.TokenSource) (GmailService, error) {
-	svc, err := gmail.NewService(ctx, option.WithTokenSource(ts))
+	client := &http.Client{Timeout: apiTimeout}
+	svc, err := gmail.NewService(ctx, option.WithTokenSource(ts), option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("creating gmail service: %w", err)
 	}

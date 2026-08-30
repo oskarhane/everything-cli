@@ -1,9 +1,14 @@
 package auth
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
@@ -39,13 +44,14 @@ func TestRunFlow(t *testing.T) {
 	fs, credentialsPath := writeCredentialsFile(t)
 
 	var mu sync.Mutex
-	var gotCode, gotRedirect string
+	var gotCode, gotRedirect, gotVerifier string
 	var gotScopes []string
 	var gotToken *oauth2.Token
-	hooks.exchangeFn = func(conf *oauth2.Config, code string) (*oauth2.Token, error) {
+	hooks.exchangeFn = func(conf *oauth2.Config, code, verifier string) (*oauth2.Token, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		gotCode, gotRedirect, gotScopes = code, conf.RedirectURL, conf.Scopes
+		gotVerifier = verifier
 		return &oauth2.Token{
 			AccessToken:  "access-1",
 			RefreshToken: "refresh-1",
@@ -67,6 +73,9 @@ func TestRunFlow(t *testing.T) {
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
 	assert.Equal(t, "state-123", u.Query().Get("state"), "flow must pin a CSRF state")
+	assert.Equal(t, "S256", u.Query().Get("code_challenge_method"), "PKCE must use S256")
+	gotChallenge := u.Query().Get("code_challenge")
+	require.Len(t, gotChallenge, 43, "S256 challenge is 43 base64url chars")
 	assert.Contains(t, u.Query().Get("scope"), "userinfo.email",
 		"userinfo.email is auto-appended so the email can be resolved")
 	redirect := u.Query().Get("redirect_uri")
@@ -94,6 +103,11 @@ func TestRunFlow(t *testing.T) {
 	assert.Equal(t, redirect, gotRedirect, "exchange must use the loopback redirect URI")
 	assert.Contains(t, gotScopes, "scope-a")
 	assert.NotNil(t, gotToken, "userinfo must be called with the exchanged token")
+	// The PKCE verifier presented at the token endpoint must match the
+	// challenge carried on the auth URL.
+	sum := sha256.Sum256([]byte(gotVerifier))
+	assert.Equal(t, gotChallenge, base64.RawURLEncoding.EncodeToString(sum[:]),
+		"exchanged verifier must hash to the auth-URL code_challenge")
 }
 
 func TestRunFlowStateMismatch(t *testing.T) {
@@ -145,7 +159,7 @@ func TestRunFlowPinsEndpoints(t *testing.T) {
 	}`), 0o600))
 
 	var conf *oauth2.Config
-	hooks.exchangeFn = func(c *oauth2.Config, _ string) (*oauth2.Token, error) {
+	hooks.exchangeFn = func(c *oauth2.Config, _ string, _ string) (*oauth2.Token, error) {
 		conf = c
 		return &oauth2.Token{AccessToken: "access-1", Expiry: time.Now().Add(time.Hour)}, nil
 	}
@@ -169,7 +183,7 @@ func TestRunFlowPinsEndpoints(t *testing.T) {
 func TestRunFlowExchangeError(t *testing.T) {
 	hooks := stubFlowSeams(t)
 	fs, credentialsPath := writeCredentialsFile(t)
-	hooks.exchangeFn = func(*oauth2.Config, string) (*oauth2.Token, error) {
+	hooks.exchangeFn = func(*oauth2.Config, string, string) (*oauth2.Token, error) {
 		return nil, errors.New("bad code")
 	}
 
@@ -229,6 +243,166 @@ func TestRunFlowPrintsURLWhenBrowserUnavailable(t *testing.T) {
 	assert.Contains(t, hooks.output.String(), "open the URL above manually",
 		"the printed URL is the fallback when no browser can be opened")
 	assert.Contains(t, hooks.output.String(), authURL)
+}
+
+// TestNewStateFailsClosed: when randomness is unavailable, state generation
+// must fail and RunFlow must abort — never fall back to a predictable state.
+func TestNewStateFailsClosed(t *testing.T) {
+	savedRand := randRead
+	t.Cleanup(func() { randRead = savedRand })
+	randRead = func([]byte) (int, error) { return 0, errors.New("entropy exhausted") }
+
+	_, err := newState()
+	require.Error(t, err)
+
+	hooks := stubFlowSeams(t)
+	newState = func() (string, error) { return "", errors.New("entropy exhausted") }
+	fs, credentialsPath := writeCredentialsFile(t)
+
+	got := <-startFlow(fs, credentialsPath, nil)
+
+	require.Error(t, got.err)
+	assert.Contains(t, got.err.Error(), "entropy exhausted")
+	assert.Nil(t, got.token)
+	assert.NotRegexp(t, authURLPattern, hooks.output.String(),
+		"no authorization URL may be printed when state generation fails")
+}
+
+// TestRunFlowAppliesDeadlines: the code exchange and userinfo fetch contexts
+// must each carry a deadline, so hung endpoints cannot stall the flow.
+func TestRunFlowAppliesDeadlines(t *testing.T) {
+	hooks := stubFlowSeams(t)
+	fs, credentialsPath := writeCredentialsFile(t)
+
+	var mu sync.Mutex
+	var exDeadline, emDeadline bool
+	exchangeCode = func(ctx context.Context, _ *oauth2.Config, _ string, _ string) (*oauth2.Token, error) {
+		d, ok := ctx.Deadline()
+		mu.Lock()
+		exDeadline = ok && d.After(time.Now())
+		mu.Unlock()
+		return &oauth2.Token{AccessToken: "access-1", Expiry: time.Now().Add(time.Hour)}, nil
+	}
+	fetchEmail = func(ctx context.Context, _ *oauth2.Token) (string, error) {
+		d, ok := ctx.Deadline()
+		mu.Lock()
+		emDeadline = ok && d.After(time.Now())
+		mu.Unlock()
+		return "user@example.com", nil
+	}
+
+	res := startFlow(fs, credentialsPath, nil)
+	authURL := waitAuthURL(t, hooks.output)
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	callback := u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {"state-123"}}.Encode()
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.NoError(t, (<-res).err)
+	mu.Lock()
+	defer mu.Unlock()
+	assert.True(t, exDeadline, "the exchange context must carry a deadline")
+	assert.True(t, emDeadline, "the userinfo context must carry a deadline")
+}
+
+// TestRunFlowExchangeTimesOut: a token endpoint that never answers must fail
+// the flow within the exchange deadline, not hang forever.
+func TestRunFlowExchangeTimesOut(t *testing.T) {
+	hooks := stubFlowSeams(t)
+	savedTimeout := networkTimeout
+	networkTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { networkTimeout = savedTimeout })
+
+	fs, credentialsPath := writeCredentialsFile(t)
+	exchangeCode = func(ctx context.Context, _ *oauth2.Config, _, _ string) (*oauth2.Token, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	res := startFlow(fs, credentialsPath, nil)
+	authURL := waitAuthURL(t, hooks.output)
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	callback := u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {"state-123"}}.Encode()
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	select {
+	case got := <-res:
+		require.Error(t, got.err)
+		assert.Contains(t, got.err.Error(), "exchanging authorization code")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the flow did not abort on a hung token endpoint")
+	}
+}
+
+// TestRunFlowPKCEOnTheWire drives the real exchangeCode (with its
+// code_verifier auth option) against a local token endpoint, proving the
+// verifier presented on the wire hashes to the auth-URL code_challenge.
+func TestRunFlowPKCEOnTheWire(t *testing.T) {
+	savedCreds, savedOutput, savedBrowser, savedEmail, savedState := credentialsConfig, flowOutput, openBrowser, fetchEmail, newState
+	t.Cleanup(func() {
+		credentialsConfig, flowOutput, openBrowser, fetchEmail, newState = savedCreds, savedOutput, savedBrowser, savedEmail, savedState
+	})
+
+	var mu sync.Mutex
+	var forms []url.Values
+	tokSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		mu.Lock()
+		forms = append(forms, r.PostForm)
+		mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"access_token":"access-1","refresh_token":"refresh-1","token_type":"Bearer","expires_in":3600}`)
+	}))
+	t.Cleanup(tokSrv.Close)
+
+	credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, error) {
+		c, err := parseGoogleCredentials(data, scopes...)
+		if err != nil {
+			return nil, err
+		}
+		c.Endpoint = oauth2.Endpoint{AuthURL: tokSrv.URL + "/auth", TokenURL: tokSrv.URL + "/token"}
+		return c, nil
+	}
+	out := &syncBuffer{}
+	flowOutput = out
+	openBrowser = func(string) error { return nil }
+	newState = func() (string, error) { return "wire-state", nil }
+	fetchEmail = func(_ context.Context, _ *oauth2.Token) (string, error) { return "user@example.com", nil }
+
+	fs, credentialsPath := writeCredentialsFile(t)
+	res := startFlow(fs, credentialsPath, nil)
+
+	authURL := waitAuthURL(t, out)
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	callback := u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {"wire-state"}}.Encode()
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	require.NoError(t, (<-res).err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, forms, 1, "exactly one token request")
+	form := forms[0]
+	verifier := form.Get("code_verifier")
+	require.Len(t, verifier, 128, "the verifier is 64 entropy bytes hex-encoded")
+	sum := sha256.Sum256([]byte(verifier))
+	assert.Equal(t, u.Query().Get("code_challenge"), base64.RawURLEncoding.EncodeToString(sum[:]),
+		"the on-the-wire verifier must hash to the auth-URL code_challenge")
+	assert.Equal(t, "test-code", form.Get("code"))
 }
 
 func TestWithEmailScope(t *testing.T) {

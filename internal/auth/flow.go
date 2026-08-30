@@ -5,6 +5,8 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -23,6 +25,11 @@ import (
 
 // flowTimeout bounds the interactive wait for the browser callback.
 const flowTimeout = 5 * time.Minute
+
+// networkTimeout bounds each network round trip the flow makes (the code
+// exchange and the userinfo fetch) so a hung endpoint cannot stall the CLI
+// indefinitely. Var so tests can shrink it.
+var networkTimeout = 60 * time.Second
 
 // userinfoURL resolves the account email after the flow.
 const userinfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
@@ -51,18 +58,40 @@ var listenLoopback = func() (net.Listener, error) {
 	return net.Listen("tcp", "127.0.0.1:0")
 }
 
+// randRead is the random source for the state and PKCE secrets. Seam for
+// tests, which stub a failing reader to force the error paths.
+var randRead = rand.Read
+
 // newState returns the anti-CSRF state for the flow. Seam for tests.
-var newState = func() string {
+var newState = func() (string, error) {
 	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return fmt.Sprintf("google-cli-%d", time.Now().UnixNano())
+	if _, err := randRead(b); err != nil {
+		return "", fmt.Errorf("generating state: %w", err)
 	}
-	return hex.EncodeToString(b)
+	return hex.EncodeToString(b), nil
 }
 
-// exchangeCode swaps an authorization code for tokens. Seam for tests.
-var exchangeCode = func(ctx context.Context, conf *oauth2.Config, code string) (*oauth2.Token, error) {
-	return conf.Exchange(ctx, code)
+// pkceVerifierBytes is the entropy fed into the PKCE verifier; hex encoding
+// doubles it to 128 characters, within RFC 7636's 43–128 char range.
+const pkceVerifierBytes = 64
+
+// newPKCE returns a fresh PKCE verifier (hex, RFC 7636 unreserved charset)
+// and its S256 challenge.
+func newPKCE() (verifier, challenge string, err error) {
+	b := make([]byte, pkceVerifierBytes)
+	if _, err := randRead(b); err != nil {
+		return "", "", fmt.Errorf("generating PKCE verifier: %w", err)
+	}
+	verifier = hex.EncodeToString(b)
+	sum := sha256.Sum256([]byte(verifier))
+	return verifier, base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
+// exchangeCode swaps an authorization code for tokens, presenting the PKCE
+// verifier generated with the code_challenge sent on the auth URL. Seam for
+// tests.
+var exchangeCode = func(ctx context.Context, conf *oauth2.Config, code, verifier string) (*oauth2.Token, error) {
+	return conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
 }
 
 // fetchEmail resolves the account email from the userinfo endpoint. Seam for tests.
@@ -97,7 +126,7 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	if err != nil {
 		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}
-	conf, err := parseGoogleCredentials(data, withEmailScope(scopes)...)
+	conf, err := credentialsConfig(data, withEmailScope(scopes)...)
 	if err != nil {
 		return nil, "", fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
 	}
@@ -114,10 +143,19 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	}
 	conf.RedirectURL = fmt.Sprintf("http://localhost:%d", addr.Port)
 
-	state := newState()
+	state, err := newState()
+	if err != nil {
+		return nil, "", err
+	}
+	verifier, challenge, err := newPKCE()
+	if err != nil {
+		return nil, "", err
+	}
 	authURL := conf.AuthCodeURL(state,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
+		oauth2.SetAuthURLParam("code_challenge", challenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
 
 	emit("Authorize google-cli by opening:\n\n%s\n\n", authURL)
@@ -170,11 +208,15 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 		return nil, "", fmt.Errorf("redirect listener: %w", err)
 	}
 
-	tok, err := exchangeCode(context.Background(), conf, code)
+	exCtx, cancelExchange := context.WithTimeout(context.Background(), networkTimeout)
+	defer cancelExchange()
+	tok, err := exchangeCode(exCtx, conf, code, verifier)
 	if err != nil {
 		return nil, "", fmt.Errorf("exchanging authorization code: %w", err)
 	}
-	email, err := fetchEmail(context.Background(), tok)
+	emailCtx, cancelEmail := context.WithTimeout(context.Background(), networkTimeout)
+	defer cancelEmail()
+	email, err := fetchEmail(emailCtx, tok)
 	if err != nil {
 		return nil, "", err
 	}
