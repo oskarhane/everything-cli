@@ -1,7 +1,6 @@
 package event
 
 import (
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -110,24 +109,13 @@ func printEventList(cmd *cobra.Command, cfg *app.Config, events []*calendar.Even
 	for _, ev := range events {
 		rows = append(rows, eventListRow(ev))
 	}
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), eventListFields, rows, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), eventListFields, rows, rows)
 }
 
 // printEventView renders a single event: an object in JSON/TOON, a one-row
 // table. Table rows flatten the attendee and recurrence lists into cells.
 func printEventView(cmd *cobra.Command, cfg *app.Config, ev *calendar.Event) {
 	view := eventView(ev)
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), eventViewFields, view, []map[string]any{eventViewTableRow(view)})
-}
-
-// render writes v (JSON/TOON) or rows (table) in the given format.
-func render(w io.Writer, format output.Format, fields []string, v any, rows []map[string]any) {
-	switch format {
-	case output.FormatTable:
-		output.PrintTable(w, fields, rows)
-	case output.FormatToon:
-		output.PrintToon(w, v)
-	default:
-		output.PrintJSON(w, v)
-	}
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), eventViewFields,
+		view, []map[string]any{eventViewTableRow(view)})
 }

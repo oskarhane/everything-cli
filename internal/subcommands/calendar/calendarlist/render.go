@@ -1,8 +1,6 @@
 package calendarlist
 
 import (
-	"io"
-
 	"github.com/spf13/cobra"
 
 	calendar "google.golang.org/api/calendar/v3"
@@ -68,23 +66,11 @@ func printCalendarList(cmd *cobra.Command, cfg *app.Config, entries []*calendar.
 	for _, e := range entries {
 		rows = append(rows, calendarListRow(e))
 	}
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), calendarListFields, rows, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), calendarListFields, rows, rows)
 }
 
 // printCalendar renders a single calendar row: an object in JSON/TOON, a
 // one-row table.
 func printCalendar(cmd *cobra.Command, cfg *app.Config, row map[string]any) {
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), calendarFields, row, []map[string]any{row})
-}
-
-// render writes v (JSON/TOON) or rows (table) in the given format.
-func render(w io.Writer, format output.Format, fields []string, v any, rows []map[string]any) {
-	switch format {
-	case output.FormatTable:
-		output.PrintTable(w, fields, rows)
-	case output.FormatToon:
-		output.PrintToon(w, v)
-	default:
-		output.PrintJSON(w, v)
-	}
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), calendarFields, row, []map[string]any{row})
 }

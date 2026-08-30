@@ -101,6 +101,23 @@ func TestFreeBusyJSONRowsSnakeCase(t *testing.T) {
 	require.Equal(t, "2026-09-01T15:30:00Z", rows[0].(map[string]any)["end"])
 }
 
+func TestFreeBusySinglePeriodCollapsesToOneObject(t *testing.T) {
+	svc := &fakeFreeBusyService{entries: seedCalendars(), resp: &calendar.FreeBusyResponse{
+		Calendars: map[string]calendar.FreeBusyCalendar{
+			"primary": {Busy: []*calendar.TimePeriod{
+				{Start: "2026-09-01T15:00:00Z", End: "2026-09-01T15:30:00Z"},
+			}},
+		},
+	}}
+	out := runCmd(t, newCmd(svc, "json"))
+
+	// The package-wide one-row convention: one busy period renders as a
+	// single object, not a one-element array.
+	obj, ok := decodeJSON(t, out).(map[string]any)
+	require.True(t, ok, "expected one JSON object, got: %s", out)
+	require.Equal(t, "primary", obj["calendar_id"])
+}
+
 func TestFreeBusyRowsOrderedByCalendarThenStart(t *testing.T) {
 	svc := &fakeFreeBusyService{entries: seedCalendars(), resp: seedResponse()}
 	out := runCmd(t, newCmd(svc, "json"))

@@ -1,8 +1,6 @@
 package acl
 
 import (
-	"io"
-
 	"github.com/spf13/cobra"
 
 	calendar "google.golang.org/api/calendar/v3"
@@ -39,23 +37,11 @@ func printAclRules(cmd *cobra.Command, cfg *app.Config, rules []*calendar.AclRul
 	for _, r := range rules {
 		rows = append(rows, aclRow(r))
 	}
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), rows, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), aclFields, rows, rows)
 }
 
 // printAclRule renders a single rule: an object in JSON/TOON, a one-row
 // table.
 func printAclRule(cmd *cobra.Command, cfg *app.Config, row map[string]any) {
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), row, []map[string]any{row})
-}
-
-// render writes v (JSON/TOON) or rows (table) in the given format.
-func render(w io.Writer, format output.Format, v any, rows []map[string]any) {
-	switch format {
-	case output.FormatTable:
-		output.PrintTable(w, aclFields, rows)
-	case output.FormatToon:
-		output.PrintToon(w, v)
-	default:
-		output.PrintJSON(w, v)
-	}
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), aclFields, row, []map[string]any{row})
 }

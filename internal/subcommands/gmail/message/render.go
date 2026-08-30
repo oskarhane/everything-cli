@@ -1,7 +1,6 @@
 package message
 
 import (
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -62,35 +61,29 @@ func printMessages(cmd *cobra.Command, cfg *app.Config, messages []*gmail.Messag
 	for _, m := range messages {
 		rows = append(rows, messageRow(m))
 	}
-	render(cmd.OutOrStdout(), listFields, output.ResolveOutput(cfg.Format), rows...)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), listFields, rows, tableRows(rows))
 }
 
 // printMessage renders a single message summary (the post-mutation echo).
 func printMessage(cmd *cobra.Command, cfg *app.Config, m *gmail.Message) {
-	render(cmd.OutOrStdout(), listFields, output.ResolveOutput(cfg.Format), messageRow(m))
+	row := messageRow(m)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), listFields, row, tableRows([]map[string]any{row}))
 }
 
 // printMessageDetail renders a single message with its parsed headers.
 func printMessageDetail(cmd *cobra.Command, cfg *app.Config, m *gmail.Message) {
-	render(cmd.OutOrStdout(), detailFields, output.ResolveOutput(cfg.Format), detailRow(m))
+	row := detailRow(m)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), detailFields, row, tableRows([]map[string]any{row}))
 }
 
-// render writes rows in the given format. Tables compact label_ids into a
-// comma-joined string so each cell stays on one line; JSON and TOON keep the
-// array.
-func render(w io.Writer, fields []string, format output.Format, rows ...map[string]any) {
-	switch format {
-	case output.FormatTable:
-		tableRows := make([]map[string]any, len(rows))
-		for i, row := range rows {
-			tableRows[i] = compactRow(row)
-		}
-		output.PrintTable(w, fields, tableRows)
-	case output.FormatToon:
-		printToon(w, rows)
-	default:
-		printJSON(w, rows)
+// tableRows copies rows with label_ids compacted for table cells; JSON and
+// TOON keep the array.
+func tableRows(rows []map[string]any) []map[string]any {
+	tableRows := make([]map[string]any, len(rows))
+	for i, row := range rows {
+		tableRows[i] = compactRow(row)
 	}
+	return tableRows
 }
 
 // compactRow copies row with label_ids joined to a single string.
@@ -105,22 +98,4 @@ func compactRow(row map[string]any) map[string]any {
 		out[k] = v
 	}
 	return out
-}
-
-// printJSON writes one row as an object, several as an array.
-func printJSON(w io.Writer, rows []map[string]any) {
-	if len(rows) == 1 {
-		output.PrintJSON(w, rows[0])
-		return
-	}
-	output.PrintJSON(w, rows)
-}
-
-// printToon writes one row as an object, several as an array.
-func printToon(w io.Writer, rows []map[string]any) {
-	if len(rows) == 1 {
-		output.PrintToon(w, rows[0])
-		return
-	}
-	output.PrintToon(w, rows)
 }

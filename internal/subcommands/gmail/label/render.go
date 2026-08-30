@@ -1,8 +1,6 @@
 package label
 
 import (
-	"io"
-
 	"github.com/spf13/cobra"
 
 	gmail "google.golang.org/api/gmail/v1"
@@ -35,23 +33,11 @@ func printLabels(cmd *cobra.Command, cfg *app.Config, labels []*gmail.Label) {
 	for _, l := range labels {
 		rows = append(rows, labelRow(l))
 	}
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), rows, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), labelFields, rows, rows)
 }
 
 // printLabel renders a single label: an object in JSON/TOON, a one-row table.
 func printLabel(cmd *cobra.Command, cfg *app.Config, l *gmail.Label) {
 	row := labelRow(l)
-	render(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), row, []map[string]any{row})
-}
-
-// render writes v (JSON/TOON) or rows (table) in the given format.
-func render(w io.Writer, format output.Format, v any, rows []map[string]any) {
-	switch format {
-	case output.FormatTable:
-		output.PrintTable(w, labelFields, rows)
-	case output.FormatToon:
-		output.PrintToon(w, v)
-	default:
-		output.PrintJSON(w, v)
-	}
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), labelFields, row, []map[string]any{row})
 }

@@ -127,16 +127,11 @@ func expandBusyPeriods(resp *calendar.FreeBusyResponse) []map[string]any {
 }
 
 // printBusyPeriods renders zero or more busy periods: a JSON/TOON array, or
-// a table with one row per period, in the resolved output format.
+// a table with one row per period, in the resolved output format. A single
+// busy period collapses to one JSON/TOON object, the package-wide one-row
+// convention.
 func printBusyPeriods(cmd *cobra.Command, cfg *app.Config, periods []map[string]any) {
-	switch output.ResolveOutput(cfg.Format) {
-	case output.FormatTable:
-		output.PrintTable(cmd.OutOrStdout(), busyFields, periods)
-	case output.FormatToon:
-		output.PrintToon(cmd.OutOrStdout(), periods)
-	default:
-		output.PrintJSON(cmd.OutOrStdout(), periods)
-	}
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), busyFields, periods, periods)
 }
 
 // Window parsing mirrors event/dates.go (that parser is unexported): the

@@ -84,6 +84,44 @@ func PrintTable(w io.Writer, fields []string, rows []map[string]any) {
 	writeLine(w, t.Render())
 }
 
+// Print renders results in format: the one render switch for command output.
+// table renders rows via PrintTable under fields; toon and json render v.
+//
+// The one-row-vs-array convention lives here: when v is a []map[string]any —
+// the rows slice the caller also renders as a table — exactly one row renders
+// as a single JSON object / TOON document rather than a one-element array,
+// and an empty (or nil) slice renders as [] rather than null. A v that is
+// anything else — a detail view whose JSON shape differs from its table row,
+// or a single-row map — prints as-is.
+func Print(w io.Writer, format Format, fields []string, v any, rows []map[string]any) {
+	switch format {
+	case FormatTable:
+		PrintTable(w, fields, rows)
+	case FormatToon:
+		PrintToon(w, collapsed(v))
+	default:
+		PrintJSON(w, collapsed(v))
+	}
+}
+
+// collapsed applies the one-row-vs-array convention to v. A rows slice loses
+// its wrapper for zero and one rows (empty array, single object); any other
+// value — a detail map, a []string, a struct — passes through unchanged.
+func collapsed(v any) any {
+	rows, ok := v.([]map[string]any)
+	if !ok {
+		return v
+	}
+	switch len(rows) {
+	case 0:
+		return []map[string]any{}
+	case 1:
+		return rows[0]
+	default:
+		return rows
+	}
+}
+
 // cellValue resolves a (possibly nested) field path in a decoded row and
 // formats it as a table cell. Missing keys render as empty cells; strings are
 // control-stripped; numbers render without an exponent so large int64 fields

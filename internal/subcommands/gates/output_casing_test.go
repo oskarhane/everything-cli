@@ -69,10 +69,10 @@ func isFieldsName(name string) bool {
 
 // outputCasingViolations scans one non-test Go source for snake_case
 // violations among (a) inline []string literals passed straight to
-// output.PrintTable and (b) assignments/declarations of *Fields variables.
-// A source scan was chosen over reflect-walking view structs because the
-// fields slices are the single source of truth for output columns/keys and
-// the scan needs no command execution.
+// output.PrintTable or output.Print, (b) assignments/declarations of *Fields
+// variables. A source scan was chosen over reflect-walking view structs
+// because the fields slices are the single source of truth for output
+// columns/keys and the scan needs no command execution.
 func outputCasingViolations(path string) ([]string, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, nil, 0)
@@ -110,7 +110,16 @@ func outputCasingViolations(path string) ([]string, error) {
 			}
 		case *ast.CallExpr:
 			call, ok := node.Fun.(*ast.SelectorExpr)
-			if !ok || call.Sel.Name != "PrintTable" {
+			if !ok {
+				return true
+			}
+			// output.Print carries a fields slice too; only match a bare
+			// Print when it is qualified by the output package, so fmt.Print
+			// and other packages' Print calls do not match.
+			switch {
+			case call.Sel.Name == "PrintTable":
+			case call.Sel.Name == "Print" && pkgIsOutput(call):
+			default:
 				return true
 			}
 			for _, arg := range node.Args {
@@ -124,6 +133,13 @@ func outputCasingViolations(path string) ([]string, error) {
 	return violations, nil
 }
 
+// pkgIsOutput reports whether a selector call's receiver is the output
+// package identifier.
+func pkgIsOutput(call *ast.SelectorExpr) bool {
+	id, ok := call.X.(*ast.Ident)
+	return ok && id.Name == "output"
+}
+
 func namesEndInFields(names []*ast.Ident) bool {
 	for _, n := range names {
 		if isFieldsName(n.Name) {
@@ -134,9 +150,9 @@ func namesEndInFields(names []*ast.Ident) bool {
 }
 
 // TestOutputFields_AreSnakeCase scans every non-test Go source under
-// internal/subcommands for PrintTable fields literals and fields variables,
-// asserting snake_case. Each failure message carries file:line, the field
-// name, and its context.
+// internal/subcommands for PrintTable/Print fields literals and fields
+// variables, asserting snake_case. Each failure message carries file:line,
+// the field name, and its context.
 func TestOutputFields_AreSnakeCase(t *testing.T) {
 	var violations []string
 	root := subcommandsDir(t)

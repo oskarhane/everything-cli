@@ -1,7 +1,6 @@
 package thread
 
 import (
-	"io"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -76,31 +75,5 @@ func printThreadMessages(cmd *cobra.Command, cfg *app.Config, thread *gmail.Thre
 
 // renderRows writes rows in the resolved output format.
 func renderRows(cmd *cobra.Command, cfg *app.Config, fields []string, rows []map[string]any) {
-	w := cmd.OutOrStdout()
-	switch output.ResolveOutput(cfg.Format) {
-	case output.FormatTable:
-		output.PrintTable(w, fields, rows)
-	case output.FormatToon:
-		printToon(w, rows)
-	default:
-		printJSON(w, rows)
-	}
-}
-
-// printJSON writes one row as an object, several as an array.
-func printJSON(w io.Writer, rows []map[string]any) {
-	if len(rows) == 1 {
-		output.PrintJSON(w, rows[0])
-		return
-	}
-	output.PrintJSON(w, rows)
-}
-
-// printToon writes one row as an object, several as an array.
-func printToon(w io.Writer, rows []map[string]any) {
-	if len(rows) == 1 {
-		output.PrintToon(w, rows[0])
-		return
-	}
-	output.PrintToon(w, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), fields, rows, rows)
 }
