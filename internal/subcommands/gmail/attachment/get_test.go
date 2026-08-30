@@ -2,6 +2,7 @@ package attachment
 
 import (
 	"errors"
+	"math/rand"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -44,6 +45,45 @@ func TestGetOutCreatesMissingParentDirs(t *testing.T) {
 	content, err := afero.ReadFile(cfg.Fs, "a/b/c.bin")
 	require.NoError(t, err, "--out must create its parent dirs before writing")
 	require.Equal(t, seedPNG, content)
+}
+
+func TestGetStreamsLargePayloadToStdout(t *testing.T) {
+	rng := rand.New(rand.NewSource(42))
+	big := make([]byte, 1024*1024)
+	n, err := rng.Read(big)
+	require.NoError(t, err, "seeding the large payload must not fail")
+	require.Equal(t, len(big), n, "the large payload must be fully seeded")
+
+	svc := &fakeService{content: big}
+	cmd := newGetCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc))
+	out := cmdtest.RunCmd(t, cmd, "ANG1xQ8q", "--message-id", "msg_1")
+
+	require.Equal(t, big, []byte(out), "a 1MB payload must decode byte-identically through the streaming path")
+}
+
+func TestGetStreamsLargePayloadToFile(t *testing.T) {
+	rng := rand.New(rand.NewSource(43))
+	big := make([]byte, 1024*1024)
+	n, err := rng.Read(big)
+	require.NoError(t, err, "seeding the large payload must not fail")
+	require.Equal(t, len(big), n, "the large payload must be fully seeded")
+
+	cfg := cmdtest.NewTestConfig("json")
+	svc := &fakeService{content: big}
+
+	cmdtest.RunCmd(t, newGetCmd(cfg, fakeNewSvc(svc)), "ANG1xQ8q", "--message-id", "msg_1", "--out", "big/blob.bin")
+
+	content, err := afero.ReadFile(cfg.Fs, "big/blob.bin")
+	require.NoError(t, err, "a 1MB payload must write byte-identically through the streaming path")
+	require.Equal(t, big, content)
+}
+
+func TestGetReportsCorruptBase64(t *testing.T) {
+	svc := &fakeService{rawData: "not*valid*base64!!"}
+	_, err := cmdtest.RunCmdErr(t, newGetCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc)),
+		"ANG1xQ8q", "--message-id", "msg_1")
+
+	require.Contains(t, err.Error(), "decoding attachment data", "malformed base64 must surface as a decode error")
 }
 
 func TestGetRequiresMessageID(t *testing.T) {

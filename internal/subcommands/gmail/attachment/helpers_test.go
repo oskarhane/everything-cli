@@ -30,6 +30,7 @@ type fakeService struct {
 
 	content      []byte // attachment bytes served by GetAttachment
 	err          error  // when set, every call fails
+	rawData      string // when set, served verbatim as Data (ignoring content)
 	messageID    string // last GetAttachment message id
 	attachmentID string // last GetAttachment attachment id
 }
@@ -38,6 +39,9 @@ func (f *fakeService) GetAttachment(_ context.Context, messageID, attachmentID s
 	f.messageID, f.attachmentID = messageID, attachmentID
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.rawData != "" {
+		return &gmail.MessagePartBody{AttachmentId: attachmentID, Data: f.rawData}, nil
 	}
 	if f.content == nil {
 		return nil, fmt.Errorf("googleapi: Error 404: attachment %s not found", attachmentID)
