@@ -40,11 +40,10 @@ func firstLineFlushLeft(example string) bool {
 // Per-package gates cover their own leaves; this whole-tree gate also
 // catches leaves a package test forgot and future subtrees automatically.
 func TestAllLeafCommands_HaveExamples(t *testing.T) {
-	leaves := 0
+	_, _, leaves := mountAndCheck(t)
 	var violations []string
 	walkTree(newWholeTree(), func(cmd *cobra.Command) {
 		if isRunnableLeaf(cmd) {
-			leaves++
 			violations = append(violations, exampleViolations(cmd)...)
 		}
 	})
@@ -57,6 +56,6 @@ func TestAllLeafCommands_HaveExamples(t *testing.T) {
 }
 
 // minLeaves is the known minimum of runnable leaves; a whole-tree walk that
-// finds fewer means the tree failed to mount and the gate must not pass
-// vacuously.
-const minLeaves = 20
+// finds fewer means the tree failed to mount or silently atrophied and the
+// gate must not pass vacuously.
+const minLeaves = 40

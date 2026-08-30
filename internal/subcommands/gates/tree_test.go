@@ -7,6 +7,7 @@ package gates
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,6 +31,46 @@ func newWholeTree() *cobra.Command {
 		calendar.NewCmd(cfg),
 	)
 	return root
+}
+
+// expectedTopLevel is the set of resource subtrees main.go mounts on the
+// root. The mount guard asserts the walk finds each of these, so losing an
+// entire top-level subtree fails loudly naming it, not silently.
+var expectedTopLevel = []string{"account", "gmail", "calendar"}
+
+// autoAddedTopLevel are commands cobra may inject into the root (at walk
+// time or on Execute); they are tolerated as top-level children but never
+// required, keeping the mount assertion stable across cobra versions.
+var autoAddedTopLevel = map[string]bool{"help": true, "completion": true}
+
+// mountAndCheck mounts the whole tree, asserts every expected top-level
+// resource subtree is present (and no unexpected one besides cobra's own),
+// and returns the root plus the walked command and runnable-leaf counts.
+// Failure messages name the missing or unexpected top-level command.
+func mountAndCheck(t *testing.T) (root *cobra.Command, commands, leaves int) {
+	t.Helper()
+	root = newWholeTree()
+	walkTree(root, func(cmd *cobra.Command) {
+		commands++
+		if isRunnableLeaf(cmd) {
+			leaves++
+		}
+	})
+	found := map[string]bool{}
+	for _, sub := range root.Commands() {
+		found[useFirstWord(sub.Use)] = true
+	}
+	for _, want := range expectedTopLevel {
+		if !found[want] {
+			t.Errorf("mounted tree missing top-level command: %s", want)
+		}
+	}
+	for name := range found {
+		if !slices.Contains(expectedTopLevel, name) && !autoAddedTopLevel[name] {
+			t.Errorf("mounted tree has unexpected top-level command: %s", name)
+		}
+	}
+	return root, commands, leaves
 }
 
 // walkTree visits cmd and every descendant, depth-first.

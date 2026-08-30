@@ -46,19 +46,15 @@ func inputViolations(cmd *cobra.Command) []string {
 	return violations
 }
 
-// TestInputIdentifiers_AreKebabCase walks the mounted tree and checks every
-// command's Use first word, aliases, and flag long names. Root persistent
-// flags are covered because the root itself is in the walk.
 // TestInputIdentifiers_AreKebabCase walks the mounted tree and asserts every
 // command's Use first word, aliases, and flag long names are kebab-case.
 // Root persistent flags are covered because the root itself is in the walk;
 // inherited flags are exempt from the per-command set but are checked at
 // their definition site.
 func TestInputIdentifiers_AreKebabCase(t *testing.T) {
-	commands := 0
+	_, commands, _ := mountAndCheck(t)
 	var violations []string
 	walkTree(newWholeTree(), func(cmd *cobra.Command) {
-		commands++
 		violations = append(violations, inputViolations(cmd)...)
 	})
 	if commands < minTreeCommands {
@@ -70,5 +66,6 @@ func TestInputIdentifiers_AreKebabCase(t *testing.T) {
 }
 
 // minTreeCommands is the known minimum command count of the mounted tree;
-// fewer means the mount is broken and the gate must not pass vacuously.
-const minTreeCommands = 25
+// fewer means the mount is broken or the tree silently atrophied and the
+// gate must not pass vacuously.
+const minTreeCommands = 50
