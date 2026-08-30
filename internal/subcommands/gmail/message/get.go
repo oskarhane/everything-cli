@@ -8,12 +8,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/output"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // newGetCmd returns `gmail message get`: one message by id. The default view
 // shows the parsed payload headers; --raw prints the decoded RFC 2822 message
-// as plain text, ignoring --format.
+// as plain text, ignoring --format. Control bytes (ANSI/OSC escapes, BEL,
+// other C0 + DEL) are sanitised to "?" so a hostile email cannot spoof the
+// terminal or trigger OSC 52 clipboard writes; "\t", "\n", "\r" survive.
 func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *cobra.Command {
 	var raw bool
 	cmd := &cobra.Command{
@@ -46,7 +49,17 @@ google-cli gmail message get 19c2a4b7 --format table`,
 				if err != nil {
 					return err
 				}
-				if _, err := fmt.Fprintln(cmd.OutOrStdout(), decoded); err != nil {
+				// Security (S4): the raw path prints the RFC 2822 source
+				// verbatim, bypassing output.Print, so a malicious email could
+				// inject ANSI/OSC escape sequences (e.g. OSC 52 clipboard
+				// overwrite). A single StripControl pass over the whole
+				// decoded-raw string is sufficient: the raw field is the
+				// *undecoded* transfer-encoded source (base64 and
+				// quoted-printable bodies stay base64/QP here), so escapes can
+				// only appear as literal bytes in the decoded text — no nested
+				// decode can hide them. "\t", "\n", "\r" survive.
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), output.StripControl(decoded))
+				if err != nil {
 					return err
 				}
 				return nil

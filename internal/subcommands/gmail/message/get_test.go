@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/base64"
 	"errors"
 	"testing"
 
@@ -58,6 +59,33 @@ func TestGetRawIsBase64Decoded(t *testing.T) {
 	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "msg_1", "--raw")
 
 	require.NotContains(t, out, seedDetailMessage().Raw, "undecoded base64url leaked to output")
+}
+
+func TestGetRawStripsControlBytes(t *testing.T) {
+	// A hostile email must not inject terminal escape sequences via --raw:
+	// ANSI colour, BEL, and an OSC 52 clipboard overwrite all come out as
+	// "?", while legitimate \n and \t survive untouched.
+	raw := "From: bad@corp.example\r\n\r\n" +
+		"\x1b[31mRED ALERT\x07\n" +
+		"\x1b]52;c;aGVsbG8=\x07\n" +
+		"\tindented line\n" +
+		"end of mail\x7f"
+	msg := seedDetailMessage()
+	msg.Raw = base64.RawURLEncoding.EncodeToString([]byte(raw))
+	svc := &fakeService{messages: []*gmail.Message{msg}}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "msg_1", "--raw")
+
+	require.NotContains(t, out, "\x1b", "ESC byte leaked to output")
+	require.NotContains(t, out, "\x07", "BEL byte leaked to output")
+	require.NotContains(t, out, "\x7f", "DEL byte leaked to output")
+
+	// Control bytes became "?", one per byte; \n and \t are preserved.
+	want := "From: bad@corp.example\r\n\r\n" +
+		"?[31mRED ALERT?\n" +
+		"?]52;c;aGVsbG8=?\n" +
+		"\tindented line\n" +
+		"end of mail?\n"
+	require.Equal(t, want, out)
 }
 
 func TestGetMissingHeaders(t *testing.T) {
