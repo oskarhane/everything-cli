@@ -10,6 +10,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/acl"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/calendarlist"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/event"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/freebusy"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
@@ -30,7 +31,8 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(event.NewCmd(cfg, func(ctx context.Context) (service.EventService, error) {
 		return service.AsEventService(dial(ctx, cfg))
 	}))
-	// Later nodes attach the remaining subtrees here:
-	//   cmd.AddCommand(freebusy.NewCmd(cfg, newSvc))
+	cmd.AddCommand(freebusy.NewCmd(cfg, func(ctx context.Context) (service.FreeBusyService, error) {
+		return service.AsFreeBusyService(dial(ctx, cfg))
+	}))
 	return cmd
 }

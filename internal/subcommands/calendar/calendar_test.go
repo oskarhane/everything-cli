@@ -19,5 +19,5 @@ func TestNewCmdRegistersSubtrees(t *testing.T) {
 	}
 	// cobra sorts subcommands alphabetically: the acl and event subgroups
 	// plus the calendar CRUD leaves hanging directly off the parent.
-	require.Equal(t, []string{"acl", "create", "delete", "event", "get", "list", "update"}, names)
+	require.Equal(t, []string{"acl", "create", "delete", "event", "freebusy", "get", "list", "update"}, names)
 }
