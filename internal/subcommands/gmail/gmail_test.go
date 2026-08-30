@@ -9,7 +9,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/app"
 )
 
-func TestNewCmdRegistersLabelSubtree(t *testing.T) {
+func TestNewCmdRegistersSubtrees(t *testing.T) {
 	cmd := NewCmd(&app.Config{Fs: afero.NewMemMapFs()})
 
 	require.Equal(t, "gmail", cmd.Name())
@@ -17,5 +17,5 @@ func TestNewCmdRegistersLabelSubtree(t *testing.T) {
 	for _, sub := range cmd.Commands() {
 		names = append(names, sub.Name())
 	}
-	require.Equal(t, []string{"label"}, names)
+	require.Equal(t, []string{"label", "message"}, names)
 }

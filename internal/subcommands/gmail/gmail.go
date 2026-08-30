@@ -8,6 +8,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/label"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
@@ -22,8 +23,8 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 		return dial(ctx, cfg)
 	}
 	cmd.AddCommand(label.NewCmd(cfg, newSvc))
+	cmd.AddCommand(message.NewCmd(cfg, newSvc))
 	// Later nodes attach the remaining subtrees here:
-	//   cmd.AddCommand(message.NewCmd(cfg, newSvc))
 	//   cmd.AddCommand(thread.NewCmd(cfg, newSvc))
 	//   cmd.AddCommand(draft.NewCmd(cfg, newSvc))
 	//   cmd.AddCommand(attachment.NewCmd(cfg, newSvc))
