@@ -68,18 +68,16 @@ func (s *realCalendarService) ListEvents(ctx context.Context, p ListEventsParams
 	if p.OrderBy != "" {
 		call = call.OrderBy(p.OrderBy)
 	}
-	var items []*calendar.Event
-	for {
+	return pageAll(func(page string) ([]*calendar.Event, string, error) {
+		if page != "" {
+			call = call.PageToken(page)
+		}
 		resp, err := call.Context(ctx).Do()
 		if err != nil {
-			return nil, fmt.Errorf("listing events of calendar %s: %w", p.CalendarID, err)
+			return nil, "", fmt.Errorf("listing events of calendar %s: %w", p.CalendarID, err)
 		}
-		items = append(items, resp.Items...)
-		if resp.NextPageToken == "" {
-			return items, nil
-		}
-		call = call.PageToken(resp.NextPageToken)
-	}
+		return resp.Items, resp.NextPageToken, nil
+	})
 }
 
 // ListInstances implements EventService. Empty params are left unset; the
@@ -95,18 +93,16 @@ func (s *realCalendarService) ListInstances(ctx context.Context, p ListInstances
 	if p.MaxResults > 0 {
 		call = call.MaxResults(p.MaxResults)
 	}
-	var items []*calendar.Event
-	for {
+	return pageAll(func(page string) ([]*calendar.Event, string, error) {
+		if page != "" {
+			call = call.PageToken(page)
+		}
 		resp, err := call.Context(ctx).Do()
 		if err != nil {
-			return nil, fmt.Errorf("listing instances of event %s: %w", p.EventID, err)
+			return nil, "", fmt.Errorf("listing instances of event %s: %w", p.EventID, err)
 		}
-		items = append(items, resp.Items...)
-		if resp.NextPageToken == "" {
-			return items, nil
-		}
-		call = call.PageToken(resp.NextPageToken)
-	}
+		return resp.Items, resp.NextPageToken, nil
+	})
 }
 
 // GetEvent implements EventService. It accepts master and instance ids.

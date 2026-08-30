@@ -51,11 +51,17 @@ type realCalendarService struct {
 }
 
 func (s *realCalendarService) ListCalendarList(ctx context.Context) ([]*calendar.CalendarListEntry, error) {
-	resp, err := s.svc.CalendarList.List().Context(ctx).Do()
-	if err != nil {
-		return nil, fmt.Errorf("listing calendars: %w", err)
-	}
-	return resp.Items, nil
+	call := s.svc.CalendarList.List()
+	return pageAll(func(page string) ([]*calendar.CalendarListEntry, string, error) {
+		if page != "" {
+			call = call.PageToken(page)
+		}
+		resp, err := call.Context(ctx).Do()
+		if err != nil {
+			return nil, "", fmt.Errorf("listing calendars: %w", err)
+		}
+		return resp.Items, resp.NextPageToken, nil
+	})
 }
 
 func (s *realCalendarService) GetCalendarList(ctx context.Context, calendarID string) (*calendar.CalendarListEntry, error) {
@@ -106,11 +112,17 @@ func (s *realCalendarService) DeleteCalendar(ctx context.Context, calendarID str
 }
 
 func (s *realCalendarService) ListAcl(ctx context.Context, calendarID string) ([]*calendar.AclRule, error) {
-	resp, err := s.svc.Acl.List(calendarID).Context(ctx).Do()
-	if err != nil {
-		return nil, fmt.Errorf("listing acl rules for calendar %s: %w", calendarID, err)
-	}
-	return resp.Items, nil
+	call := s.svc.Acl.List(calendarID)
+	return pageAll(func(page string) ([]*calendar.AclRule, string, error) {
+		if page != "" {
+			call = call.PageToken(page)
+		}
+		resp, err := call.Context(ctx).Do()
+		if err != nil {
+			return nil, "", fmt.Errorf("listing acl rules for calendar %s: %w", calendarID, err)
+		}
+		return resp.Items, resp.NextPageToken, nil
+	})
 }
 
 func (s *realCalendarService) InsertAcl(ctx context.Context, calendarID string, rule *calendar.AclRule) (*calendar.AclRule, error) {
