@@ -4,11 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestUpdateInstancePatchesOnlyThatOccurrence(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	out := runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID, "--summary", "Standup moved")
+	out := cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID, "--summary", "Standup moved")
 
 	require.Len(t, svc.patches, 1)
 	p := svc.patches[0]
@@ -17,13 +19,13 @@ func TestUpdateInstancePatchesOnlyThatOccurrence(t *testing.T) {
 	require.Equal(t, "Standup moved", p.event.Summary)
 	require.Equal(t, "all", p.sendUpdates)
 
-	view := decodeJSON(t, out).(map[string]any)
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.Equal(t, "Standup moved", view["summary"])
 }
 
 func TestUpdateMasterIDPatchesTheSeries(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--summary", "Standup moved")
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--summary", "Standup moved")
 
 	require.Len(t, svc.patches, 1)
 	require.Equal(t, masterEventID, svc.patches[0].eventID)
@@ -31,7 +33,7 @@ func TestUpdateMasterIDPatchesTheSeries(t *testing.T) {
 
 func TestUpdateThisOnlyFalseWithInstancePatchesMaster(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID,
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID,
 		"--this-only=false", "--summary", "Standup moved")
 
 	require.Len(t, svc.patches, 1)
@@ -40,7 +42,7 @@ func TestUpdateThisOnlyFalseWithInstancePatchesMaster(t *testing.T) {
 
 func TestUpdateRequiresAtLeastOneChangeFlag(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID)
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID)
 
 	require.Contains(t, err.Error(), "nothing to update")
 	require.Empty(t, svc.patches)
@@ -48,7 +50,7 @@ func TestUpdateRequiresAtLeastOneChangeFlag(t *testing.T) {
 
 func TestUpdateAttendeeChangesEchoTheFullArray(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID,
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID,
 		"--remove-attendee", "organizer@example.com",
 		"--add-attendee", "colleague@example.com",
 	)
@@ -65,7 +67,7 @@ func TestUpdateAttendeeChangesEchoTheFullArray(t *testing.T) {
 
 func TestUpdateDateOnAllDayEvent(t *testing.T) {
 	svc := &fakeEventService{events: seedAllDayEvent()}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), "allday1", "--start", "2026-10-02")
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), "allday1", "--start", "2026-10-02")
 
 	patch := svc.patches[0].event
 	require.Equal(t, "2026-10-02", patch.Start.Date, "all-day events keep the Date field")
@@ -74,7 +76,7 @@ func TestUpdateDateOnAllDayEvent(t *testing.T) {
 
 func TestUpdateDateOnTimedEventIsRejected(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID, "--start", "2026-10-02")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), instanceEventID, "--start", "2026-10-02")
 
 	require.Contains(t, err.Error(), "not all-day")
 	require.Empty(t, svc.patches)
@@ -82,7 +84,7 @@ func TestUpdateDateOnTimedEventIsRejected(t *testing.T) {
 
 func TestUpdatePropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), "missing1", "--summary", "X")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), "missing1", "--summary", "X")
 
 	require.Contains(t, err.Error(), "404")
 	require.Empty(t, svc.patches)

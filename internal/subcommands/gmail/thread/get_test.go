@@ -7,18 +7,20 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gmail "google.golang.org/api/gmail/v1"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestGetJSON(t *testing.T) {
 	svc := &fakeService{threads: seedThreads()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), "thread_1")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "thread_1")
 
 	// A single message renders as one JSON object, not a one-element array.
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected one JSON object, got: %s", out)
-	keys := jsonKeys(t, row)
+	keys := cmdtest.JSONKeys(t, row)
 	require.ElementsMatch(t, []string{"id", "from", "subject", "date", "snippet"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "msg_1", row["id"])
 	// from/subject/date are parsed out of the payload headers.
 	require.Equal(t, "boss@corp.example", row["from"])
@@ -29,7 +31,7 @@ func TestGetJSON(t *testing.T) {
 
 func TestGetTable(t *testing.T) {
 	svc := &fakeService{threads: seedThreads()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "table"), "thread_1")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "table"), "thread_1")
 
 	for _, header := range []string{"ID", "FROM", "SUBJECT", "DATE", "SNIPPET"} {
 		require.Contains(t, out, header)
@@ -49,9 +51,9 @@ func TestGetMultiMessageThread(t *testing.T) {
 		},
 	}
 	svc := &fakeService{threads: []*gmail.Thread{multi}}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), "thread_3")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "thread_3")
 
-	rows, ok := decodeJSON(t, out).([]any)
+	rows, ok := cmdtest.DecodeJSON(t, out).([]any)
 	require.True(t, ok)
 	require.Len(t, rows, 2)
 	first, ok := rows[1].(map[string]any)
@@ -61,21 +63,21 @@ func TestGetMultiMessageThread(t *testing.T) {
 
 func TestGetNotFound(t *testing.T) {
 	svc := &fakeService{threads: seedThreads()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "thread_404")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "thread_404")
 
 	require.Contains(t, err.Error(), "thread thread_404 not found")
 }
 
 func TestGetPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 500")}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "thread_1")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "thread_1")
 
 	require.Contains(t, err.Error(), "googleapi: Error 500")
 }
 
 func TestGetRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeService{threads: seedThreads()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

@@ -5,18 +5,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestGetJSON(t *testing.T) {
 	svc := &fakeService{drafts: seedDrafts()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), "draft_1")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "draft_1")
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected a JSON object, got: %s", out)
-	keys := jsonKeys(t, row)
+	keys := cmdtest.JSONKeys(t, row)
 	require.ElementsMatch(t,
 		[]string{"id", "message_id", "from", "to", "subject", "date", "snippet"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "draft_1", row["id"])
 	require.Equal(t, "msg_1", row["message_id"])
 	// from/to/subject/date are parsed out of the stored message's headers.
@@ -29,7 +31,7 @@ func TestGetJSON(t *testing.T) {
 
 func TestGetTable(t *testing.T) {
 	svc := &fakeService{drafts: seedDrafts()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "table"), "draft_1")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "table"), "draft_1")
 
 	for _, header := range []string{"ID", "MESSAGE_ID", "FROM", "TO", "SUBJECT", "DATE", "SNIPPET"} {
 		require.Contains(t, out, header)
@@ -39,9 +41,9 @@ func TestGetTable(t *testing.T) {
 
 func TestGetWithoutHeaders(t *testing.T) {
 	svc := &fakeService{drafts: seedDrafts()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), "draft_2")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "draft_2")
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "draft_2", row["id"])
 	require.Empty(t, row["from"], "no payload headers means empty header fields")
@@ -50,21 +52,21 @@ func TestGetWithoutHeaders(t *testing.T) {
 
 func TestGetNotFound(t *testing.T) {
 	svc := &fakeService{drafts: seedDrafts()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "draft_404")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "draft_404")
 
 	require.Contains(t, err.Error(), "draft draft_404 not found")
 }
 
 func TestGetPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 500")}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "draft_1")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "draft_1")
 
 	require.Contains(t, err.Error(), "googleapi: Error 500")
 }
 
 func TestGetRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeService{drafts: seedDrafts()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

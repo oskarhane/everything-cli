@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestCreateForwardsRecurrenceVerbatim(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Standup",
 		"--start", "2026-09-01T09:00:00+02:00",
 		"--end", "2026-09-01T09:30:00+02:00",
@@ -27,7 +29,7 @@ func TestCreateForwardsRecurrenceVerbatim(t *testing.T) {
 
 func TestCreateAllDayUsesDateFields(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Conference",
 		"--start", "2026-10-01",
 		"--end", "2026-10-03",
@@ -42,7 +44,7 @@ func TestCreateAllDayUsesDateFields(t *testing.T) {
 
 func TestCreateDateWithoutAllDayIsRejected(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Conference",
 		"--start", "2026-10-01",
 		"--end", "2026-10-03",
@@ -54,7 +56,7 @@ func TestCreateDateWithoutAllDayIsRejected(t *testing.T) {
 
 func TestCreateAttendeesRepeatable(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Design review",
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",
@@ -70,7 +72,7 @@ func TestCreateAttendeesRepeatable(t *testing.T) {
 
 func TestCreateWithoutAttendeesSendsNoUpdates(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Focus block",
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",
@@ -82,7 +84,7 @@ func TestCreateWithoutAttendeesSendsNoUpdates(t *testing.T) {
 
 func TestCreateReminderMinutes(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Focus block",
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",
@@ -98,7 +100,7 @@ func TestCreateReminderMinutes(t *testing.T) {
 
 func TestCreateTimezoneForwarded(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Standup",
 		"--start", "2026-09-01T09:00:00+02:00",
 		"--end", "2026-09-01T09:30:00+02:00",
@@ -112,13 +114,13 @@ func TestCreateTimezoneForwarded(t *testing.T) {
 
 func TestCreateJSONOutput(t *testing.T) {
 	svc := &fakeEventService{}
-	out := runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Design review",
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",
 	)
 
-	view, ok := decodeJSON(t, out).(map[string]any)
+	view, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected a JSON object, got: %s", out)
 	require.Equal(t, "created123", view["id"])
 	require.Equal(t, "Design review", view["summary"])
@@ -127,7 +129,7 @@ func TestCreateJSONOutput(t *testing.T) {
 
 func TestCreateRequiresSummary(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",
 	)
@@ -137,14 +139,14 @@ func TestCreateRequiresSummary(t *testing.T) {
 
 func TestCreateRequiresStartAndEnd(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--summary", "Orphan")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--summary", "Orphan")
 
 	require.Contains(t, err.Error(), "--start and --end are required")
 }
 
 func TestCreateRejectsInvalidStart(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Broken",
 		"--start", "tomorrow",
 		"--end", "2026-09-03T15:00:00Z",
@@ -156,7 +158,7 @@ func TestCreateRejectsInvalidStart(t *testing.T) {
 
 func TestCreatePropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{insertErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--summary", "Design review",
 		"--start", "2026-09-03T14:00:00Z",
 		"--end", "2026-09-03T15:00:00Z",

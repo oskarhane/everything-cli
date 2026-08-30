@@ -7,13 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // runRespond builds and executes one response leaf against svc.
 func runRespond(t *testing.T, svc *fakeEventService, verb string, args ...string) string {
 	t.Helper()
-	cmd := newRespondCmd(newTestConfig("json"), fakeNewSvc(svc), verb)
-	return runCmd(t, cmd, args...)
+	cmd := newRespondCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc), verb)
+	return cmdtest.RunCmd(t, cmd, args...)
 }
 
 func TestRespondInstancePatchesOnlyThatOccurrence(t *testing.T) {
@@ -102,7 +104,7 @@ func TestRespondNotAnAttendee(t *testing.T) {
 		ev.Attendees = attendees
 	}
 	svc := &fakeEventService{events: series}
-	_, err := runCmdErr(t, newRespondCmd(newTestConfig("json"), fakeNewSvc(svc), "decline"), masterEventID)
+	_, err := cmdtest.RunCmdErr(t, newRespondCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc), "decline"), masterEventID)
 
 	require.Contains(t, err.Error(), "you are not an attendee of this event")
 	require.Empty(t, svc.patches)
@@ -110,7 +112,7 @@ func TestRespondNotAnAttendee(t *testing.T) {
 
 func TestRespondPropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries(), patchErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newRespondCmd(newTestConfig("json"), fakeNewSvc(svc), "decline"), instanceEventID)
+	_, err := cmdtest.RunCmdErr(t, newRespondCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc), "decline"), instanceEventID)
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 	require.Len(t, svc.patches, 1, "the patch was attempted and its error surfaced")
@@ -118,7 +120,7 @@ func TestRespondPropagatesAPIError(t *testing.T) {
 
 func TestRespondRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newRespondCmd(newTestConfig("json"), fakeNewSvc(svc), "accept"))
+	_, err := cmdtest.RunCmdErr(t, newRespondCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(svc), "accept"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

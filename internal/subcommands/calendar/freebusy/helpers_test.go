@@ -1,22 +1,18 @@
 package freebusy
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // TestMain neutralizes format auto-detection so the host's harness env and
@@ -25,11 +21,6 @@ func TestMain(m *testing.M) {
 	output.IsAgent = func() bool { return false }
 	output.StdoutIsTerminal = func() bool { return false }
 	os.Exit(m.Run())
-}
-
-// newTestConfig returns a config forcing the given explicit output format.
-func newTestConfig(format string) *app.Config {
-	return &app.Config{Format: format, Fs: afero.NewMemMapFs()}
 }
 
 // frozenNow anchors every relative window and default in the tests.
@@ -77,58 +68,7 @@ func fakeNewSvc(svc *fakeFreeBusyService) service.Dialer[service.FreeBusyService
 	return func(context.Context) (service.FreeBusyService, error) { return svc, nil }
 }
 
-// runCmd executes the freebusy cmd with its flags, returning everything it
-// wrote.
-func runCmd(t *testing.T, cmd *cobra.Command, args ...string) string {
-	t.Helper()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs(args)
-	require.NoError(t, cmd.Execute())
-	return buf.String()
-}
-
-// runCmdErr executes cmd expecting failure, returning the error and output.
-func runCmdErr(t *testing.T, cmd *cobra.Command, args ...string) (string, error) {
-	t.Helper()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	require.Error(t, err)
-	return buf.String(), err
-}
-
-// decodeJSON unmarshals one JSON document.
-func decodeJSON(t *testing.T, s string) any {
-	t.Helper()
-	var v any
-	require.NoError(t, json.Unmarshal([]byte(s), &v))
-	return v
-}
-
-// jsonKeys returns the keys of a decoded JSON object.
-func jsonKeys(t *testing.T, raw map[string]any) []string {
-	t.Helper()
-	keys := make([]string, 0, len(raw))
-	for k := range raw {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// requireSnakeCase asserts every key is lower snake_case, the output casing
-// contract for JSON and TOON.
-func requireSnakeCase(t *testing.T, keys []string) {
-	t.Helper()
-	for _, k := range keys {
-		require.Regexp(t, `^[a-z0-9_]+$`, k, "key %q must be lower snake_case", k)
-	}
-}
-
 // newCmd builds the freebusy leaf against a fake service, ready to execute.
 func newCmd(svc *fakeFreeBusyService, format string) *cobra.Command {
-	return NewCmd(newTestConfig(format), fakeNewSvc(svc))
+	return NewCmd(cmdtest.NewTestConfig(format), fakeNewSvc(svc))
 }

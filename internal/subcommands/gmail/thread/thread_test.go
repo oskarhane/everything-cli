@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
-	cmd := NewCmd(newTestConfig("json"), fakeNewSvc(&fakeService{}))
+	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeService{}))
 
 	require.Equal(t, "thread", cmd.Name())
 	var names []string

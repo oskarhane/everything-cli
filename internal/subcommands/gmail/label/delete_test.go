@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestDeleteRefusesWithoutForce(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7")
 
 	require.Contains(t, err.Error(), `refusing to delete label "Label_7" without --force`)
 	require.False(t, svc.deleteCalled, "delete must not reach the API without --force")
@@ -17,7 +19,7 @@ func TestDeleteRefusesWithoutForce(t *testing.T) {
 
 func TestDeleteWithForce(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7", "--force")
+	out := cmdtest.RunCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7", "--force")
 
 	require.True(t, svc.deleteCalled)
 	require.Equal(t, "Label_7", svc.deletedID)
@@ -26,7 +28,7 @@ func TestDeleteWithForce(t *testing.T) {
 
 func TestDeletePropagatesAPIError(t *testing.T) {
 	svc := &fakeService{deleteErr: errors.New("googleapi: Error 400")}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7", "--force")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "Label_7", "--force")
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")
 }

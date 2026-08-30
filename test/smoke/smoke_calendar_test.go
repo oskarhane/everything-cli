@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // TestSmokeCalendarList runs `calendar list` against the real account and
@@ -19,7 +21,9 @@ func TestSmokeCalendarList(t *testing.T) {
 
 	rows := decodeRows(t, out, "calendar list")
 	require.NotEmpty(t, rows, "expected at least one calendar")
-	requireSnakeCase(t, "calendar list", rows)
+	for _, row := range rows {
+		cmdtest.RequireSnakeCase(t, cmdtest.JSONKeys(t, row))
+	}
 	require.Contains(t, rows[0], "id", "first calendar row lacks an id key")
 	require.Contains(t, rows[0], "summary", "first calendar row lacks a summary key")
 }

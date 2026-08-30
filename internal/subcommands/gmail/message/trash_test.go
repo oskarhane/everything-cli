@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestTrash(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newTrashCmd, svc, "json"), "msg_1")
+	out := cmdtest.RunCmd(t, newLeafCmd(newTrashCmd, svc, "json"), "msg_1")
 
 	require.Equal(t, "msg_1", svc.trashedID)
 	require.Equal(t, "Trashed message msg_1\n", out, "single-line confirmation")
@@ -17,7 +19,7 @@ func TestTrash(t *testing.T) {
 
 func TestTrashPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 404")}
-	_, err := runCmdErr(t, newLeafCmd(newTrashCmd, svc, "json"), "msg_1")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newTrashCmd, svc, "json"), "msg_1")
 
 	require.Contains(t, err.Error(), "googleapi: Error 404")
 	require.Empty(t, svc.trashedID)

@@ -7,11 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestAddReader(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newAddCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newAddCmd, svc, "json"),
 		"primary", "--scope-user", "colleague@example.com", "--role", "reader")
 
 	require.Equal(t, "primary", svc.insertID)
@@ -22,11 +24,11 @@ func TestAddReader(t *testing.T) {
 	}, svc.inserted)
 
 	// The created rule is echoed as output.
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
-	keys := jsonKeys(t, row)
+	keys := cmdtest.JSONKeys(t, row)
 	require.ElementsMatch(t, []string{"id", "scope_type", "scope_value", "role"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "user:colleague@example.com", row["id"])
 	require.Equal(t, "user", row["scope_type"])
 	require.Equal(t, "reader", row["role"])
@@ -34,7 +36,7 @@ func TestAddReader(t *testing.T) {
 
 func TestAddWriter(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newAddCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newAddCmd, svc, "json"),
 		"primary", "--scope-user", "teammate@example.com", "--role", "writer")
 
 	require.NotNil(t, svc.inserted)
@@ -46,7 +48,7 @@ func TestAddRejectsInvalidRole(t *testing.T) {
 	// The role is validated client-side so a bad value never reaches the
 	// API.
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
 		"primary", "--scope-user", "colleague@example.com", "--role", "owner")
 
 	require.Contains(t, err.Error(), `invalid --role "owner"`)
@@ -56,7 +58,7 @@ func TestAddRejectsInvalidRole(t *testing.T) {
 
 func TestAddRejectsEmptyRole(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
 		"primary", "--scope-user", "colleague@example.com")
 
 	require.Contains(t, err.Error(), "invalid --role")
@@ -65,7 +67,7 @@ func TestAddRejectsEmptyRole(t *testing.T) {
 
 func TestAddRequiresScopeUser(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newAddCmd, svc, "json"), "primary", "--role", "reader")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newAddCmd, svc, "json"), "primary", "--role", "reader")
 
 	require.Contains(t, err.Error(), "--scope-user is required")
 	require.Nil(t, svc.inserted, "missing scope must not reach the API")
@@ -73,7 +75,7 @@ func TestAddRequiresScopeUser(t *testing.T) {
 
 func TestAddPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{insertErr: errors.New("googleapi: Error 400 duplicate acl rule")}
-	_, err := runCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newAddCmd, svc, "json"),
 		"primary", "--scope-user", "colleague@example.com", "--role", "reader")
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")

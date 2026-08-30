@@ -1,22 +1,19 @@
 package message
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/require"
 
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
@@ -26,11 +23,6 @@ func TestMain(m *testing.M) {
 	output.IsAgent = func() bool { return false }
 	output.StdoutIsTerminal = func() bool { return false }
 	os.Exit(m.Run())
-}
-
-// newTestConfig returns a config forcing the given explicit output format.
-func newTestConfig(format string) *app.Config {
-	return &app.Config{Format: format, Fs: afero.NewMemMapFs()}
 }
 
 // fakeService is the hermetic service.MessageService double: it serves seeded
@@ -126,59 +118,7 @@ func fakeNewSvc(svc *fakeService) service.Dialer[service.MessageService] {
 
 // newLeafCmd builds a leaf against a fake service, ready to execute.
 func newLeafCmd(build func(*app.Config, service.Dialer[service.MessageService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
-	return build(newTestConfig(format), fakeNewSvc(svc))
-}
-
-// runCmd executes a leaf cmd with its positional args and flags, returning
-// everything it wrote. args must NOT include the leaf's own name: SetArgs
-// feeds a single command, not a command path.
-func runCmd(t *testing.T, cmd *cobra.Command, args ...string) string {
-	t.Helper()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs(args)
-	require.NoError(t, cmd.Execute())
-	return buf.String()
-}
-
-// runCmdErr executes cmd expecting failure, returning the error and output.
-func runCmdErr(t *testing.T, cmd *cobra.Command, args ...string) (string, error) {
-	t.Helper()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs(args)
-	err := cmd.Execute()
-	require.Error(t, err)
-	return buf.String(), err
-}
-
-// decodeJSON unmarshals one JSON document.
-func decodeJSON(t *testing.T, s string) any {
-	t.Helper()
-	var v any
-	require.NoError(t, json.Unmarshal([]byte(s), &v))
-	return v
-}
-
-// jsonKeys returns the keys of a decoded JSON object.
-func jsonKeys(t *testing.T, raw map[string]any) []string {
-	t.Helper()
-	keys := make([]string, 0, len(raw))
-	for k := range raw {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
-// requireSnakeCase asserts every key is lower snake_case, the output casing
-// contract for JSON and TOON.
-func requireSnakeCase(t *testing.T, keys []string) {
-	t.Helper()
-	for _, k := range keys {
-		require.Regexp(t, `^[a-z0-9_]+$`, k, "key %q must be lower snake_case", k)
-	}
+	return build(cmdtest.NewTestConfig(format), fakeNewSvc(svc))
 }
 
 // seedMessages returns a small realistic message set.

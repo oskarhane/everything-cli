@@ -7,11 +7,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestCreateMinimal(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newCreateCmd, svc, "json"), "Team PTO")
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"), "Team PTO")
 
 	require.NotNil(t, svc.inserted)
 	require.Equal(t, "Team PTO", svc.inserted.Summary)
@@ -21,7 +23,7 @@ func TestCreateMinimal(t *testing.T) {
 	require.Empty(t, svc.patchEntryID, "no color means no PatchCalendarList call")
 
 	// The created calendar is echoed as output.
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "cal_99", row["id"])
 	require.Equal(t, "Team PTO", row["summary"])
@@ -30,7 +32,7 @@ func TestCreateMinimal(t *testing.T) {
 
 func TestCreateFull(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"Team PTO",
 		"--timezone", "Europe/Stockholm",
 		"--description", "Shared time off",
@@ -48,7 +50,7 @@ func TestCreateFull(t *testing.T) {
 	require.NotNil(t, svc.patchEntry)
 	require.Equal(t, "tomato", svc.patchEntry.ColorId)
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "cal_99", row["id"])
 	require.Equal(t, "Shared time off", row["description"])
@@ -58,7 +60,7 @@ func TestCreateFull(t *testing.T) {
 
 func TestCreatePropagatesAPIError(t *testing.T) {
 	svc := &fakeService{insertErr: errors.New("googleapi: Error 400")}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "Team PTO")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "Team PTO")
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")
 	require.Nil(t, svc.patchEntry, "a failed insert must not patch the list entry")

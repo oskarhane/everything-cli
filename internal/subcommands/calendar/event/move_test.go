@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestMoveCallsMoveEvent(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	out := runCmd(t, newLeafCmd(newMoveCmd, svc, "json"), instanceEventID,
+	out := cmdtest.RunCmd(t, newLeafCmd(newMoveCmd, svc, "json"), instanceEventID,
 		"--calendar", "work@example.com",
 		"--to-calendar", "work.group.calendar.google.com")
 
@@ -19,13 +21,13 @@ func TestMoveCallsMoveEvent(t *testing.T) {
 	require.Equal(t, instanceEventID, m.eventID, "moving an instance id moves only that occurrence")
 	require.Equal(t, "work.group.calendar.google.com", m.destCalendarID)
 
-	view := decodeJSON(t, out).(map[string]any)
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.Equal(t, instanceEventID, view["id"])
 }
 
 func TestMoveRequiresToCalendar(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), masterEventID)
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), masterEventID)
 
 	require.Contains(t, err.Error(), "--to-calendar is required")
 	require.Empty(t, svc.moveCalls)
@@ -33,14 +35,14 @@ func TestMoveRequiresToCalendar(t *testing.T) {
 
 func TestMovePropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{moveErr: errors.New("googleapi: Error 404")}
-	_, err := runCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), masterEventID, "--to-calendar", "other")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), masterEventID, "--to-calendar", "other")
 
 	require.Contains(t, err.Error(), "googleapi: Error 404")
 }
 
 func TestMoveRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), "--to-calendar", "other")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newMoveCmd, svc, "json"), "--to-calendar", "other")
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

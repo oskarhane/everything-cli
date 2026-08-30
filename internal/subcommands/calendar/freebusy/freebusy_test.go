@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // seedCalendars returns two calendar-list entries for the fallback path.
@@ -40,7 +42,7 @@ func TestFreeBusyDefaultsToNowPlusOneDay(t *testing.T) {
 		entries: seedCalendars(),
 		resp:    &calendar.FreeBusyResponse{Calendars: map[string]calendar.FreeBusyCalendar{}},
 	}
-	runCmd(t, newCmd(svc, "json"))
+	cmdtest.RunCmd(t, newCmd(svc, "json"))
 
 	require.True(t, svc.listCalled, "without --calendar the whole calendar list is queried")
 	require.Len(t, svc.params, 1)
@@ -57,7 +59,7 @@ func TestFreeBusyExplicitFromToForwarded(t *testing.T) {
 		entries: seedCalendars(),
 		resp:    &calendar.FreeBusyResponse{Calendars: map[string]calendar.FreeBusyCalendar{}},
 	}
-	runCmd(t, newCmd(svc, "json"),
+	cmdtest.RunCmd(t, newCmd(svc, "json"),
 		"--from", "2026-09-01T09:00:00Z",
 		"--to", "2026-09-01T17:00:00Z")
 
@@ -69,7 +71,7 @@ func TestFreeBusyExplicitFromToForwarded(t *testing.T) {
 func TestFreeBusyCalendarFlagOverridesCalendarList(t *testing.T) {
 	freezeNow(t)
 	svc := &fakeFreeBusyService{entries: seedCalendars()}
-	runCmd(t, newCmd(svc, "json"),
+	cmdtest.RunCmd(t, newCmd(svc, "json"),
 		"--calendar", "work@example.com",
 		"--calendar", "team@example.com")
 
@@ -80,22 +82,22 @@ func TestFreeBusyCalendarFlagOverridesCalendarList(t *testing.T) {
 func TestFreeBusyCalendarFlagAcceptsCommaList(t *testing.T) {
 	freezeNow(t)
 	svc := &fakeFreeBusyService{}
-	runCmd(t, newCmd(svc, "json"), "--calendar", "a@example.com,b@example.com")
+	cmdtest.RunCmd(t, newCmd(svc, "json"), "--calendar", "a@example.com,b@example.com")
 
 	require.Equal(t, []string{"a@example.com", "b@example.com"}, svc.params[0].CalendarIDs)
 }
 
 func TestFreeBusyJSONRowsSnakeCase(t *testing.T) {
 	svc := &fakeFreeBusyService{entries: seedCalendars(), resp: seedResponse()}
-	out := runCmd(t, newCmd(svc, "json"))
+	out := cmdtest.RunCmd(t, newCmd(svc, "json"))
 
-	rows, ok := decodeJSON(t, out).([]any)
+	rows, ok := cmdtest.DecodeJSON(t, out).([]any)
 	require.True(t, ok, "expected a JSON array, got: %s", out)
 	require.Len(t, rows, 3, "one row per busy period across all calendars")
 	first := rows[0].(map[string]any)
-	keys := jsonKeys(t, first)
+	keys := cmdtest.JSONKeys(t, first)
 	require.ElementsMatch(t, []string{"calendar_id", "start", "end"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "primary", rows[0].(map[string]any)["calendar_id"])
 	require.Equal(t, "2026-09-01T15:00:00Z", rows[0].(map[string]any)["start"])
 	require.Equal(t, "2026-09-01T15:30:00Z", rows[0].(map[string]any)["end"])
@@ -109,20 +111,20 @@ func TestFreeBusySinglePeriodCollapsesToOneObject(t *testing.T) {
 			}},
 		},
 	}}
-	out := runCmd(t, newCmd(svc, "json"))
+	out := cmdtest.RunCmd(t, newCmd(svc, "json"))
 
 	// The package-wide one-row convention: one busy period renders as a
 	// single object, not a one-element array.
-	obj, ok := decodeJSON(t, out).(map[string]any)
+	obj, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected one JSON object, got: %s", out)
 	require.Equal(t, "primary", obj["calendar_id"])
 }
 
 func TestFreeBusyRowsOrderedByCalendarThenStart(t *testing.T) {
 	svc := &fakeFreeBusyService{entries: seedCalendars(), resp: seedResponse()}
-	out := runCmd(t, newCmd(svc, "json"))
+	out := cmdtest.RunCmd(t, newCmd(svc, "json"))
 
-	rows := decodeJSON(t, out).([]any)
+	rows := cmdtest.DecodeJSON(t, out).([]any)
 	got := make([]string, 0, len(rows))
 	for _, r := range rows {
 		row := r.(map[string]any)
@@ -137,7 +139,7 @@ func TestFreeBusyRowsOrderedByCalendarThenStart(t *testing.T) {
 
 func TestFreeBusyTableUpperCasedHeaders(t *testing.T) {
 	svc := &fakeFreeBusyService{entries: seedCalendars(), resp: seedResponse()}
-	out := runCmd(t, newCmd(svc, "table"))
+	out := cmdtest.RunCmd(t, newCmd(svc, "table"))
 
 	// go-pretty StyleLight upper-cases the snake_case field names.
 	for _, header := range []string{"CALENDAR_ID", "START", "END"} {
@@ -152,9 +154,9 @@ func TestFreeBusyEmptyResultRendersCleanly(t *testing.T) {
 		entries: seedCalendars(),
 		resp:    &calendar.FreeBusyResponse{Calendars: map[string]calendar.FreeBusyCalendar{}},
 	}
-	out := runCmd(t, newCmd(svc, "json"))
+	out := cmdtest.RunCmd(t, newCmd(svc, "json"))
 
-	require.Equal(t, []any{}, decodeJSON(t, out))
+	require.Equal(t, []any{}, cmdtest.DecodeJSON(t, out))
 }
 
 func TestFreeBusyPropagatesQueryError(t *testing.T) {
@@ -163,7 +165,7 @@ func TestFreeBusyPropagatesQueryError(t *testing.T) {
 		entries:  seedCalendars(),
 		queryErr: errors.New("googleapi: Error 400"),
 	}
-	_, err := runCmdErr(t, newCmd(svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newCmd(svc, "json"))
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")
 }
@@ -171,7 +173,7 @@ func TestFreeBusyPropagatesQueryError(t *testing.T) {
 func TestFreeBusyPropagatesCalendarListError(t *testing.T) {
 	freezeNow(t)
 	svc := &fakeFreeBusyService{listErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newCmd(svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newCmd(svc, "json"))
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 	require.Empty(t, svc.params, "no query must run when the calendar list fails")
@@ -180,7 +182,7 @@ func TestFreeBusyPropagatesCalendarListError(t *testing.T) {
 func TestFreeBusyInvalidWindow(t *testing.T) {
 	freezeNow(t)
 	svc := &fakeFreeBusyService{entries: seedCalendars()}
-	_, err := runCmdErr(t, newCmd(svc, "json"), "--from", "yesterday")
+	_, err := cmdtest.RunCmdErr(t, newCmd(svc, "json"), "--from", "yesterday")
 
 	require.Contains(t, err.Error(), "invalid timestamp")
 	require.Empty(t, svc.params, "no query must run for a rejected window")

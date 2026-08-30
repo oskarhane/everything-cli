@@ -13,6 +13,8 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // mimePart is one decoded part of a constructed MIME message.
@@ -64,7 +66,7 @@ func readParts(t *testing.T, body, boundary string) []mimePart {
 
 func TestSendPlainMIME(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newSendCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newSendCmd, svc, "json"),
 		"--to", "alice@example.com, bob@example.com",
 		"--cc", "carol@example.com",
 		"--bcc", "dave@example.com",
@@ -84,12 +86,12 @@ func TestSendPlainMIME(t *testing.T) {
 }
 
 func TestSendMultipartMIME(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "notes.txt", []byte("the body text"), 0o644))
 	require.NoError(t, afero.WriteFile(cfg.Fs, "data.csv", []byte("a,b\n1,2\n"), 0o644))
 	svc := &fakeService{}
 
-	runCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
+	cmdtest.RunCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com",
 		"--subject", "Report",
 		"--body-file", "notes.txt",
@@ -117,12 +119,12 @@ func TestSendMultipartMIME(t *testing.T) {
 }
 
 func TestSendRepeatableAttachments(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "one.txt", []byte("one"), 0o644))
 	require.NoError(t, afero.WriteFile(cfg.Fs, "two.txt", []byte("two"), 0o644))
 	svc := &fakeService{}
 
-	runCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
+	cmdtest.RunCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com",
 		"--body", "b",
 		"--attachment", "one.txt",
@@ -136,11 +138,11 @@ func TestSendRepeatableAttachments(t *testing.T) {
 }
 
 func TestSendBodyFile(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "note.txt", []byte("file body"), 0o644))
 	svc := &fakeService{}
 
-	runCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
+	cmdtest.RunCmd(t, newSendCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com", "--body-file", "note.txt")
 
 	_, body := splitMIME(t, decodeSent(t, svc))
@@ -148,11 +150,11 @@ func TestSendBodyFile(t *testing.T) {
 }
 
 func TestSendRefusesAmbiguousBodyFlags(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "note.txt", []byte("file body"), 0o644))
 	svc := &fakeService{}
 
-	_, err := runCmdErr(t, newSendCmd(cfg, fakeNewSvc(svc)),
+	_, err := cmdtest.RunCmdErr(t, newSendCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com", "--body", "inline", "--body-file", "note.txt")
 
 	require.Contains(t, err.Error(), "--body and --body-file are mutually exclusive")
@@ -161,7 +163,7 @@ func TestSendRefusesAmbiguousBodyFlags(t *testing.T) {
 
 func TestSendRefusesMissingBody(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newSendCmd, svc, "json"), "--to", "alice@example.com")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newSendCmd, svc, "json"), "--to", "alice@example.com")
 
 	require.Contains(t, err.Error(), "no message body")
 	require.Nil(t, svc.sent)
@@ -169,7 +171,7 @@ func TestSendRefusesMissingBody(t *testing.T) {
 
 func TestSendRequiresTo(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newSendCmd, svc, "json"), "--body", "hi")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newSendCmd, svc, "json"), "--body", "hi")
 
 	require.Contains(t, err.Error(), "no recipients")
 	require.Nil(t, svc.sent)
@@ -177,7 +179,7 @@ func TestSendRequiresTo(t *testing.T) {
 
 func TestSendMissingAttachmentFile(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newSendCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newSendCmd, svc, "json"),
 		"--to", "alice@example.com", "--body", "hi", "--attachment", "nope.txt")
 
 	require.Contains(t, err.Error(), "reading --attachment nope.txt")
@@ -186,10 +188,10 @@ func TestSendMissingAttachmentFile(t *testing.T) {
 
 func TestSendEchoesSentMessage(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newSendCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newSendCmd, svc, "json"),
 		"--to", "alice@example.com", "--body", "hi")
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "msg_99", row["id"])
 	require.Equal(t, []any{"SENT"}, row["label_ids"])
@@ -197,7 +199,7 @@ func TestSendEchoesSentMessage(t *testing.T) {
 
 func TestSendPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 413: message too large")}
-	_, err := runCmdErr(t, newLeafCmd(newSendCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newSendCmd, svc, "json"),
 		"--to", "alice@example.com", "--body", "hi")
 
 	require.Contains(t, err.Error(), "googleapi: Error 413")

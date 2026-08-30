@@ -4,11 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestUpdatePartialRename(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), "Label_7", "--name", "Travel 2026")
+	out := cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), "Label_7", "--name", "Travel 2026")
 
 	require.Equal(t, "Label_7", svc.updatedID)
 	require.NotNil(t, svc.updated)
@@ -18,14 +20,14 @@ func TestUpdatePartialRename(t *testing.T) {
 	require.Empty(t, svc.updated.LabelListVisibility)
 	require.Empty(t, svc.updated.MessageListVisibility)
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "Travel 2026", row["name"])
 }
 
 func TestUpdateColorOnly(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"),
 		"Label_7",
 		"--color-text", "#ffffff", "--color-bg", "#039be5",
 	)
@@ -39,7 +41,7 @@ func TestUpdateColorOnly(t *testing.T) {
 
 func TestUpdateVisibilities(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newUpdateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"),
 		"Label_7",
 		"--label-list-visibility", "labelHide",
 		"--message-list-visibility", "hide",
@@ -51,7 +53,7 @@ func TestUpdateVisibilities(t *testing.T) {
 
 func TestUpdateNothing(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), "Label_7")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), "Label_7")
 
 	require.Contains(t, err.Error(), "nothing to update")
 	require.Nil(t, svc.updated, "empty update must not reach the API")
@@ -59,7 +61,7 @@ func TestUpdateNothing(t *testing.T) {
 
 func TestUpdateInvalidVisibility(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"),
 		"Label_7", "--label-list-visibility", "bogus")
 
 	require.Contains(t, err.Error(), "invalid --label-list-visibility")

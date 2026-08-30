@@ -5,21 +5,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestListJSON(t *testing.T) {
 	svc := &fakeService{entries: seedEntries()}
-	out := runCmd(t, newLeafCmd(newListCmd, svc, "json"))
+	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
 
-	rows, ok := decodeJSON(t, out).([]any)
+	rows, ok := cmdtest.DecodeJSON(t, out).([]any)
 	require.True(t, ok, "expected a JSON array, got: %s", out)
 	require.Len(t, rows, 2)
 
 	first, ok := rows[0].(map[string]any)
 	require.True(t, ok)
-	keys := jsonKeys(t, first)
+	keys := cmdtest.JSONKeys(t, first)
 	require.ElementsMatch(t, []string{"id", "summary", "timezone", "primary"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "oskar@example.com", first["id"])
 	require.Equal(t, "oskar@example.com", first["summary"])
 	require.Equal(t, "Europe/Stockholm", first["timezone"])
@@ -28,7 +30,7 @@ func TestListJSON(t *testing.T) {
 
 func TestListTable(t *testing.T) {
 	svc := &fakeService{entries: seedEntries()}
-	out := runCmd(t, newLeafCmd(newListCmd, svc, "table"))
+	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "table"))
 
 	// go-pretty StyleLight upper-cases headers.
 	for _, header := range []string{"ID", "SUMMARY", "TIMEZONE", "PRIMARY"} {
@@ -41,14 +43,14 @@ func TestListTable(t *testing.T) {
 
 func TestListEmpty(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newListCmd, svc, "json"))
+	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
 
-	require.Equal(t, []any{}, decodeJSON(t, out))
+	require.Equal(t, []any{}, cmdtest.DecodeJSON(t, out))
 }
 
 func TestListPropagatesAPIError(t *testing.T) {
 	svc := &fakeService{listErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newLeafCmd(newListCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newListCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 }

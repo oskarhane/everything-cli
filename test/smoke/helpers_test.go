@@ -146,33 +146,3 @@ func decodeRows(t *testing.T, out, cmd string) []map[string]any {
 	require.NoError(t, err, "parsing %s JSON output; output was:\n%s", cmd, out)
 	return rows
 }
-
-// requireSnakeCase asserts every key in every row is lower snake_case, per
-// the output casing convention (snake_case JSON keys).
-func requireSnakeCase(t *testing.T, cmd string, rows []map[string]any) {
-	t.Helper()
-
-	for i, row := range rows {
-		for key := range row {
-			require.True(t, isSnakeCase(key), "%s row %d: key %q is not snake_case", cmd, i, key)
-		}
-	}
-}
-
-// isSnakeCase reports whether s is non-empty lower snake_case: lowercase
-// letters, digits, and underscores only.
-func isSnakeCase(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, r := range s {
-		switch {
-		case r >= 'a' && r <= 'z':
-		case r >= '0' && r <= '9':
-		case r == '_':
-		default:
-			return false
-		}
-	}
-	return true
-}

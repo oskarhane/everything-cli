@@ -6,11 +6,13 @@ import (
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestCreatePlainMIME(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--to", "alice@example.com, bob@example.com",
 		"--subject", "Lunch",
 		"--body", "Noon works",
@@ -25,11 +27,11 @@ func TestCreatePlainMIME(t *testing.T) {
 }
 
 func TestCreateBodyFile(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "note.txt", []byte("file body"), 0o644))
 	svc := &fakeService{}
 
-	runCmd(t, newCreateCmd(cfg, fakeNewSvc(svc)),
+	cmdtest.RunCmd(t, newCreateCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com", "--subject", "Report", "--body-file", "note.txt")
 
 	_, body := splitMIME(t, decodeCreated(t, svc))
@@ -38,24 +40,24 @@ func TestCreateBodyFile(t *testing.T) {
 
 func TestCreateEchoesCreatedDraft(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--to", "alice@example.com", "--body", "hi")
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
-	keys := jsonKeys(t, row)
+	keys := cmdtest.JSONKeys(t, row)
 	require.ElementsMatch(t, []string{"id", "message_id", "snippet"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "draft_99", row["id"])
 	require.Equal(t, "msg_99", row["message_id"])
 }
 
 func TestCreateRefusesAmbiguousBodyFlags(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	require.NoError(t, afero.WriteFile(cfg.Fs, "note.txt", []byte("file body"), 0o644))
 	svc := &fakeService{}
 
-	_, err := runCmdErr(t, newCreateCmd(cfg, fakeNewSvc(svc)),
+	_, err := cmdtest.RunCmdErr(t, newCreateCmd(cfg, fakeNewSvc(svc)),
 		"--to", "alice@example.com", "--body", "inline", "--body-file", "note.txt")
 
 	require.Contains(t, err.Error(), "--body and --body-file are mutually exclusive")
@@ -64,7 +66,7 @@ func TestCreateRefusesAmbiguousBodyFlags(t *testing.T) {
 
 func TestCreateRefusesMissingBody(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--to", "alice@example.com")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--to", "alice@example.com")
 
 	require.Contains(t, err.Error(), "no message body")
 	require.Nil(t, svc.created)
@@ -72,7 +74,7 @@ func TestCreateRefusesMissingBody(t *testing.T) {
 
 func TestCreateRequiresTo(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--body", "hi")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"), "--body", "hi")
 
 	require.Contains(t, err.Error(), "no recipients")
 	require.Nil(t, svc.created)
@@ -80,7 +82,7 @@ func TestCreateRequiresTo(t *testing.T) {
 
 func TestCreateMissingBodyFile(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--to", "alice@example.com", "--body-file", "nope.txt")
 
 	require.Contains(t, err.Error(), "reading --body-file")
@@ -89,7 +91,7 @@ func TestCreateMissingBodyFile(t *testing.T) {
 
 func TestCreatePropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 400")}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"--to", "alice@example.com", "--body", "hi")
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")

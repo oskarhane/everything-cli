@@ -6,10 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestNewLeavesNames(t *testing.T) {
-	leaves := NewLeaves(newTestConfig("json"), fakeNewSvc(&fakeService{}))
+	leaves := NewLeaves(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeService{}))
 
 	var names []string
 	for _, leaf := range leaves {
@@ -21,7 +23,7 @@ func TestNewLeavesNames(t *testing.T) {
 func TestLeafExamples(t *testing.T) {
 	// Every leaf must carry a flush-left Example with at least two
 	// google-cli invocations; reads must show a --format json call.
-	leaves := NewLeaves(newTestConfig("json"), fakeNewSvc(&fakeService{}))
+	leaves := NewLeaves(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeService{}))
 	for _, leaf := range leaves {
 		require.NotEmpty(t, leaf.Example, "%s needs an Example", leaf.Name())
 		require.GreaterOrEqual(t, strings.Count(leaf.Example, "google-cli "), 2,

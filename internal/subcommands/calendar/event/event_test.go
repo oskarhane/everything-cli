@@ -6,10 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
-	cmd := NewCmd(newTestConfig("json"), fakeNewSvc(&fakeEventService{}))
+	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeEventService{}))
 
 	var names []string
 	for _, leaf := range cmd.Commands() {
@@ -26,7 +28,7 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 // comment-led examples with at least two google-cli invocations, a recurring
 // example, and --format json on the read leaves.
 func TestLeafExamples(t *testing.T) {
-	cmd := NewCmd(newTestConfig("json"), fakeNewSvc(&fakeEventService{}))
+	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeEventService{}))
 	leaves := cmd.Commands()
 	require.NotEmpty(t, leaves)
 
@@ -71,7 +73,7 @@ func isReadLeaf(name string) bool {
 
 // TestLeafArgsAndFlags spot-checks the surface each leaf must expose.
 func TestLeafArgsAndFlags(t *testing.T) {
-	cmd := NewCmd(newTestConfig("json"), fakeNewSvc(&fakeEventService{}))
+	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeEventService{}))
 	leaf := func(name string) *cobra.Command {
 		for _, c := range cmd.Commands() {
 			if c.Name() == name {

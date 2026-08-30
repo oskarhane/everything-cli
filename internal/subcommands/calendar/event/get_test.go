@@ -4,20 +4,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestGetJSONMasterView(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), masterEventID)
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), masterEventID)
 
-	view, ok := decodeJSON(t, out).(map[string]any)
+	view, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected a JSON object, got: %s", out)
-	keys := jsonKeys(t, view)
+	keys := cmdtest.JSONKeys(t, view)
 	require.ElementsMatch(t, []string{
 		"id", "summary", "start", "end", "location", "description",
 		"attendees", "recurring", "recurring_event_id", "recurrence",
 	}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 
 	require.Equal(t, masterEventID, view["id"])
 	require.True(t, view["recurring"].(bool))
@@ -28,16 +30,16 @@ func TestGetJSONMasterView(t *testing.T) {
 	attendees := view["attendees"].([]any)
 	require.Len(t, attendees, 2)
 	first := attendees[0].(map[string]any)
-	requireSnakeCase(t, jsonKeys(t, first))
+	cmdtest.RequireSnakeCase(t, cmdtest.JSONKeys(t, first))
 	require.Equal(t, "organizer@example.com", first["email"])
 	require.Equal(t, "accepted", first["response_status"])
 }
 
 func TestGetInstanceView(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), instanceEventID)
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), instanceEventID)
 
-	view := decodeJSON(t, out).(map[string]any)
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.Equal(t, instanceEventID, view["id"])
 	require.True(t, view["recurring"].(bool))
 	require.Equal(t, masterEventID, view["recurring_event_id"])
@@ -46,7 +48,7 @@ func TestGetInstanceView(t *testing.T) {
 
 func TestGetTableUpperCasedHeaders(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "table"), masterEventID)
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "table"), masterEventID)
 
 	for _, header := range []string{"ID", "SUMMARY", "RECURRING", "RECURRING_EVENT_ID", "RECURRENCE", "ATTENDEES"} {
 		require.Contains(t, out, header)
@@ -57,21 +59,21 @@ func TestGetTableUpperCasedHeaders(t *testing.T) {
 
 func TestGetFetchesTheGivenIDOnce(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	runCmd(t, newLeafCmd(newGetCmd, svc, "json"), masterEventID, "--calendar", "work@example.com")
+	cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), masterEventID, "--calendar", "work@example.com")
 
 	require.Equal(t, []string{masterEventID}, svc.getCalls)
 }
 
 func TestGetPropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "missing1")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "missing1")
 
 	require.Contains(t, err.Error(), "404")
 }
 
 func TestGetRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeEventService{events: seedSeries()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

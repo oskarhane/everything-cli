@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // TestSmokeGmailLabelList runs `gmail label list` against the real account
@@ -19,7 +21,9 @@ func TestSmokeGmailLabelList(t *testing.T) {
 
 	rows := decodeRows(t, out, "gmail label list")
 	require.NotEmpty(t, rows, "expected at least one label")
-	requireSnakeCase(t, "gmail label list", rows)
+	for _, row := range rows {
+		cmdtest.RequireSnakeCase(t, cmdtest.JSONKeys(t, row))
+	}
 	require.Contains(t, rows[0], "id", "first label row lacks an id key")
 	require.Contains(t, rows[0], "name", "first label row lacks a name key")
 }

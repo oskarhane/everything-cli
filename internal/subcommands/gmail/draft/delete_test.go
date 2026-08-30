@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestDeleteRefusesWithoutForce(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1")
 
 	require.Contains(t, err.Error(), `refusing to permanently delete draft "draft_1" without --force`)
 	require.Contains(t, err.Error(), "cannot be undone", "the refusal must warn that deletion is permanent")
@@ -18,7 +20,7 @@ func TestDeleteRefusesWithoutForce(t *testing.T) {
 
 func TestDeleteWithForce(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1", "--force")
+	out := cmdtest.RunCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1", "--force")
 
 	require.Equal(t, "draft_1", svc.deletedID)
 	require.Empty(t, out, "successful delete is silent")
@@ -26,7 +28,7 @@ func TestDeleteWithForce(t *testing.T) {
 
 func TestDeletePropagatesAPIError(t *testing.T) {
 	svc := &fakeService{err: errors.New("googleapi: Error 400")}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1", "--force")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "draft_1", "--force")
 
 	require.Contains(t, err.Error(), "googleapi: Error 400")
 }

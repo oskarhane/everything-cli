@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gmail "google.golang.org/api/gmail/v1"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestCreateMinimal(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newCreateCmd, svc, "json"), "Travel")
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"), "Travel")
 
 	require.NotNil(t, svc.created)
 	require.Equal(t, "Travel", svc.created.Name)
@@ -19,7 +21,7 @@ func TestCreateMinimal(t *testing.T) {
 	require.Empty(t, svc.created.MessageListVisibility)
 
 	// The created label is echoed as output.
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "Label_99", row["id"])
 	require.Equal(t, "Travel", row["name"])
@@ -27,7 +29,7 @@ func TestCreateMinimal(t *testing.T) {
 
 func TestCreateFull(t *testing.T) {
 	svc := &fakeService{}
-	runCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"Travel",
 		"--color-text", "#ffffff",
 		"--color-bg", "#039be5",
@@ -43,7 +45,7 @@ func TestCreateFull(t *testing.T) {
 
 func TestCreateInvalidVisibility(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"Travel", "--label-list-visibility", "bogus")
 
 	require.Contains(t, err.Error(), "invalid --label-list-visibility")
@@ -52,7 +54,7 @@ func TestCreateInvalidVisibility(t *testing.T) {
 
 func TestCreateInvalidMessageVisibility(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
 		"Travel", "--message-list-visibility", "bogus")
 
 	require.Contains(t, err.Error(), "invalid --message-list-visibility")

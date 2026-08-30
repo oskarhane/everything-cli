@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestRemoveCallsAPI(t *testing.T) {
 	svc := &fakeService{}
-	out := runCmd(t, newLeafCmd(newRemoveCmd, svc, "json"),
+	out := cmdtest.RunCmd(t, newLeafCmd(newRemoveCmd, svc, "json"),
 		"primary", "--rule-id", "user:colleague@example.com")
 
 	require.True(t, svc.deleteCalled)
@@ -20,7 +22,7 @@ func TestRemoveCallsAPI(t *testing.T) {
 
 func TestRemoveRequiresRuleID(t *testing.T) {
 	svc := &fakeService{}
-	_, err := runCmdErr(t, newLeafCmd(newRemoveCmd, svc, "json"), "primary")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newRemoveCmd, svc, "json"), "primary")
 
 	require.Contains(t, err.Error(), "--rule-id is required")
 	require.False(t, svc.deleteCalled, "missing rule id must not reach the API")
@@ -28,7 +30,7 @@ func TestRemoveRequiresRuleID(t *testing.T) {
 
 func TestRemovePropagatesAPIError(t *testing.T) {
 	svc := &fakeService{deleteErr: errors.New("googleapi: Error 404")}
-	_, err := runCmdErr(t, newLeafCmd(newRemoveCmd, svc, "json"),
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newRemoveCmd, svc, "json"),
 		"primary", "--rule-id", "user:colleague@example.com")
 
 	require.Contains(t, err.Error(), "googleapi: Error 404")

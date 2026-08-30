@@ -7,11 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
-	cmd := NewCmd(newTestConfig("json"), fakeNewSvc(&fakeService{}))
+	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeService{}))
 
 	want := []string{"list", "get", "create", "update", "delete"}
 	var got []string
@@ -37,7 +38,7 @@ func TestLeavesHaveExamples(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := tt.build(newTestConfig("json"), fakeNewSvc(&fakeService{}))
+			cmd := tt.build(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeService{}))
 			require.NotEmpty(t, cmd.Example)
 			require.Contains(t, cmd.Example, "# ")
 			require.GreaterOrEqual(t, countInvocations(cmd.Example), 2)

@@ -8,6 +8,7 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
@@ -73,7 +74,7 @@ func (f *composeSpy) ModifyMessage(context.Context, string, *gmail.ModifyMessage
 // to/subject/body must reach the API carrying identical Raw bytes, proving
 // draft no longer composes through its own fork of message's buildMIME.
 func TestDraftAndSendShareMIMEPipeline(t *testing.T) {
-	cfg := newTestConfig("json")
+	cfg := cmdtest.NewTestConfig("json")
 	spy := &composeSpy{}
 	newDraftSvc := func(context.Context) (service.DraftService, error) { return spy, nil }
 	newMessageSvc := func(context.Context) (service.MessageService, error) { return spy, nil }

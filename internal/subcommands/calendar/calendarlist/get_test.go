@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	calendar "google.golang.org/api/calendar/v3"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // seedCalendar returns the Calendar resource the primary calendar's
@@ -22,13 +24,13 @@ func seedCalendar() *calendar.Calendar {
 
 func TestGetJSON(t *testing.T) {
 	svc := &fakeService{entries: seedEntries(), getCal: seedCalendar()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "json"), "oskar@example.com")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "oskar@example.com")
 
-	row, ok := decodeJSON(t, out).(map[string]any)
+	row, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.True(t, ok, "expected a JSON object, got: %s", out)
-	keys := jsonKeys(t, row)
+	keys := cmdtest.JSONKeys(t, row)
 	require.ElementsMatch(t, []string{"id", "summary", "description", "timezone", "color_id"}, keys)
-	requireSnakeCase(t, keys)
+	cmdtest.RequireSnakeCase(t, keys)
 	require.Equal(t, "oskar@example.com", row["id"])
 	require.Equal(t, "Work calendar", row["description"])
 	// color_id comes from the calendar list entry, not the Calendar resource.
@@ -37,7 +39,7 @@ func TestGetJSON(t *testing.T) {
 
 func TestGetTable(t *testing.T) {
 	svc := &fakeService{entries: seedEntries(), getCal: seedCalendar()}
-	out := runCmd(t, newLeafCmd(newGetCmd, svc, "table"), "oskar@example.com")
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "table"), "oskar@example.com")
 
 	for _, header := range []string{"ID", "SUMMARY", "DESCRIPTION", "TIMEZONE", "COLOR_ID"} {
 		require.Contains(t, out, header)
@@ -48,7 +50,7 @@ func TestGetTable(t *testing.T) {
 
 func TestGetCalendarAPIError(t *testing.T) {
 	svc := &fakeService{entries: seedEntries(), getCalErr: errors.New("googleapi: Error 404")}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "primary")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "primary")
 
 	require.Contains(t, err.Error(), "googleapi: Error 404")
 }
@@ -57,14 +59,14 @@ func TestGetCalendarListAPIError(t *testing.T) {
 	// The calendar resource fetch succeeds but the list entry fetch (the
 	// only source of color_id) fails, so the command fails.
 	svc := &fakeService{entries: seedEntries(), getCal: seedCalendar(), getEntryErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "oskar@example.com")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "oskar@example.com")
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 }
 
 func TestGetRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeService{entries: seedEntries(), getCal: seedCalendar()}
-	_, err := runCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

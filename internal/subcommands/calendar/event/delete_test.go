@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 func TestDeleteInstanceCancelsOnlyThatOccurrence(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID, "--force")
+	cmdtest.RunCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID, "--force")
 
 	require.Len(t, svc.deletes, 1)
 	d := svc.deletes[0]
@@ -20,7 +22,7 @@ func TestDeleteInstanceCancelsOnlyThatOccurrence(t *testing.T) {
 
 func TestDeleteMasterDeletesTheSeries(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID, "--force")
+	cmdtest.RunCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID, "--force")
 
 	require.Len(t, svc.deletes, 1)
 	require.Equal(t, masterEventID, svc.deletes[0].eventID, "deleting a master id deletes the entire series")
@@ -28,7 +30,7 @@ func TestDeleteMasterDeletesTheSeries(t *testing.T) {
 
 func TestDeleteThisOnlyFalseWithInstanceDeletesSeries(t *testing.T) {
 	svc := &fakeEventService{}
-	runCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID, "--force", "--this-only=false")
+	cmdtest.RunCmd(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID, "--force", "--this-only=false")
 
 	require.Len(t, svc.deletes, 1)
 	require.Equal(t, masterEventID, svc.deletes[0].eventID, "--this-only=false resolves the instance id to its master")
@@ -36,7 +38,7 @@ func TestDeleteThisOnlyFalseWithInstanceDeletesSeries(t *testing.T) {
 
 func TestDeleteInstanceWithoutForceExplainsOccurrenceScope(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID)
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), instanceEventID)
 
 	require.Contains(t, err.Error(), "without --force")
 	require.Contains(t, err.Error(), "cancels 1 occurrence")
@@ -45,7 +47,7 @@ func TestDeleteInstanceWithoutForceExplainsOccurrenceScope(t *testing.T) {
 
 func TestDeleteMasterWithoutForceExplainsSeriesScope(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID)
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID)
 
 	require.Contains(t, err.Error(), "without --force")
 	require.Contains(t, err.Error(), "deletes the entire series")
@@ -54,14 +56,14 @@ func TestDeleteMasterWithoutForceExplainsSeriesScope(t *testing.T) {
 
 func TestDeletePropagatesAPIError(t *testing.T) {
 	svc := &fakeEventService{deleteErr: errors.New("googleapi: Error 403")}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID, "--force")
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), masterEventID, "--force")
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 }
 
 func TestDeleteRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeEventService{}
-	_, err := runCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"))
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }

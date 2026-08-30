@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
 // TestSmokeAccountList runs `account list` against the real config dir and
@@ -20,5 +22,7 @@ func TestSmokeAccountList(t *testing.T) {
 	require.NotEmpty(t, strings.TrimSpace(out), "account list printed nothing")
 	rows := decodeRows(t, out, "account list")
 	require.NotEmpty(t, rows, "expected at least one account row")
-	requireSnakeCase(t, "account list", rows)
+	for _, row := range rows {
+		cmdtest.RequireSnakeCase(t, cmdtest.JSONKeys(t, row))
+	}
 }
