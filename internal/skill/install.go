@@ -1,0 +1,146 @@
+package skill
+
+import (
+	"fmt"
+	"io/fs"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/spf13/afero"
+)
+
+// versionLineRe matches the frontmatter `version:` line in an installed
+// SKILL.md. Tolerates leading whitespace and arbitrary trailing whitespace
+// after the value.
+var versionLineRe = regexp.MustCompile(`(?m)^[ \t]*version:[ \t]*([^\r\n]*?)[ \t]*$`)
+
+// frontmatterRe matches the leading YAML frontmatter block of a SKILL.md
+// body. Captures the inner body so injection can replace or append the
+// `version:` line within it.
+var frontmatterRe = regexp.MustCompile(`(?s)\A---\r?\n(.*?)\r?\n---(\r?\n|\z)`)
+
+// Install copies the embedded Bundle into each target agent's skills
+// directory under `<expanded SkillsDir>/google-cli/`. The SKILL.md
+// frontmatter `version:` line is rewritten (or inserted) to `version`;
+// references are copied verbatim. Each target is installed clean-slate
+// (prior contents removed first) so deleted reference files don't linger.
+//
+// agentFilter semantics:
+//   - "" — install to every detected agent. Returns ErrNoAgentsDetected
+//     when none are detected.
+//   - non-empty — case-insensitive lookup in AGENTS. Unknown returns
+//     ErrUnknownAgent; known-but-undetected returns ErrAgentNotDetected.
+//
+// Returns the agents the bundle was written to (in catalog order).
+func Install(filesystem afero.Fs, version, agentFilter string) ([]Agent, error) {
+	targets, err := resolveTargets(filesystem, agentFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range targets {
+		skillsRoot, ok := a.SkillsPath()
+		if !ok {
+			return nil, fmt.Errorf("skill: cannot resolve skills path for %s", a.Name)
+		}
+		dst := filepath.Join(skillsRoot, SkillName)
+
+		// Clean any prior install so removed reference files don't linger.
+		if rerr := RemoveDir(filesystem, dst); rerr != nil {
+			return nil, fmt.Errorf("skill: cleaning %s: %w", dst, rerr)
+		}
+		if cerr := copyBundleWithVersion(filesystem, dst, Bundle, version); cerr != nil {
+			return nil, fmt.Errorf("skill: writing %s: %w", dst, cerr)
+		}
+	}
+	return targets, nil
+}
+
+// resolveTargets is the install-time agent filter. Mirrors Remove's logic
+// but with stricter semantics: an unknown filter or undetected single
+// target is an error (Remove tolerates both).
+func resolveTargets(filesystem afero.Fs, agentFilter string) ([]Agent, error) {
+	if agentFilter == "" {
+		targets := DetectAgents(filesystem)
+		if len(targets) == 0 {
+			return nil, ErrNoAgentsDetected
+		}
+		return targets, nil
+	}
+	a := FindAgent(agentFilter)
+	if a == nil {
+		return nil, fmt.Errorf("%w: %q", ErrUnknownAgent, agentFilter)
+	}
+	dp, ok := a.DetectPath()
+	if !ok {
+		return nil, fmt.Errorf("%w: %s (cannot resolve HOME)", ErrAgentNotDetected, a.Name)
+	}
+	exists, _ := afero.DirExists(filesystem, dp)
+	if !exists {
+		return nil, fmt.Errorf("%w: %s", ErrAgentNotDetected, a.Name)
+	}
+	return []Agent{*a}, nil
+}
+
+// copyBundleWithVersion copies the bundle FS into dstDir, rewriting the
+// SKILL.md frontmatter `version:` line to version (or inserting one when
+// upstream has none). References are copied verbatim.
+func copyBundleWithVersion(dst afero.Fs, dstDir string, bundle fs.FS, version string) error {
+	return fs.WalkDir(bundle, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		data, rerr := fs.ReadFile(bundle, p)
+		if rerr != nil {
+			return rerr
+		}
+		if p == "SKILL.md" {
+			data = injectVersion(data, version)
+		}
+		destPath := filepath.Join(dstDir, filepath.FromSlash(p))
+		if mkerr := dst.MkdirAll(filepath.Dir(destPath), 0755); mkerr != nil {
+			return mkerr
+		}
+		return afero.WriteFile(dst, destPath, data, 0600)
+	})
+}
+
+// injectVersion rewrites the SKILL.md frontmatter `version:` line to the
+// supplied value, or inserts one immediately before the closing `---`
+// fence when absent. An empty `version` is a no-op. If `data` has no
+// frontmatter block, it is returned unchanged.
+func injectVersion(data []byte, version string) []byte {
+	if version == "" {
+		return data
+	}
+	m := frontmatterRe.FindSubmatchIndex(data)
+	if m == nil {
+		return data
+	}
+	innerStart, innerEnd := m[2], m[3]
+	inner := string(data[innerStart:innerEnd])
+
+	newLine := "version: " + version
+	var newInner string
+	if versionLineRe.MatchString(inner) {
+		newInner = versionLineRe.ReplaceAllLiteralString(inner, newLine)
+	} else {
+		trimmed := strings.TrimRight(inner, "\r\n")
+		if trimmed == "" {
+			newInner = newLine
+		} else {
+			newInner = trimmed + "\n" + newLine
+		}
+	}
+
+	var out strings.Builder
+	out.Grow(len(data) + len(newLine))
+	out.Write(data[:innerStart])
+	out.WriteString(newInner)
+	out.Write(data[innerEnd:])
+	return []byte(out.String())
+}
