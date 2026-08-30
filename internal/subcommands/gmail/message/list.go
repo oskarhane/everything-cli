@@ -31,7 +31,7 @@ google-cli gmail message list --label-ids Label_7 --unread-only --max 10 --forma
 			if err != nil {
 				return err
 			}
-			q := composeQuery(query, splitCSV(labelIDs), unreadOnly)
+			q := composeQuery(query, SplitCSV(labelIDs), unreadOnly)
 			messages, err := svc.ListMessages(cmd.Context(), q, maxResults)
 			if err != nil {
 				return err

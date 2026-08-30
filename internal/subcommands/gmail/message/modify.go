@@ -31,8 +31,8 @@ google-cli gmail message modify 19c2a4b7 --add-label-ids STARRED --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req := &gmail.ModifyMessageRequest{
-				AddLabelIds:    splitCSV(addLabelIDs),
-				RemoveLabelIds: splitCSV(removeLabelIDs),
+				AddLabelIds:    SplitCSV(addLabelIDs),
+				RemoveLabelIds: SplitCSV(removeLabelIDs),
 			}
 			if len(req.AddLabelIds) == 0 && len(req.RemoveLabelIds) == 0 {
 				return fmt.Errorf("nothing to modify: pass --add-label-ids and/or --remove-label-ids")

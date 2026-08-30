@@ -1,11 +1,10 @@
 package thread
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
 )
 
 // newListCmd returns `gmail thread list`: threads matching a Gmail search
@@ -31,7 +30,7 @@ google-cli gmail thread list --query "subject:invoice" --label-ids Label_7 --max
 			if err != nil {
 				return err
 			}
-			threads, err := svc.ListThreads(cmd.Context(), query, splitCSV(labelIDs), maxResults)
+			threads, err := svc.ListThreads(cmd.Context(), query, message.SplitCSV(labelIDs), maxResults)
 			if err != nil {
 				return err
 			}
@@ -44,19 +43,4 @@ google-cli gmail thread list --query "subject:invoice" --label-ids Label_7 --max
 	f.StringVar(&labelIDs, "label-ids", "", "Comma-separated label IDs every result must carry")
 	f.Int64Var(&maxResults, "max", 25, "Maximum threads to return")
 	return cmd
-}
-
-// splitCSV splits a comma-separated flag value into trimmed, non-empty items,
-// the CSV convention for the --label-ids flag.
-func splitCSV(s string) []string {
-	if s == "" {
-		return nil
-	}
-	var items []string
-	for _, part := range strings.Split(s, ",") {
-		if p := strings.TrimSpace(part); p != "" {
-			items = append(items, p)
-		}
-	}
-	return items
 }
