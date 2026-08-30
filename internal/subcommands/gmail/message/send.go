@@ -37,15 +37,26 @@ google-cli gmail message send --to a@example.com,b@example.com --subject "Report
   --body-file report.txt --attachment q1.pdf --attachment data.csv`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			recipients := SplitCSV(to)
+			recipients, err := SplitRecipients(to)
+			if err != nil {
+				return err
+			}
 			if len(recipients) == 0 {
 				return fmt.Errorf("no recipients: pass --to (optionally --cc and --bcc)")
+			}
+			cc, err := SplitRecipients(cc)
+			if err != nil {
+				return err
+			}
+			bcc, err := SplitRecipients(bcc)
+			if err != nil {
+				return err
 			}
 			bodyText, err := ResolveBody(cfg.Fs, body, bodyFile)
 			if err != nil {
 				return err
 			}
-			raw, err := BuildMIME(cfg.Fs, recipients, SplitCSV(cc), SplitCSV(bcc), subject, bodyText, attachments)
+			raw, err := BuildMIME(cfg.Fs, recipients, cc, bcc, subject, bodyText, attachments)
 			if err != nil {
 				return err
 			}

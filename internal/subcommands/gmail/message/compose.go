@@ -46,28 +46,60 @@ func ResolveBody(fs afero.Fs, body, bodyFile string) (string, error) {
 // text body and whose remaining parts carry the attachments, each read from
 // fs by path and typed by extension.
 func BuildMIME(fs afero.Fs, to, cc, bcc []string, subject, body string, attachmentPaths []string) ([]byte, error) {
+	for _, r := range to {
+		if err := validateHeaderValue("recipient", r); err != nil {
+			return nil, err
+		}
+	}
+	for _, r := range cc {
+		if err := validateHeaderValue("recipient", r); err != nil {
+			return nil, err
+		}
+	}
+	for _, r := range bcc {
+		if err := validateHeaderValue("recipient", r); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateHeaderValue("subject", subject); err != nil {
+		return nil, err
+	}
 	files, err := readAttachments(fs, attachmentPaths)
 	if err != nil {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	writeHeader(&buf, "To", strings.Join(to, ", "))
+	if err := writeHeader(&buf, "To", strings.Join(to, ", ")); err != nil {
+		return nil, err
+	}
 	if len(cc) > 0 {
-		writeHeader(&buf, "Cc", strings.Join(cc, ", "))
+		if err := writeHeader(&buf, "Cc", strings.Join(cc, ", ")); err != nil {
+			return nil, err
+		}
 	}
 	if len(bcc) > 0 {
-		writeHeader(&buf, "Bcc", strings.Join(bcc, ", "))
+		if err := writeHeader(&buf, "Bcc", strings.Join(bcc, ", ")); err != nil {
+			return nil, err
+		}
 	}
-	writeHeader(&buf, "Subject", subject)
-	writeHeader(&buf, "MIME-Version", "1.0")
+	if err := writeHeader(&buf, "Subject", subject); err != nil {
+		return nil, err
+	}
+	if err := writeHeader(&buf, "MIME-Version", "1.0"); err != nil {
+		return nil, err
+	}
 	if len(files) == 0 {
-		writeHeader(&buf, "Content-Type", "text/plain; charset=UTF-8")
+		if err := writeHeader(&buf, "Content-Type", "text/plain; charset=UTF-8"); err != nil {
+			return nil, err
+		}
 		buf.WriteString("\r\n")
 		buf.WriteString(body)
 		return buf.Bytes(), nil
 	}
 	w := multipart.NewWriter(&buf)
-	writeHeader(&buf, "Content-Type", "multipart/mixed; boundary="+w.Boundary())
+	if err := writeHeader(&buf, "Content-Type", "multipart/mixed; boundary="+w.Boundary()); err != nil {
+		return nil, err
+	}
 	// The writer's first part starts directly with "--boundary", so the blank
 	// line ending the header block is written here.
 	buf.WriteString("\r\n")
@@ -109,9 +141,27 @@ func readAttachments(fs afero.Fs, paths []string) ([]attachment, error) {
 		if err != nil {
 			return nil, fmt.Errorf("reading --attachment %s: %w", p, err)
 		}
-		files = append(files, attachment{name: path.Base(p), content: content})
+		name := path.Base(p)
+		if err := validateAttachmentName(name); err != nil {
+			return nil, fmt.Errorf("--attachment %s: %w", p, err)
+		}
+		files = append(files, attachment{name: name, content: content})
 	}
 	return files, nil
+}
+
+// validateAttachmentName rejects part names that cannot be carried safely in
+// the Content-Type name= / Content-Disposition filename= quoted-strings: a
+// double quote closes the quoting early and CR or LF breaks the part header
+// itself. MVP policy: reject rather than RFC 2047-escape.
+func validateAttachmentName(name string) error {
+	for _, r := range name {
+		switch r {
+		case '"', '\r', '\n':
+			return fmt.Errorf("file name %q contains %q; rename the file before attaching", name, r)
+		}
+	}
+	return nil
 }
 
 // contentType guesses an attachment's MIME type from its extension, defaulting
@@ -123,7 +173,34 @@ func contentType(name string) string {
 	return "application/octet-stream"
 }
 
-// writeHeader writes one RFC 2822 header line.
-func writeHeader(buf *bytes.Buffer, name, value string) {
+// containsControl reports whether s contains a C0 control byte (NUL, CR, LF,
+// tab, and the rest) — bytes that could break out of a header line.
+func containsControl(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if s[i] < 0x20 || s[i] == 0x7f {
+			return true
+		}
+	}
+	return false
+}
+
+// validateHeaderValue rejects a compose value that could break the RFC 2822
+// header block. A CR or LF lets a crafted value smuggle in extra headers (for
+// example a forged Bcc), so compose fails closed rather than stripping — a
+// stripped subject could silently change meaning.
+func validateHeaderValue(kind, value string) error {
+	if containsControl(value) {
+		return fmt.Errorf("%s %q contains control characters", kind, value)
+	}
+	return nil
+}
+
+// writeHeader writes one RFC 2822 header line, refusing any value that could
+// break out of the header block.
+func writeHeader(buf *bytes.Buffer, name, value string) error {
+	if containsControl(value) {
+		return fmt.Errorf("header %q contains control characters", value)
+	}
 	fmt.Fprintf(buf, "%s: %s\r\n", name, value)
+	return nil
 }

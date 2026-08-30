@@ -204,3 +204,88 @@ func TestSendPropagatesAPIError(t *testing.T) {
 
 	require.Contains(t, err.Error(), "googleapi: Error 413")
 }
+
+// TestSendRefusesHeaderInjection pins the CRLF fail-closed behavior of the
+// compose pipeline (findings S3 + S11): any --subject/--to/--cc/--bcc value
+// carrying control characters is rejected before any MIME is built, so the
+// API is never reached. A CR or LF in a header value would let a crafted
+// value smuggle in extra headers, for example a forged Bcc recipient.
+func TestSendRefusesHeaderInjection(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "subject with CRLF",
+			args: []string{"--to", "alice@example.com", "--subject", "hi\r\nBcc: victim@evil.example", "--body", "hi"},
+			want: `subject "hi\r\nBcc: victim@evil.example" contains control characters`,
+		},
+		{
+			name: "subject with bare LF",
+			args: []string{"--to", "alice@example.com", "--subject", "hi\nEvil: x", "--body", "hi"},
+			want: `contains control characters`,
+		},
+		{
+			name: "recipient with embedded CRLF",
+			args: []string{"--to", "a@x.com,b\nc: evil", "--body", "hi"},
+			want: `recipient "b\nc: evil" contains control characters`,
+		},
+		{
+			name: "cc with embedded CRLF",
+			args: []string{"--to", "a@x.com", "--cc", "b@x.com\r\nX-Evil: 1", "--body", "hi"},
+			want: `recipient "b@x.com\r\nX-Evil: 1" contains control characters`,
+		},
+		{
+			name: "bcc with embedded CRLF",
+			args: []string{"--to", "a@x.com", "--bcc", "b@x.com\rBcc: victim@evil.example", "--body", "hi"},
+			want: `recipient "b@x.com\rBcc: victim@evil.example" contains control characters`,
+		},
+		{
+			name: "recipient with NUL",
+			args: []string{"--to", "a@x.com,\x00@evil.example", "--body", "hi"},
+			want: `contains control characters`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &fakeService{}
+			_, err := cmdtest.RunCmdErr(t, newLeafCmd(newSendCmd, svc, "json"), tt.args...)
+
+			require.ErrorContains(t, err, tt.want)
+			require.Nil(t, svc.sent, "rejected input must not reach the API")
+		})
+	}
+}
+
+// TestSendRefusesAttachmentNameInjection pins the fail-closed attachment-name
+// policy (finding S11): a double quote closes the filename= quoting early and
+// CR or LF breaks the part header, so such files are rejected outright.
+func TestSendRefusesAttachmentNameInjection(t *testing.T) {
+	cfg := cmdtest.NewTestConfig("json")
+	require.NoError(t, afero.WriteFile(cfg.Fs, "evil\"quote.txt", []byte("data"), 0o644))
+	svc := &fakeService{}
+
+	_, err := cmdtest.RunCmdErr(t, newSendCmd(cfg, fakeNewSvc(svc)),
+		"--to", "alice@example.com", "--body", "hi", "--attachment", "evil\"quote.txt")
+
+	require.ErrorContains(t, err, "contains '\"'")
+	require.ErrorContains(t, err, "rename the file")
+	require.Nil(t, svc.sent, "rejected input must not reach the API")
+}
+
+// TestSendCleanUnicodeInputs passes unchanged: the controls rejection must not
+// trip on ordinary unicode subjects or names.
+func TestSendCleanUnicodeInputs(t *testing.T) {
+	svc := &fakeService{}
+	cmdtest.RunCmd(t, newLeafCmd(newSendCmd, svc, "json"),
+		"--to", "olá@example.com, Björn@example.com",
+		"--subject", "Résumé — sənd ✉",
+		"--body", "C’est parti",
+	)
+
+	header, body := splitMIME(t, decodeSent(t, svc))
+	require.Equal(t, "olá@example.com, Björn@example.com", header.Get("To"))
+	require.Equal(t, "Résumé — sənd ✉", header.Get("Subject"))
+	require.Equal(t, "C’est parti", body)
+}

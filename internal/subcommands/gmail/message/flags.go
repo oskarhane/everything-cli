@@ -1,6 +1,7 @@
 package message
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -19,4 +20,19 @@ func SplitCSV(s string) []string {
 		}
 	}
 	return items
+}
+
+// SplitRecipients splits a recipient flag value (--to, --cc, --bcc) like
+// SplitCSV and additionally rejects any item containing C0 control characters
+// (CR, LF, NUL, ...): a crafted recipient could otherwise smuggle extra
+// headers into the composed message. The error names the offending item so
+// the caller sees exactly which flag value failed.
+func SplitRecipients(s string) ([]string, error) {
+	items := SplitCSV(s)
+	for _, item := range items {
+		if containsControl(item) {
+			return nil, fmt.Errorf("recipient %q contains control characters", item)
+		}
+	}
+	return items, nil
 }
