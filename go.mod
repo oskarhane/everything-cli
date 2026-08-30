@@ -2,6 +2,8 @@ module github.com/oskarhane/google-cli
 
 go 1.26.2
 
+toolchain go1.26.6
+
 require (
 	github.com/jedib0t/go-pretty/v6 v6.8.3
 	github.com/spf13/afero v1.15.0
