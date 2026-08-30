@@ -1,0 +1,53 @@
+package app
+
+import (
+	"testing"
+
+	"github.com/spf13/afero"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestNewRootCommand(t *testing.T) {
+	root := NewRootCommand(NewConfig())
+
+	assert.Equal(t, "google-cli", root.Use)
+	assert.NotEmpty(t, root.Short, "root command should have a short description")
+}
+
+func TestRootCommandPersistentFlags(t *testing.T) {
+	root := NewRootCommand(NewConfig())
+	flags := root.PersistentFlags()
+
+	for _, name := range []string{"account", "format", "debug", "credentials"} {
+		assert.NotNil(t, flags.Lookup(name), "expected persistent flag --%s", name)
+	}
+}
+
+func TestPersistentFlagsBindToConfig(t *testing.T) {
+	cfg := &Config{Fs: afero.NewMemMapFs()}
+	root := NewRootCommand(cfg)
+
+	err := root.ParseFlags([]string{
+		"--account", "user@example.com",
+		"--format", "json",
+		"--debug",
+		"--credentials", "credentials.json",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "user@example.com", cfg.Account)
+	assert.Equal(t, "json", cfg.Format)
+	assert.True(t, cfg.Debug)
+	assert.Equal(t, "credentials.json", cfg.Credentials)
+}
+
+func TestNewConfigDefaults(t *testing.T) {
+	cfg := NewConfig()
+
+	assert.Empty(t, cfg.Account)
+	assert.Empty(t, cfg.Format)
+	assert.False(t, cfg.Debug)
+	assert.Empty(t, cfg.Credentials)
+	assert.NotNil(t, cfg.Fs)
+}
