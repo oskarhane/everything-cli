@@ -28,7 +28,9 @@ google-cli gmail message trash 19c2a4b7 --account work`,
 			if _, err := svc.TrashMessage(cmd.Context(), args[0]); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Trashed message %s\n", args[0])
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Trashed message %s\n", args[0]); err != nil {
+				return err
+			}
 			return nil
 		},
 	}

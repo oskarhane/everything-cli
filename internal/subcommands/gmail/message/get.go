@@ -45,7 +45,9 @@ google-cli gmail message get 19c2a4b7 --format table`,
 				if err != nil {
 					return err
 				}
-				fmt.Fprintln(cmd.OutOrStdout(), decoded)
+				if _, err := fmt.Fprintln(cmd.OutOrStdout(), decoded); err != nil {
+					return err
+				}
 				return nil
 			}
 			printMessageDetail(cmd, cfg, message)
