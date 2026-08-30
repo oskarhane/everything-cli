@@ -28,17 +28,13 @@ type MessageService interface {
 	ModifyMessage(ctx context.Context, id string, req *gmail.ModifyMessageRequest) (*gmail.Message, error)
 }
 
-// maxPageSize is the Gmail API's per-request cap on maxResults.
-const maxPageSize = 500
-
 func (s *realGmailService) ListMessages(ctx context.Context, q string, maxResults int64) ([]*gmail.Message, error) {
 	if maxResults <= 0 {
 		maxResults = 100
 	}
-	var messages []*gmail.Message
-	for page := ""; ; {
+	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Message, string, error) {
 		call := s.svc.Users.Messages.List(userID).Context(ctx).
-			MaxResults(min(maxResults-int64(len(messages)), maxPageSize))
+			MaxResults(min(remaining, maxPageSize))
 		if q != "" {
 			call = call.Q(q)
 		}
@@ -47,18 +43,10 @@ func (s *realGmailService) ListMessages(ctx context.Context, q string, maxResult
 		}
 		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("listing messages: %w", err)
+			return nil, "", fmt.Errorf("listing messages: %w", err)
 		}
-		messages = append(messages, resp.Messages...)
-		if resp.NextPageToken == "" || int64(len(messages)) >= maxResults {
-			break
-		}
-		page = resp.NextPageToken
-	}
-	if int64(len(messages)) > maxResults {
-		messages = messages[:maxResults]
-	}
-	return messages, nil
+		return resp.Messages, resp.NextPageToken, nil
+	})
 }
 
 func (s *realGmailService) GetMessage(ctx context.Context, id, format string) (*gmail.Message, error) {

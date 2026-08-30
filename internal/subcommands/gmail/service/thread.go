@@ -27,10 +27,9 @@ func (s *realGmailService) ListThreads(ctx context.Context, q string, labelIDs [
 	if maxResults <= 0 {
 		maxResults = 25
 	}
-	var threads []*gmail.Thread
-	for page := ""; ; {
+	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Thread, string, error) {
 		call := s.svc.Users.Threads.List(userID).Context(ctx).
-			MaxResults(min(maxResults-int64(len(threads)), maxPageSize)).
+			MaxResults(min(remaining, maxPageSize)).
 			LabelIds(labelIDs...)
 		if q != "" {
 			call = call.Q(q)
@@ -40,18 +39,10 @@ func (s *realGmailService) ListThreads(ctx context.Context, q string, labelIDs [
 		}
 		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("listing threads: %w", err)
+			return nil, "", fmt.Errorf("listing threads: %w", err)
 		}
-		threads = append(threads, resp.Threads...)
-		if resp.NextPageToken == "" || int64(len(threads)) >= maxResults {
-			break
-		}
-		page = resp.NextPageToken
-	}
-	if int64(len(threads)) > maxResults {
-		threads = threads[:maxResults]
-	}
-	return threads, nil
+		return resp.Threads, resp.NextPageToken, nil
+	})
 }
 
 func (s *realGmailService) GetThread(ctx context.Context, id string) (*gmail.Thread, error) {

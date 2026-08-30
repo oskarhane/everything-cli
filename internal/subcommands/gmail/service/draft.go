@@ -29,27 +29,18 @@ func (s *realGmailService) ListDrafts(ctx context.Context, maxResults int64) ([]
 	if maxResults <= 0 {
 		maxResults = 25
 	}
-	var drafts []*gmail.Draft
-	for page := ""; ; {
+	return collectPages(maxResults, func(page string, remaining int64) ([]*gmail.Draft, string, error) {
 		call := s.svc.Users.Drafts.List(userID).Context(ctx).
-			MaxResults(min(maxResults-int64(len(drafts)), maxPageSize))
+			MaxResults(min(remaining, maxPageSize))
 		if page != "" {
 			call = call.PageToken(page)
 		}
 		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("listing drafts: %w", err)
+			return nil, "", fmt.Errorf("listing drafts: %w", err)
 		}
-		drafts = append(drafts, resp.Drafts...)
-		if resp.NextPageToken == "" || int64(len(drafts)) >= maxResults {
-			break
-		}
-		page = resp.NextPageToken
-	}
-	if int64(len(drafts)) > maxResults {
-		drafts = drafts[:maxResults]
-	}
-	return drafts, nil
+		return resp.Drafts, resp.NextPageToken, nil
+	})
 }
 
 func (s *realGmailService) GetDraft(ctx context.Context, id string) (*gmail.Draft, error) {
