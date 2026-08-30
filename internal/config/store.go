@@ -96,7 +96,8 @@ func (s *Store) Get(name string) (*Account, error) {
 }
 
 // Save persists acct as <configDir>/accounts/<name>.json with 0600
-// permissions.
+// permissions, atomically replacing any existing file (and any symlink at
+// that path, which is replaced rather than followed).
 //
 // Accounts are deduplicated by email: when an account with the same email
 // already exists under a different name, that record is updated under its
@@ -116,13 +117,80 @@ func (s *Store) Save(acct *Account) error {
 	if err := s.fs.MkdirAll(s.accountsDir(), dirPermPrivate); err != nil {
 		return fmt.Errorf("creating accounts dir: %w", err)
 	}
+	if err := s.hardenDir(s.root); err != nil {
+		return fmt.Errorf("tightening config dir permissions: %w", err)
+	}
+	if err := s.hardenDir(s.accountsDir()); err != nil {
+		return fmt.Errorf("tightening accounts dir permissions: %w", err)
+	}
 	data, err := json.MarshalIndent(acct, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encoding account %q: %w", acct.Name, err)
 	}
 	data = append(data, '\n')
-	if err := afero.WriteFile(s.fs, s.AccountPath(acct.Name), data, filePermPrivate); err != nil {
+	if err := s.writePrivate(s.AccountPath(acct.Name), data); err != nil {
 		return fmt.Errorf("writing account %q: %w", acct.Name, err)
+	}
+	return nil
+}
+
+// writePrivate atomically replaces path with data at 0600. It writes to a
+// temp file in the same directory (0600), then renames over the target, so:
+//
+//   - a crash mid-write can never leave partial JSON at the target path, and
+//   - a symlink at path is replaced rather than followed (rename does not
+//     traverse symlinks on the destination).
+//
+// The rename is the durability point; the temp file is removed on any
+// earlier failure.
+func (s *Store) writePrivate(path string, data []byte) error {
+	tmp, err := afero.TempFile(s.fs, filepath.Dir(path), "."+filepath.Base(path)+".tmp-")
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	discard := func() {
+		_ = tmp.Close()
+		_ = s.fs.Remove(tmpPath)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		discard()
+		return fmt.Errorf("writing temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = s.fs.Remove(tmpPath)
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+	if err := s.fs.Chmod(tmpPath, filePermPrivate); err != nil {
+		_ = s.fs.Remove(tmpPath)
+		return fmt.Errorf("setting private permissions: %w", err)
+	}
+	if err := s.fs.Rename(tmpPath, path); err != nil {
+		_ = s.fs.Remove(tmpPath)
+		return fmt.Errorf("replacing %s atomically: %w", filepath.Base(path), err)
+	}
+	// Rename carried the temp file's mode, but tighten explicitly so a
+	// non-conforming fs cannot land wider perms at the target.
+	if err := s.fs.Chmod(path, filePermPrivate); err != nil {
+		return fmt.Errorf("setting private permissions: %w", err)
+	}
+	return nil
+}
+
+// hardenDir tightens an existing directory to 0700 when it pre-exists wider.
+// Missing directories are left to the caller's MkdirAll.
+func (s *Store) hardenDir(path string) error {
+	info, err := s.fs.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if info.IsDir() && info.Mode().Perm() != dirPermPrivate {
+		if err := s.fs.Chmod(path, dirPermPrivate); err != nil {
+			return fmt.Errorf("chmod %s: %w", path, err)
+		}
 	}
 	return nil
 }
@@ -168,12 +236,15 @@ func (s *Store) SetDefaultAccount(name string) error {
 	if err := s.fs.MkdirAll(s.root, dirPermPrivate); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
+	if err := s.hardenDir(s.root); err != nil {
+		return fmt.Errorf("tightening config dir permissions: %w", err)
+	}
 	data, err := json.MarshalIndent(settings{DefaultAccount: name}, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encoding settings: %w", err)
 	}
 	data = append(data, '\n')
-	if err := afero.WriteFile(s.fs, s.settingsPath(), data, filePermPrivate); err != nil {
+	if err := s.writePrivate(s.settingsPath(), data); err != nil {
 		return fmt.Errorf("writing settings: %w", err)
 	}
 	return nil
@@ -205,11 +276,21 @@ func (s *Store) findByEmail(email string) (string, error) {
 	return "", nil
 }
 
-// validAccountName rejects names that would escape the accounts dir.
+// validAccountName rejects names that would escape the accounts dir, names
+// that would smuggle characters past filename parsing (':' on some systems,
+// NUL), and unprintable control bytes (C0 and DEL).
 func validAccountName(name string) bool {
 	switch name {
 	case "", ".", "..":
 		return false
 	}
-	return !strings.ContainsAny(name, `/\`)
+	if strings.ContainsAny(name, `/\:`) {
+		return false
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7F {
+			return false
+		}
+	}
+	return true
 }
