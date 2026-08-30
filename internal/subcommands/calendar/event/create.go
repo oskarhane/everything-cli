@@ -10,6 +10,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/dates"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
@@ -82,25 +83,25 @@ func buildEvent(f *pflag.FlagSet, now time.Time) (*calendar.Event, error) {
 	allDay, _ := f.GetBool("all-day")
 	timeZone, _ := f.GetString("timezone")
 
-	start, err := parseTimestamp(startRaw, now)
+	start, err := dates.ParseTimestamp(startRaw, now)
 	if err != nil {
 		return nil, fmt.Errorf("--start: %w", err)
 	}
-	end, err := parseTimestamp(endRaw, now)
+	end, err := dates.ParseTimestamp(endRaw, now)
 	if err != nil {
 		return nil, fmt.Errorf("--end: %w", err)
 	}
-	if start.date != "" && !allDay {
+	if start.Date != "" && !allDay {
 		return nil, fmt.Errorf("--start %q is a date: pass --all-day or a full RFC3339 timestamp", startRaw)
 	}
-	if end.date != "" && !allDay {
+	if end.Date != "" && !allDay {
 		return nil, fmt.Errorf("--end %q is a date: pass --all-day or a full RFC3339 timestamp", endRaw)
 	}
 
 	ev := &calendar.Event{
 		Summary:     flagString(f, "summary"),
-		Start:       start.toEventDateTime(timeZone),
-		End:         end.toEventDateTime(timeZone),
+		Start:       toEventDateTime(start, timeZone),
+		End:         toEventDateTime(end, timeZone),
 		Location:    flagString(f, "location"),
 		Description: flagString(f, "description"),
 		Recurrence:  flagStringArray(f, "recurrence"),

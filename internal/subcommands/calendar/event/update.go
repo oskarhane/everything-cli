@@ -10,6 +10,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/calendar/dates"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
@@ -113,11 +114,11 @@ func buildPatch(f *pflag.FlagSet, ev *calendar.Event, now time.Time) (*calendar.
 		if !f.Changed(name) {
 			continue
 		}
-		et, err := parseTimestamp(flagString(f, name), now)
+		et, err := dates.ParseTimestamp(flagString(f, name), now)
 		if err != nil {
 			return nil, fmt.Errorf("--%s: %w", name, err)
 		}
-		if et.date != "" && !allDay {
+		if et.Date != "" && !allDay {
 			return nil, fmt.Errorf("--%s %q is a date but the event is not all-day: pass a full RFC3339 timestamp", name, flagString(f, name))
 		}
 		timeZone := ""
@@ -125,9 +126,9 @@ func buildPatch(f *pflag.FlagSet, ev *calendar.Event, now time.Time) (*calendar.
 			timeZone = ev.Start.TimeZone
 		}
 		if name == "start" {
-			patch.Start = et.toEventDateTime(timeZone)
+			patch.Start = toEventDateTime(et, timeZone)
 		} else {
-			patch.End = et.toEventDateTime(timeZone)
+			patch.End = toEventDateTime(et, timeZone)
 		}
 	}
 	if f.Changed("add-attendee") || f.Changed("remove-attendee") {
