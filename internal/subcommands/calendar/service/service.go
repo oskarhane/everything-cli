@@ -44,12 +44,23 @@ const apiTimeout = 120 * time.Second
 
 // New returns a CalendarService bound to ts.
 func New(ctx context.Context, ts oauth2.TokenSource) (CalendarService, error) {
-	client := &http.Client{Timeout: apiTimeout}
-	svc, err := calendar.NewService(ctx, option.WithTokenSource(ts), option.WithHTTPClient(client))
+	svc, err := calendar.NewService(ctx, option.WithHTTPClient(authenticatedClient(ts, apiTimeout)))
 	if err != nil {
 		return nil, fmt.Errorf("creating calendar service: %w", err)
 	}
 	return &realCalendarService{svc: svc}, nil
+}
+
+// authenticatedClient builds the HTTP client every Calendar call rides on.
+// WithHTTPClient takes precedence over WithTokenSource (see option docs), so
+// the token source must live inside the transport — a bare client here would
+// send every request unauthenticated. oauth2.Transport adds the Bearer
+// header; the client itself carries the timeout.
+func authenticatedClient(ts oauth2.TokenSource, timeout time.Duration) *http.Client {
+	return &http.Client{
+		Transport: &oauth2.Transport{Base: http.DefaultTransport, Source: ts},
+		Timeout:   timeout,
+	}
 }
 
 // realCalendarService adapts *calendar.Service to CalendarService.
