@@ -8,6 +8,9 @@ import (
 	"github.com/oskarhane/google-cli/internal/output"
 )
 
+// Version is stamped at build time via ldflags (-X); "dev" is the fallback.
+var Version = "dev"
+
 // Config holds the values of the root command's persistent flags.
 // It is constructed once in main and passed to subcommand constructors.
 type Config struct {

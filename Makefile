@@ -1,7 +1,7 @@
 .PHONY: build test lint fmt-check fmt
 
 build:
-	go build -o bin/google-cli .
+	go build -ldflags "-X github.com/oskarhane/google-cli/internal/app.Version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o bin/google-cli .
 
 test:
 	go test ./...
