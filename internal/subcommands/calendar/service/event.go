@@ -27,7 +27,9 @@ type EventService interface {
 
 // ListEventsParams carries the events.list options. TimeMin and TimeMax must
 // be RFC3339 with an offset; they bound with overlap semantics (end > timeMin
-// AND start < timeMax).
+// AND start < timeMax). MaxResults is the TOTAL cap across all pages
+// (pagination stops once reached, per-page size honors the remaining
+// budget); 0 or less means no cap.
 type ListEventsParams struct {
 	CalendarID   string
 	SingleEvents bool
@@ -40,7 +42,9 @@ type ListEventsParams struct {
 }
 
 // ListInstancesParams carries the events.instances options; EventID is the
-// recurring (master) event id.
+// recurring (master) event id. MaxResults is the TOTAL cap across all pages
+// (pagination stops once reached, per-page size honors the remaining
+// budget); 0 or less means no cap.
 type ListInstancesParams struct {
 	CalendarID string
 	EventID    string
@@ -59,16 +63,18 @@ func (s *realCalendarService) ListEvents(ctx context.Context, p ListEventsParams
 	if p.TimeMax != "" {
 		call = call.TimeMax(p.TimeMax)
 	}
-	if p.MaxResults > 0 {
-		call = call.MaxResults(p.MaxResults)
-	}
 	if p.Query != "" {
 		call = call.Q(p.Query)
 	}
 	if p.OrderBy != "" {
 		call = call.OrderBy(p.OrderBy)
 	}
-	return pageAll(func(page string) ([]*calendar.Event, string, error) {
+	return pageAllBudgeted(p.MaxResults, func(page string, remaining int64) ([]*calendar.Event, string, error) {
+		if remaining > 0 {
+			// Per-request MaxResults honors the remaining budget: later
+			// pages never ask for more than the cap still allows.
+			call = call.MaxResults(remaining)
+		}
 		if page != "" {
 			call = call.PageToken(page)
 		}
@@ -80,8 +86,8 @@ func (s *realCalendarService) ListEvents(ctx context.Context, p ListEventsParams
 	})
 }
 
-// ListInstances implements EventService. Empty params are left unset; the
-// API's own page size bounds an otherwise unbounded expansion.
+// ListInstances implements EventService. Empty params are left unset.
+// MaxResults caps the total like ListEvents.
 func (s *realCalendarService) ListInstances(ctx context.Context, p ListInstancesParams) ([]*calendar.Event, error) {
 	call := s.svc.Events.Instances(p.CalendarID, p.EventID)
 	if p.TimeMin != "" {
@@ -90,10 +96,10 @@ func (s *realCalendarService) ListInstances(ctx context.Context, p ListInstances
 	if p.TimeMax != "" {
 		call = call.TimeMax(p.TimeMax)
 	}
-	if p.MaxResults > 0 {
-		call = call.MaxResults(p.MaxResults)
-	}
-	return pageAll(func(page string) ([]*calendar.Event, string, error) {
+	return pageAllBudgeted(p.MaxResults, func(page string, remaining int64) ([]*calendar.Event, string, error) {
+		if remaining > 0 {
+			call = call.MaxResults(remaining)
+		}
 		if page != "" {
 			call = call.PageToken(page)
 		}

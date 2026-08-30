@@ -95,4 +95,8 @@ func TestLeafArgsAndFlags(t *testing.T) {
 	require.NotNil(t, leaf("delete").Flags().Lookup("force"))
 	require.NotNil(t, leaf("list").Flags().Lookup("recurring"))
 	require.NotNil(t, leaf("create").Flags().Lookup("recurrence"))
+	// --max is the total cap on both listing leaves.
+	for _, name := range []string{"list", "instances"} {
+		require.NotNil(t, leaf(name).Flags().Lookup("max"), "%s needs --max", name)
+	}
 }

@@ -19,6 +19,11 @@ var nowFunc = time.Now
 // recurringModes are the accepted --recurring values.
 var recurringModes = map[string]bool{"instances": true, "masters": true, "all": true}
 
+// defaultListMax is the default --max for both listing leaves: the Calendar
+// API's own default page size, so no cap-fewer-request behavior changes for
+// the common case while a large calendar can no longer page forever.
+const defaultListMax = 250
+
 // newListCmd returns `calendar event list`. --recurring picks how recurring
 // events appear: instances (default) expands series into occurrences via
 // singleEvents=true; masters returns the raw list (masters, single events,
@@ -60,7 +65,7 @@ google-cli calendar event list --calendar work@example.com --query "design revie
 	f.String("from", "now", "Window start: RFC3339, date, or relative (now, -1d, +7d)")
 	f.String("to", "+7d", "Window end: RFC3339, date, or relative; expansion is always bounded")
 	f.String("query", "", "Free-text search term")
-	f.Int64("max", 0, "Max results (0 = API default page size)")
+	f.Int64("max", defaultListMax, "Total max events across all pages (0 = no cap)")
 	f.String("recurring", "instances", "Show instances (expanded occurrences), masters, or all")
 	return cmd
 }

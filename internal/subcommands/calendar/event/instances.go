@@ -21,8 +21,8 @@ google-cli calendar event instances kq3abc123 --format json
 # Only the next two weeks of occurrences
 google-cli calendar event instances kq3abc123 --from now --to +14d --format table
 
-# Occurrences of a series on another calendar
-google-cli calendar event instances kq3abc123 --calendar work@example.com --format json`,
+# Cap the expansion at 50 occurrences on another calendar
+google-cli calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())
@@ -33,6 +33,7 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --form
 			calendarID, _ := f.GetString("calendar")
 			fromRaw, _ := f.GetString("from")
 			toRaw, _ := f.GetString("to")
+			max, _ := f.GetInt64("max")
 			now := nowFunc()
 			from, err := parseWindowTime(fromRaw, now)
 			if err != nil {
@@ -47,6 +48,7 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --form
 				EventID:    args[0],
 				TimeMin:    from,
 				TimeMax:    to,
+				MaxResults: max,
 			})
 			if err != nil {
 				return err
@@ -59,5 +61,6 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --form
 	f.String("calendar", "primary", "Calendar id")
 	f.String("from", "", "Window start: RFC3339, date, or relative (now, -1d, +7d); empty = unbounded")
 	f.String("to", "", "Window end: RFC3339, date, or relative; empty = unbounded")
+	f.Int64("max", defaultListMax, "Total max occurrences across all pages (0 = no cap)")
 	return cmd
 }

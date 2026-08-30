@@ -95,6 +95,15 @@ func TestListAllMergesInstancesAndMasters(t *testing.T) {
 	require.Len(t, rows, 3)
 }
 
+func TestListMaxDefaultsToCap(t *testing.T) {
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
+
+	require.Len(t, svc.listParams, 1)
+	require.EqualValues(t, defaultListMax, svc.listParams[0].MaxResults,
+		"default --max is the total cap (250)")
+}
+
 func TestListFromToForwarded(t *testing.T) {
 	svc := &fakeEventService{items: seedListEvents()}
 	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"),

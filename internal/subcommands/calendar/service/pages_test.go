@@ -165,3 +165,117 @@ func TestPageAllTerminatesOnRunawayToken(t *testing.T) {
 		t.Fatal("pageAll: want error on runaway NextPageToken, got nil")
 	}
 }
+
+// pageAllBudgetedStopsAtBudget proves the item budget halts pagination: a
+// 3-item-per-page fetch with a budget of 5 collects exactly 5 items and never
+// fetches the page beyond the budget (page two's overshoot is truncated).
+func TestPageAllBudgetedStopsAtBudget(t *testing.T) {
+	var sawRemaining []int64
+	fetched := 0
+	items, err := pageAllBudgeted(5, func(page string, remaining int64) ([]string, string, error) {
+		fetched++
+		sawRemaining = append(sawRemaining, remaining)
+		switch fetched {
+		case 1:
+			return []string{"a", "b", "c"}, "tok-2", nil
+		case 2:
+			return []string{"d", "e", "f"}, "tok-3", nil // overshoots remaining 2
+		default:
+			t.Errorf("unexpected fetch #%d past the budget", fetched)
+			return nil, "", nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("pageAllBudgeted: %v", err)
+	}
+	if fetched != 2 {
+		t.Errorf("pages fetched = %d, want 2 (no fetch beyond the budget page)", fetched)
+	}
+	if len(items) != 5 {
+		t.Errorf("items = %v, want exactly 5", items)
+	}
+	wantRemaining := []int64{5, 2}
+	for i, want := range wantRemaining {
+		if sawRemaining[i] != want {
+			t.Errorf("remaining on fetch %d = %d, want %d", i, sawRemaining[i], want)
+		}
+	}
+}
+
+// pageAllBudgetedUnlimited pages to the end like pageAll: budget <= 0 must
+// keep the full-listing behavior (never stops early, never truncates).
+func TestPageAllBudgetedUnlimitedRunsToTheEnd(t *testing.T) {
+	fetched := 0
+	items, err := pageAllBudgeted(0, func(page string, remaining int64) ([]string, string, error) {
+		fetched++
+		if remaining != 0 {
+			t.Errorf("remaining = %d, want 0 for an unlimited listing", remaining)
+		}
+		switch fetched {
+		case 1:
+			return []string{"a", "b"}, "tok-2", nil
+		case 2:
+			return []string{"c"}, "", nil
+		default:
+			t.Errorf("unexpected page %d", fetched)
+			return nil, "", nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("pageAllBudgeted: %v", err)
+	}
+	if fetched != 2 {
+		t.Errorf("pages fetched = %d, want 2", fetched)
+	}
+	if len(items) != 3 {
+		t.Errorf("items = %v, want [a b c]", items)
+	}
+}
+
+// TestListEventsBudgetStopsPagination drives the real ListEvents over a
+// three-page fake REST server with a budget of 5: exactly 5 events come
+// back, and the third page is never fetched (the server 400s on it). The
+// per-request maxResults must also track the remaining budget.
+func TestListEventsBudgetStopsPagination(t *testing.T) {
+	var fetches []string // pageToken of each fetch, in order
+	svc := newPagedTestServer(t, map[string]http.HandlerFunc{
+		"/calendars/cal-1/events": func(w http.ResponseWriter, r *http.Request) {
+			fetches = append(fetches, r.URL.Query().Get("pageToken"))
+			switch r.URL.Query().Get("pageToken") {
+			case "":
+				writeJSON(w, calendar.Events{
+					Items:         []*calendar.Event{{Id: "ev-1"}, {Id: "ev-2"}, {Id: "ev-3"}},
+					NextPageToken: "tok-2",
+				})
+			case "tok-2":
+				writeJSON(w, calendar.Events{
+					Items:         []*calendar.Event{{Id: "ev-4"}, {Id: "ev-5"}, {Id: "ev-6"}},
+					NextPageToken: "tok-3",
+				})
+			default:
+				http.Error(w, "fetched beyond the budget", http.StatusBadRequest)
+			}
+		},
+	})
+
+	events, err := svc.ListEvents(t.Context(), ListEventsParams{CalendarID: "cal-1", MaxResults: 5})
+	if err != nil {
+		t.Fatalf("ListEvents: %v", err)
+	}
+	if len(fetches) != 2 {
+		t.Fatalf("page fetches = %v, want 2 (no fetch beyond the budget)", fetches)
+	}
+	var ids []string
+	for _, ev := range events {
+		ids = append(ids, ev.Id)
+	}
+	want := []string{"ev-1", "ev-2", "ev-3", "ev-4", "ev-5"}
+	if len(ids) != len(want) {
+		t.Fatalf("event ids = %v, want %v", ids, want)
+	}
+	for i, id := range want {
+		if ids[i] != id {
+			t.Errorf("events[%d].Id = %s, want %s", i, ids[i], id)
+		}
+	}
+}

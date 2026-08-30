@@ -63,6 +63,22 @@ func TestInstancesPropagatesAPIError(t *testing.T) {
 	require.Contains(t, err.Error(), "googleapi: Error 404")
 }
 
+func TestInstancesMaxForwardedAsTotalCap(t *testing.T) {
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newInstancesCmd, svc, "json"), masterEventID, "--max", "7")
+
+	p := svc.instancesParams[0]
+	require.EqualValues(t, 7, p.MaxResults, "--max is the total cap")
+}
+
+func TestInstancesMaxDefaultsToCap(t *testing.T) {
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newInstancesCmd, svc, "json"), masterEventID)
+
+	require.EqualValues(t, defaultListMax, svc.instancesParams[0].MaxResults,
+		"default --max is the total cap (250)")
+}
+
 func TestInstancesRequiresMasterIDArg(t *testing.T) {
 	svc := &fakeEventService{}
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newInstancesCmd, svc, "json"))
