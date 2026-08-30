@@ -9,6 +9,17 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 
+func TestListDefaultsToNowPlusSevenDays(t *testing.T) {
+	freezeNow(t)
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
+
+	require.Len(t, svc.listParams, 1)
+	p := svc.listParams[0]
+	require.Equal(t, "2026-09-01T12:00:00Z", p.TimeMin, "default --from is now")
+	require.Equal(t, "2026-09-08T12:00:00Z", p.TimeMax, "default --to is +7d")
+}
+
 func TestListInstancesExpandsSeriesByDefault(t *testing.T) {
 	svc := &fakeEventService{items: seedListEvents()}
 	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))

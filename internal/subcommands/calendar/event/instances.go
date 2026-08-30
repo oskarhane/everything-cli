@@ -1,8 +1,6 @@
 package event
 
 import (
-	"time"
-
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
@@ -35,7 +33,7 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --form
 			calendarID, _ := f.GetString("calendar")
 			fromRaw, _ := f.GetString("from")
 			toRaw, _ := f.GetString("to")
-			now := time.Now()
+			now := nowFunc()
 			from, err := parseWindowTime(fromRaw, now)
 			if err != nil {
 				return err

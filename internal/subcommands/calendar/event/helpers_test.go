@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -22,6 +23,17 @@ func TestMain(m *testing.M) {
 	output.IsAgent = func() bool { return false }
 	output.StdoutIsTerminal = func() bool { return false }
 	os.Exit(m.Run())
+}
+
+// frozenNow anchors every relative window and default in the tests.
+var frozenNow = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+
+// freezeNow pins the package clock for the test and restores it after.
+func freezeNow(t *testing.T) {
+	t.Helper()
+	original := nowFunc
+	nowFunc = func() time.Time { return frozenNow }
+	t.Cleanup(func() { nowFunc = original })
 }
 
 // fakeEventService is the hermetic service.EventService double: it serves

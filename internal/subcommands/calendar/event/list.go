@@ -12,6 +12,10 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
 )
 
+// nowFunc is the clock seam: tests pin it so the default window
+// (now .. now+7d) is deterministic.
+var nowFunc = time.Now
+
 // recurringModes are the accepted --recurring values.
 var recurringModes = map[string]bool{"instances": true, "masters": true, "all": true}
 
@@ -71,7 +75,7 @@ func listEvents(cmd *cobra.Command, svc service.EventService, mode string) ([]*c
 	max, _ := f.GetInt64("max")
 	fromRaw, _ := f.GetString("from")
 	toRaw, _ := f.GetString("to")
-	now := time.Now()
+	now := nowFunc()
 
 	from, err := parseWindowTime(fromRaw, now)
 	if err != nil {
