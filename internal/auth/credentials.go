@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
+
+	"github.com/oskarhane/google-cli/internal/output"
 )
 
 // CredentialsName is the credentials filename auto-detected in the config
@@ -26,13 +28,17 @@ func ResolveCredentials(fs afero.Fs, flagValue, configDir string) (string, error
 	}
 
 	if flagValue != "" && exists(flagValue) {
+		output.Debug("using credentials file " + flagValue)
 		return flagValue, nil
 	}
 	if inConfig := filepath.Join(configDir, CredentialsName); exists(inConfig) {
+		output.Debug("using credentials file " + inConfig)
 		return inConfig, nil
 	}
 	if exists(CredentialsName) {
+		output.Debug("using credentials file " + CredentialsName)
 		return CredentialsName, nil
 	}
+	output.Debug("no credentials file found; tried " + strings.Join(tried, ", "))
 	return "", fmt.Errorf("no OAuth credentials file found; tried: %s", strings.Join(tried, ", "))
 }

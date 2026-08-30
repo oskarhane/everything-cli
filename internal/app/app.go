@@ -4,6 +4,8 @@ package app
 import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+
+	"github.com/oskarhane/google-cli/internal/output"
 )
 
 // Config holds the values of the root command's persistent flags.
@@ -50,6 +52,14 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	f.StringVar(&cfg.Format, "format", "", "Output format: json, table, or toon (empty = auto-detect)")
 	f.BoolVar(&cfg.Debug, "debug", false, "Enable debug output")
 	f.StringVar(&cfg.Credentials, "credentials", "", "Path to OAuth app credentials JSON (empty = auto-resolve)")
+
+	// The single place cfg.Debug is consumed: it gates output.Debug lines
+	// (stderr, control-stripped). Subcommands that define their own
+	// PersistentPreRun must call this one first if they override it.
+	root.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+		output.SetDebug(cfg.Debug)
+		return nil
+	}
 
 	return root
 }

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/google-cli/internal/output"
 	"golang.org/x/oauth2"
 )
 
@@ -19,5 +20,7 @@ func SaveAccount(store *config.Store, name, email string, scopes []string, tok *
 	if err := store.Save(acct); err != nil {
 		return "", err
 	}
+	// Account names/emails are non-secret metadata; never log token values.
+	output.Debug("saved account " + acct.Name)
 	return acct.Name, nil
 }

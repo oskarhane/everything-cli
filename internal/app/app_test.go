@@ -42,6 +42,14 @@ func TestPersistentFlagsBindToConfig(t *testing.T) {
 	assert.Equal(t, "credentials.json", cfg.Credentials)
 }
 
+func TestRootWiresDebugFlagToOutput(t *testing.T) {
+	cfg := &Config{Fs: afero.NewMemMapFs()}
+	root := NewRootCommand(cfg)
+	require.NotNil(t, root.PersistentPreRunE, "root must define the single cfg.Debug consumer")
+
+	require.NoError(t, root.PersistentPreRunE(root, nil))
+}
+
 func TestNewConfigDefaults(t *testing.T) {
 	cfg := NewConfig()
 
