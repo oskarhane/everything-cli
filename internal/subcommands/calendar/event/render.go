@@ -14,10 +14,18 @@ import (
 // eventListFields is the event list row field order for table output; the
 // same names are the snake_case JSON and TOON keys. go-pretty's StyleLight
 // upper-cases the headers when rendering.
-var eventListFields = []string{"id", "summary", "start", "end", "recurring", "recurring_event_id"}
+var eventListFields = []string{
+	"id", "summary", "start", "end", "status", "self_response",
+	"recurring", "recurring_event_id", "organizer", "created", "updated",
+	"description", // last: the longest cell
+}
 
 // eventViewFields is the single-event view field order.
-var eventViewFields = []string{"id", "summary", "start", "end", "location", "description", "attendees", "recurring", "recurring_event_id", "recurrence"}
+var eventViewFields = []string{
+	"id", "summary", "start", "end", "status", "self_response",
+	"created", "updated", "location", "description", "attendees",
+	"recurring", "recurring_event_id", "recurrence",
+}
 
 // dateTimeString renders an EventDateTime as one string: the date for
 // all-day events, the RFC3339 datetime otherwise.
@@ -31,17 +39,38 @@ func dateTimeString(t *calendar.EventDateTime) string {
 	return t.DateTime
 }
 
+// selfResponseStatus returns the acting-account attendee's response status,
+// or "" when the user is not an attendee of the event.
+func selfResponseStatus(attendees []*calendar.EventAttendee) string {
+	for _, a := range attendees {
+		if a.Self {
+			return a.ResponseStatus
+		}
+	}
+	return ""
+}
+
 // eventListRow maps one event to its list row. recurring is true for masters
 // (recurrence set) and instances (recurringEventId set); recurring_event_id
 // is empty for masters and single events.
 func eventListRow(ev *calendar.Event) map[string]any {
+	organizer := ""
+	if ev.Organizer != nil {
+		organizer = ev.Organizer.Email
+	}
 	return map[string]any{
 		"id":                 ev.Id,
 		"summary":            ev.Summary,
 		"start":              dateTimeString(ev.Start),
 		"end":                dateTimeString(ev.End),
+		"status":             ev.Status,
+		"self_response":      selfResponseStatus(ev.Attendees),
 		"recurring":          isRecurring(ev),
 		"recurring_event_id": ev.RecurringEventId,
+		"organizer":          organizer,
+		"created":            ev.Created,
+		"updated":            ev.Updated,
+		"description":        ev.Description,
 	}
 }
 
@@ -71,6 +100,10 @@ func eventView(ev *calendar.Event) map[string]any {
 		"summary":            ev.Summary,
 		"start":              dateTimeString(ev.Start),
 		"end":                dateTimeString(ev.End),
+		"status":             ev.Status,
+		"self_response":      selfResponseStatus(ev.Attendees),
+		"created":            ev.Created,
+		"updated":            ev.Updated,
 		"location":           ev.Location,
 		"description":        ev.Description,
 		"attendees":          attendeeRows(ev.Attendees),
