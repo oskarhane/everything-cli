@@ -14,6 +14,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
 	skillsub "github.com/oskarhane/google-cli/internal/subcommands/skill"
+	"github.com/oskarhane/google-cli/internal/subcommands/update"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
@@ -33,7 +34,14 @@ func TestTreeDrift(t *testing.T) {
 			return
 		}
 		leafCount++
+		// Multi-word leaf paths ("gmail message untrash") are specific enough
+		// to match as written; single-word leaves ("update") match
+		// incidentally in prose, so they must appear with the binary prefix
+		// ("google-cli update") for the guard to bite.
 		leafPath := strings.TrimPrefix(cmd.CommandPath(), "google-cli ")
+		if !strings.Contains(leafPath, " ") {
+			leafPath = "google-cli " + leafPath
+		}
 		if !strings.Contains(bundleText, leafPath) {
 			t.Errorf("command %q is not documented in the skill bundle — "+
 				"update internal/skill/bundle so the shipped docs match the tree", leafPath)
@@ -53,6 +61,7 @@ func newMountedTree() *cobra.Command {
 		gmail.NewCmd(cfg),
 		calendar.NewCmd(cfg),
 		skillsub.NewCmd(cfg),
+		update.NewCmd(cfg),
 	)
 	return root
 }

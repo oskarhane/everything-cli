@@ -41,6 +41,14 @@ var StdoutIsTerminal = func() bool {
 	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
+// StdinIsTerminal is the package-level test seam for terminal detection on
+// os.Stdin, so interactive prompts (e.g. the update confirmation) can be
+// driven hermetically. Tests may replace this var and restore it via
+// t.Cleanup.
+var StdinIsTerminal = func() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
 // IsAgent is the package-level test seam for agent-harness detection. When it
 // reports true and no explicit --format is given, output resolves to toon.
 var IsAgent = agent.DetectFn

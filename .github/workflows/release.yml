@@ -1,0 +1,139 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        required: true
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # GitHub runners do not preinstall golangci-lint; `go install` lands in
+      # GOPATH/bin, which setup-go does not add to PATH. Pinned to the version
+      # the config is verified clean against locally.
+      - name: Install golangci-lint
+        run: |
+          go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Quality gates
+        run: |
+          make test
+          make fmt-check
+          make lint
+
+      - name: Compute next version
+        id: ver
+        run: |
+          latest="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          if [ -z "$latest" ]; then
+            next="v0.1.0"
+          else
+            ver="${latest#v}"
+            major="$(echo "$ver" | cut -d. -f1)"
+            minor="$(echo "$ver" | cut -d. -f2)"
+            patch="$(echo "$ver" | cut -d. -f3)"
+            case "${{ inputs.bump }}" in
+              major)
+                major=$((major + 1))
+                minor=0
+                patch=0
+                ;;
+              minor)
+                minor=$((minor + 1))
+                patch=0
+                ;;
+              patch)
+                patch=$((patch + 1))
+                ;;
+            esac
+            next="v${major}.${minor}.${patch}"
+          fi
+          if git rev-parse -q --verify "refs/tags/$next" >/dev/null; then
+            echo "::error::$next already exists"
+            exit 1
+          fi
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Build and package
+        run: |
+          for platform in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            os="${platform%/*}"
+            arch="${platform#*/}"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
+              go build -trimpath \
+              -ldflags "-s -w -X github.com/oskarhane/google-cli/internal/app.Version=${{ steps.ver.outputs.version }}" \
+              -o "dist/google-cli_${os}_${arch}/google-cli" .
+            tar -czf "dist/google-cli_${os}_${arch}.tar.gz" \
+              -C "dist/google-cli_${os}_${arch}" google-cli
+          done
+          rm -rf dist/google-cli_*/
+          (cd dist && sha256sum google-cli_*.tar.gz > checksums.txt)
+
+      - name: Tag and push
+        run: |
+          git config user.name release-bot
+          git config user.email actions@github.com
+          git tag -a "${{ steps.ver.outputs.version }}" \
+            -m "Release ${{ steps.ver.outputs.version }}"
+          git push origin "${{ steps.ver.outputs.version }}"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.version }}" \
+            dist/*.tar.gz dist/checksums.txt \
+            --title "Release ${{ steps.ver.outputs.version }}" \
+            --generate-notes
+
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare pages content
+        run: |
+          mkdir -p _pages
+          cp scripts/install.sh _pages/install.sh
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pages
+
+      - name: Deploy pages
+        id: deployment
+        uses: actions/deploy-pages@v4

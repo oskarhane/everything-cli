@@ -48,6 +48,7 @@ Google accounts. `google-cli` is the binary name; the command layout is
 | `--format <fmt>` | `json`, `table`, `toon` | Output format (empty = auto-detect) |
 | `--credentials <path>` | path | OAuth app credentials JSON (empty = auto-resolve) |
 | `--debug` | boolean | Emit debug output (redacted, control-byte stripped) |
+| `--version` | boolean | Print `google-cli version <version>` and exit |
 
 Auto-format precedence when `--format` is not given: explicit flag > agent
 harness detected (→ `toon`) > interactive TTY (→ `table`) > piped (→ `json`).
@@ -76,6 +77,32 @@ Supported agents: `claude-code`, `cursor`, `windsurf`, `copilot`,
 `antigravity`, `gemini-cli`, `cline`, `codex`, `pi`, `opencode`, `junie`.
 Files install under each agent's skills dir (e.g. `~/.claude/skills/google-cli/`),
 never under `~/.config/google-cli`.
+
+## Self-update
+
+Fresh install (macOS/Linux, latest release binary to `~/.local/bin`):
+`curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh`.
+
+`google-cli update` self-updates the binary from GitHub releases, then
+refreshes the installed skill bundle — run it after any upgrade so the
+bundled agent docs match the binary.
+
+- `google-cli update` — check GitHub releases; if a newer version exists,
+  download the tarball matching this platform, verify its sha256 against
+  the release checksum manifest, and atomically replace the running
+  binary. The refreshed skill bundle is then installed: prompted
+  `[y/N]` at an interactive terminal, automatically with `--yes`, or not
+  at all in non-interactive/agent contexts (a `run: google-cli skill
+  install` hint is printed instead). Local/`dev` builds always offer the
+  latest release.
+- `google-cli update --check` — report current and latest versions and
+  change nothing.
+- `--yes` — skip confirmation and auto-install the updated skill bundle.
+- `--agent <id>` — limit the post-update skill reinstall to one agent
+  (same semantics as `skill install --agent`).
+
+Errors read plainly: `no releases published yet` when none exist, and a
+hint to `export GITHUB_TOKEN` when the GitHub API rate limit is hit.
 
 ## Tips & gotchas
 

@@ -238,3 +238,27 @@ func TestInstallWrittenBundleIsComplete(t *testing.T) {
 	require.NoError(t, rerr)
 	assert.Contains(t, string(data), "name: google-cli")
 }
+
+// TestParseVersionLineTolerances: ParseVersionLine reads a stamped version
+// through the same matcher injectVersion uses. Relocated from
+// internal/update's duplicate parser (node 13 consolidation).
+func TestParseVersionLineTolerances(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "frontmatter", body: "---\nname: x\nversion: 1.2.3\n---\nbody", want: "1.2.3"},
+		{name: "crlf", body: "---\r\nversion: 1.2.3\r\n---\r\n", want: "1.2.3"},
+		{name: "trailing spaces", body: "version: 1.2.3   \n", want: "1.2.3"},
+		{name: "indented", body: "  version: 0.9.0\n", want: "0.9.0"},
+		{name: "absent", body: "---\nname: x\n---\n", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ParseVersionLine([]byte(tt.body))
+			assert.Equal(t, tt.want != "", ok)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
