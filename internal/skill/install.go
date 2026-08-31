@@ -11,9 +11,21 @@ import (
 )
 
 // versionLineRe matches the frontmatter `version:` line in an installed
-// SKILL.md. Tolerates leading whitespace and arbitrary trailing whitespace
-// after the value.
-var versionLineRe = regexp.MustCompile(`(?m)^[ \t]*version:[ \t]*([^\r\n]*?)[ \t]*$`)
+// SKILL.md. Tolerates leading whitespace, arbitrary trailing whitespace
+// after the value, and CRLF line endings.
+var versionLineRe = regexp.MustCompile(`(?m)^[ \t]*version:[ \t]*([^\r\n]*?)[ \t]*\r?$`)
+
+// ParseVersionLine extracts the frontmatter `version:` line value from a
+// SKILL.md body. It uses the same matcher as injectVersion, so a reported
+// version is always exactly what Install stamps. ok is false when the body
+// has no `version:` line.
+func ParseVersionLine(body []byte) (string, bool) {
+	m := versionLineRe.FindSubmatch(body)
+	if m == nil {
+		return "", false
+	}
+	return string(m[1]), true
+}
 
 // frontmatterRe matches the leading YAML frontmatter block of a SKILL.md
 // body. Captures the inner body so injection can replace or append the

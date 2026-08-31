@@ -19,7 +19,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strings"
 
@@ -243,20 +242,6 @@ func performUpdate(ctx context.Context, client Client, rel *Release, current str
 	return reinstallSkill(ctx, opts, res)
 }
 
-// resolvedSelfPath is the symlink-resolved path of the running binary — the
-// file ReplaceBinary targets and the executable the skill reinstall execs.
-func resolvedSelfPath() (string, error) {
-	self, err := SelfPath()
-	if err != nil {
-		return "", fmt.Errorf("resolving current executable: %w", err)
-	}
-	target, err := filepath.EvalSymlinks(self)
-	if err != nil {
-		return "", fmt.Errorf("resolving binary path %s: %w", self, err)
-	}
-	return target, nil
-}
-
 // extractBinary pulls the google-cli member out of the release tar.gz into a
 // temp file with mode 0755. The caller removes the temp file.
 func extractBinary(tarGz []byte) (string, error) {
@@ -365,22 +350,12 @@ func installedSkill(fs afero.Fs, agentFilter string) ([]string, string, error) {
 		}
 		paths = append(paths, dir)
 		if version == "" {
-			version = parseSkillVersion(data)
+			if v, ok := skill.ParseVersionLine(data); ok {
+				version = v
+			}
 		}
 	}
 	return paths, version, nil
-}
-
-// skillVersionRe matches the frontmatter `version:` line of an installed
-// SKILL.md (same tolerances as the skill package's matcher).
-var skillVersionRe = regexp.MustCompile(`(?m)^[ \t]*version:[ \t]*([^\r\n]*?)[ \t]*\r?$`)
-
-func parseSkillVersion(data []byte) string {
-	m := skillVersionRe.FindSubmatch(data)
-	if m == nil {
-		return ""
-	}
-	return string(m[1])
 }
 
 // execSkillInstall is the default ExecSkillInstall: run the resolved self

@@ -20,6 +20,20 @@ var SelfPath = func() (string, error) { return os.Executable() }
 // hostOS is a var so the windows gate is testable on any platform.
 var hostOS = runtime.GOOS
 
+// resolvedSelfPath is the symlink-resolved path of the running binary — the
+// file ReplaceBinary targets and the executable the skill reinstall execs.
+func resolvedSelfPath() (string, error) {
+	self, err := SelfPath()
+	if err != nil {
+		return "", fmt.Errorf("resolving current executable: %w", err)
+	}
+	target, err := filepath.EvalSymlinks(self)
+	if err != nil {
+		return "", fmt.Errorf("resolving binary path %s: %w", self, err)
+	}
+	return target, nil
+}
+
 const replacePerm = 0o755
 
 // ReplaceBinary atomically replaces the running binary with the file at
@@ -33,13 +47,9 @@ func ReplaceBinary(newPath string) error {
 		return ErrUnsupportedPlatform
 	}
 
-	self, err := SelfPath()
+	target, err := resolvedSelfPath()
 	if err != nil {
-		return fmt.Errorf("resolving current executable: %w", err)
-	}
-	target, err := filepath.EvalSymlinks(self)
-	if err != nil {
-		return fmt.Errorf("resolving binary path %s: %w", self, err)
+		return err
 	}
 
 	name := filepath.Base(target)
