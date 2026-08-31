@@ -32,8 +32,10 @@ google-cli calendar delete abc123.group.calendar.google.com --force
   `status: "cancelled"`), `--max` (default 250; `0` = no cap), `--recurring
   instances|masters|all` (default `instances` = recurring series expanded
   into occurrences; `masters` = raw masters plus one-offs and exceptions;
-  `all` = both merged and deduped). Rows carry `status` and `self_response`
-  (the account's RSVP); `get` adds `created`/`updated`.
+  `all` = both merged and deduped). Rows carry 12 snake_case fields —
+  `status`, `self_response` (the account's RSVP), `created`, `updated`,
+  `organizer`, `description`, plus the scheduling fields; `get` adds
+  `location`, `attendees`, and `recurrence`.
 - `calendar event get <event-id>` — `--calendar`.
 - `calendar event create` — `--summary` (required), `--start`, `--end`
   (required; RFC3339, or YYYY-MM-DD with `--all-day`), `--calendar`,
