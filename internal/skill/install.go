@@ -32,14 +32,36 @@ var frontmatterRe = regexp.MustCompile(`(?s)\A---\r?\n(.*?)\r?\n---(\r?\n|\z)`)
 //   - non-empty — case-insensitive lookup in AGENTS. Unknown returns
 //     ErrUnknownAgent; known-but-undetected returns ErrAgentNotDetected.
 //
-// Returns the agents the bundle was written to (in catalog order).
-func Install(filesystem afero.Fs, version, agentFilter string) ([]Agent, error) {
-	targets, err := resolveTargets(filesystem, agentFilter)
+// InstallResult describes one completed bundle install.
+type InstallResult struct {
+	Agent string // agent id the bundle was written to
+	Path  string // the installed <skills>/google-cli directory
+}
+
+func Install(filesystem afero.Fs, version, agentFilter string) ([]InstallResult, error) {
+	targets, err := targets(filesystem, agentFilter)
 	if err != nil {
 		return nil, err
 	}
+	if len(targets) == 0 {
+		return nil, ErrNoAgentsDetected
+	}
 
+	results := make([]InstallResult, 0, len(targets))
 	for _, a := range targets {
+		// A named target need not be detected; installing into an
+		// undetected agent is an error (Remove tolerates it instead).
+		if agentFilter != "" {
+			dp, ok := a.DetectPath()
+			if !ok {
+				return nil, fmt.Errorf("%w: %s (cannot resolve HOME)", ErrAgentNotDetected, a.Name)
+			}
+			exists, _ := afero.DirExists(filesystem, dp)
+			if !exists {
+				return nil, fmt.Errorf("%w: %s", ErrAgentNotDetected, a.Name)
+			}
+		}
+
 		skillsRoot, ok := a.SkillsPath()
 		if !ok {
 			return nil, fmt.Errorf("skill: cannot resolve skills path for %s", a.Name)
@@ -53,32 +75,22 @@ func Install(filesystem afero.Fs, version, agentFilter string) ([]Agent, error) 
 		if cerr := copyBundleWithVersion(filesystem, dst, Bundle, version); cerr != nil {
 			return nil, fmt.Errorf("skill: writing %s: %w", dst, cerr)
 		}
+		results = append(results, InstallResult{Agent: a.Name, Path: dst})
 	}
-	return targets, nil
+	return results, nil
 }
 
-// resolveTargets is the install-time agent filter. Mirrors Remove's logic
-// but with stricter semantics: an unknown filter or undetected single
-// target is an error (Remove tolerates both).
-func resolveTargets(filesystem afero.Fs, agentFilter string) ([]Agent, error) {
+// targets resolves the shared agent filter for Install and Remove: "" means
+// every detected agent (possibly none); a non-empty filter is a
+// case-insensitive lookup whose unknown values are ErrUnknownAgent.
+// Stricter install-only semantics (non-empty detection) live in Install.
+func targets(filesystem afero.Fs, agentFilter string) ([]Agent, error) {
 	if agentFilter == "" {
-		targets := DetectAgents(filesystem)
-		if len(targets) == 0 {
-			return nil, ErrNoAgentsDetected
-		}
-		return targets, nil
+		return DetectAgents(filesystem), nil
 	}
 	a := FindAgent(agentFilter)
 	if a == nil {
 		return nil, fmt.Errorf("%w: %q", ErrUnknownAgent, agentFilter)
-	}
-	dp, ok := a.DetectPath()
-	if !ok {
-		return nil, fmt.Errorf("%w: %s (cannot resolve HOME)", ErrAgentNotDetected, a.Name)
-	}
-	exists, _ := afero.DirExists(filesystem, dp)
-	if !exists {
-		return nil, fmt.Errorf("%w: %s", ErrAgentNotDetected, a.Name)
 	}
 	return []Agent{*a}, nil
 }

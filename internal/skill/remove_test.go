@@ -19,7 +19,9 @@ func TestRemoveIdempotentMissingDir(t *testing.T) {
 	removed, err := Remove(fsys, "")
 	require.NoError(t, err)
 	require.Len(t, removed, 1)
-	assert.Equal(t, "claude-code", removed[0].Name)
+	assert.Equal(t, "claude-code", removed[0].Agent)
+	assert.False(t, removed[0].Removed, "no install dir means a no-op removal")
+	assert.Equal(t, destFor(*FindAgent("claude-code"), home), removed[0].Path)
 }
 
 // TestRemoveAgentScoping: with a filter, only the named agent's install
@@ -37,7 +39,9 @@ func TestRemoveAgentScoping(t *testing.T) {
 	removed, err := Remove(fsys, "codex")
 	require.NoError(t, err)
 	require.Len(t, removed, 1)
-	assert.Equal(t, "codex", removed[0].Name)
+	assert.Equal(t, "codex", removed[0].Agent)
+	assert.True(t, removed[0].Removed, "existing install dir means a real removal")
+	assert.Equal(t, destFor(*FindAgent("codex"), home), removed[0].Path)
 
 	exists, err := afero.DirExists(fsys, destFor(*FindAgent("codex"), home))
 	require.NoError(t, err)
@@ -100,7 +104,7 @@ func TestRemoveCaseInsensitiveFilter(t *testing.T) {
 	removed, err := Remove(fsys, "Claude-Code")
 	require.NoError(t, err)
 	require.Len(t, removed, 1)
-	assert.Equal(t, "claude-code", removed[0].Name)
+	assert.Equal(t, "claude-code", removed[0].Agent)
 }
 
 // TestRemoveDeletesWholeSkillDir: removal takes out the bundle dir, not

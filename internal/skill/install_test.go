@@ -40,8 +40,9 @@ func TestInstallAllDetected(t *testing.T) {
 	require.NoError(t, err)
 
 	names := make([]string, 0, len(installed))
-	for _, a := range installed {
-		names = append(names, a.Name)
+	for _, r := range installed {
+		names = append(names, r.Agent)
+		assert.Equal(t, destFor(*FindAgent(r.Agent), home), r.Path, "Path is the install dir")
 	}
 	assert.Equal(t, []string{"claude-code", "codex"}, names)
 
@@ -63,7 +64,8 @@ func TestInstallSingleAgent(t *testing.T) {
 	installed, err := Install(fsys, "v1", "CLAUDE-CODE")
 	require.NoError(t, err)
 	require.Len(t, installed, 1)
-	assert.Equal(t, "claude-code", installed[0].Name)
+	assert.Equal(t, "claude-code", installed[0].Agent)
+	assert.Equal(t, destFor(*FindAgent("claude-code"), home), installed[0].Path)
 
 	exists, err := afero.Exists(fsys, filepath.Join(destFor(*FindAgent("codex"), home), "SKILL.md"))
 	require.NoError(t, err)

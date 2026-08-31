@@ -2,21 +2,11 @@ package skill
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/skill"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
-
-// removeTarget is one agent scoped for removal, with its resolved install
-// dir and whether the bundle was present before the removal ran.
-type removeTarget struct {
-	agent  skill.Agent
-	path   string
-	exists bool
-}
 
 // newRemoveCmd builds skill remove: delete the installed google-cli skill
 // bundle from each target agent's skills directory. Idempotent.
@@ -38,21 +28,18 @@ google-cli skill remove --agent claude-code
 google-cli skill install`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			targets, err := preRemoveTargets(cfg, agent)
+			results, err := skill.Remove(cfg.Fs, agent)
 			if err != nil {
-				return err
-			}
-			if _, err := skill.Remove(cfg.Fs, agent); err != nil {
 				return wrapAgentFilterError(err)
 			}
 			out := cmd.OutOrStdout()
 			removedAny := false
-			for _, t := range targets {
-				if t.exists {
+			for _, r := range results {
+				if r.Removed {
 					removedAny = true
-					_, _ = fmt.Fprintf(out, "removed %s from %s\n", skill.SkillName, t.path)
+					_, _ = fmt.Fprintf(out, "removed %s from %s\n", skill.SkillName, r.Path)
 				} else {
-					_, _ = fmt.Fprintf(out, "no %s install in %s\n", skill.SkillName, t.path)
+					_, _ = fmt.Fprintf(out, "no %s install in %s\n", skill.SkillName, r.Path)
 				}
 			}
 			if removedAny {
@@ -64,36 +51,4 @@ google-cli skill install`,
 	}
 	addAgentFlag(cmd, &agent)
 	return cmd
-}
-
-// preRemoveTargets resolves the same targets skill.Remove will act on and
-// records whether each install dir currently exists, so the output can
-// distinguish a real removal from an idempotent no-op.
-func preRemoveTargets(cfg *app.Config, agentFilter string) ([]removeTarget, error) {
-	var targets []skill.Agent
-	if agentFilter == "" {
-		targets = skill.DetectAgents(cfg.Fs)
-	} else {
-		a := skill.FindAgent(agentFilter)
-		if a == nil {
-			return nil, wrapAgentFilterError(
-				fmt.Errorf("%w: %q", skill.ErrUnknownAgent, agentFilter))
-		}
-		targets = []skill.Agent{*a}
-	}
-
-	out := make([]removeTarget, 0, len(targets))
-	for _, a := range targets {
-		root, ok := a.SkillsPath()
-		if !ok {
-			continue
-		}
-		dst := filepath.Join(root, skill.SkillName)
-		exists, err := afero.DirExists(cfg.Fs, dst)
-		if err != nil {
-			return nil, fmt.Errorf("skill: inspecting %s: %w", dst, err)
-		}
-		out = append(out, removeTarget{path: dst, exists: exists})
-	}
-	return out, nil
 }

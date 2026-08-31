@@ -2,7 +2,6 @@ package skill
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/skill"
@@ -35,14 +34,9 @@ google-cli skill install`,
 			if err != nil {
 				return wrapAgentFilterError(err)
 			}
-			for _, a := range installed {
-				root, ok := a.SkillsPath()
-				if !ok {
-					return fmt.Errorf("skill: cannot resolve skills path for %s", a.Name)
-				}
-				dst := filepath.Join(root, skill.SkillName)
+			for _, r := range installed {
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "installed %s -> %s\n",
-					skill.SkillName, dst)
+					skill.SkillName, r.Path)
 			}
 			return nil
 		},
