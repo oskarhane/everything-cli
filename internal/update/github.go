@@ -15,7 +15,17 @@ const (
 	defaultGitHubBase = "https://api.github.com"
 	defaultRepo       = "oskarhane/google-cli"
 	acceptHeader      = "application/vnd.github+json"
+
+	// maxBodyBytes caps how many bytes are read from any single response
+	// body. Release metadata responses are tiny (a few KB); the largest
+	// legit release asset is a compressed Go binary, well under 16 MB, so
+	// 256 MB leaves a ~16x margin while still bounding memory from a
+	// compromised or hostile response instead of exhausting the process.
+	maxBodyBytes = 256 << 20
 )
+
+// maxBodyLimit is a var seam over maxBodyBytes so tests can lower the cap.
+var maxBodyLimit = int64(maxBodyBytes)
 
 // Client fetches release metadata and asset payloads from GitHub.
 type Client interface {
@@ -116,9 +126,14 @@ func (c *HTTPClient) get(ctx context.Context, endpoint string) ([]byte, error) {
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		data, err := io.ReadAll(resp.Body)
+		// Read one byte past the cap so an oversized body is detected as a
+		// distinct error rather than silently returning a truncated body.
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyLimit+1))
 		if err != nil {
 			return nil, fmt.Errorf("reading response from %s: %w", u.Host, err)
+		}
+		if int64(len(data)) > maxBodyLimit {
+			return nil, fmt.Errorf("response from %s exceeds %d bytes", u.Host, maxBodyLimit)
 		}
 		return data, nil
 	case http.StatusNotFound:

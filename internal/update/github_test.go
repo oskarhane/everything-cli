@@ -117,6 +117,47 @@ func TestDownload(t *testing.T) {
 	assert.Equal(t, payload, got)
 }
 
+func TestResponseSizeCap(t *testing.T) {
+	ctx := context.Background()
+
+	orig := maxBodyLimit
+	t.Cleanup(func() { maxBodyLimit = orig })
+
+	t.Run("oversized body is rejected with host and limit", func(t *testing.T) {
+		maxBodyLimit = 8
+		srv, _ := testServer(t, http.StatusOK, "0123456789")
+
+		_, err := NewClient(srv.URL, "owner/repo").LatestRelease(ctx)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds 8 bytes")
+		assert.Contains(t, err.Error(), srv.Listener.Addr().String())
+	})
+
+	t.Run("cap applies to Download too", func(t *testing.T) {
+		maxBodyLimit = 4
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("0123456789"))
+		}))
+		t.Cleanup(srv.Close)
+
+		_, err := NewClient(srv.URL, "owner/repo").Download(ctx, srv.URL+"/asset.tar.gz")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds 4 bytes")
+	})
+
+	t.Run("body exactly at cap is read fully", func(t *testing.T) {
+		maxBodyLimit = 12
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("tar.gz bytes"))
+		}))
+		t.Cleanup(srv.Close)
+
+		got, err := NewClient(srv.URL, "owner/repo").Download(ctx, srv.URL+"/asset.tar.gz")
+		require.NoError(t, err)
+		assert.Equal(t, "tar.gz bytes", string(got))
+	})
+}
+
 func TestReleaseAssetLookup(t *testing.T) {
 	rel := &Release{
 		Tag: "v1.2.3",
