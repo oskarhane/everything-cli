@@ -1,6 +1,7 @@
 package dates
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,13 @@ import (
 
 // fixedNow anchors relative parsing so expectations are deterministic.
 var fixedNow = time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)
+
+// testZone is a non-UTC location so tests prove naive values adopt the
+// pinned now's offset rather than assuming UTC. Fixed zone keeps it hermetic.
+var testZone = time.FixedZone("TEST", 2*3600)
+
+// nonUTCNow anchors naive parsing; its location must show up in output.
+var nonUTCNow = time.Date(2026, 9, 1, 12, 0, 0, 0, testZone)
 
 func TestParseTimestamp(t *testing.T) {
 	tests := []struct {
@@ -33,6 +41,38 @@ func TestParseTimestamp(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestParseTimestampNaive(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  EventTime
+	}{
+		{name: "naive seconds", value: "2026-09-01T00:00:00", want: EventTime{DateTime: "2026-09-01T00:00:00+02:00"}},
+		{name: "naive fractional seconds", value: "2026-09-01T00:00:00.5", want: EventTime{DateTime: "2026-09-01T00:00:00+02:00"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseTimestamp(tt.value, nonUTCNow)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+			require.True(t, strings.HasSuffix(got.DateTime, "+02:00"), "naive value must carry the local offset")
+		})
+	}
+}
+
+func TestParseTimestampErrorMentionsNaive(t *testing.T) {
+	_, err := ParseTimestamp("tomorrow", nonUTCNow)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "naive")
+	require.Contains(t, err.Error(), "local timezone")
+}
+
+func TestParseWindowTimeNaive(t *testing.T) {
+	got, err := ParseWindowTime("2026-09-01T00:00:00", nonUTCNow)
+	require.NoError(t, err)
+	require.Equal(t, "2026-09-01T00:00:00+02:00", got)
 }
 
 func TestParseTimestampRejectsGarbage(t *testing.T) {

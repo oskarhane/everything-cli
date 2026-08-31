@@ -12,6 +12,13 @@ import (
 
 const dateOnlyLayout = "2006-01-02"
 
+// naiveLayouts are datetime layouts without an offset. A naive value assumes
+// the local timezone (the now.Location() anchor).
+var naiveLayouts = []string{
+	"2006-01-02T15:04:05",
+	"2006-01-02T15:04:05.999999999",
+}
+
 // relativeRe matches relative offsets like -1d, +7d, -30m, +2h. A bare count
 // (7d) counts forward, like +7d. "now" is handled before the regexp runs.
 var relativeRe = regexp.MustCompile(`^([-+]?\d+)([dhm])$`)
@@ -26,6 +33,8 @@ type EventTime struct {
 
 // ParseTimestamp parses one timestamp flag value. Accepted forms:
 //   - RFC3339 with an offset: 2026-09-03T14:00:00Z, 2026-09-03T14:00:00+02:00
+//   - naive datetime (assumes the local timezone): 2026-09-03T14:00:00,
+//     2026-09-03T14:00:00.5
 //   - date only: 2026-09-03 (meaningful with --all-day or as a window bound)
 //   - relative: now, -1d, +7d, -30m, +2h, 7d
 //
@@ -47,10 +56,15 @@ func ParseTimestamp(value string, now time.Time) (EventTime, error) {
 	if _, err := time.Parse(time.RFC3339, value); err == nil {
 		return EventTime{DateTime: value}, nil
 	}
+	for _, layout := range naiveLayouts {
+		if t, err := time.ParseInLocation(layout, value, now.Location()); err == nil {
+			return EventTime{DateTime: t.Format(time.RFC3339)}, nil
+		}
+	}
 	if _, err := time.Parse(dateOnlyLayout, value); err == nil {
 		return EventTime{Date: value}, nil
 	}
-	return EventTime{}, fmt.Errorf("invalid timestamp %q: expected RFC3339 (2026-09-03T14:00:00Z), a date (2026-09-03), or a relative offset (now, -1d, +7d, -30m, +2h)", value)
+	return EventTime{}, fmt.Errorf("invalid timestamp %q: expected RFC3339 (2026-09-03T14:00:00Z or naive 2026-09-03T14:00:00, which assumes the local timezone), a date (2026-09-03), or a relative offset (now, -1d, +7d, -30m, +2h)", value)
 }
 
 // RelativeUnit maps a relative-offset unit letter to its duration.
