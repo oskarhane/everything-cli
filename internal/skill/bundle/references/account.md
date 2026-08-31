@@ -46,6 +46,6 @@ google-cli account use work
 Remove an account and its cached token. Refuses without `--force`.
 
 ```sh
-google-cli account get old
-google-cli account remove old --force
+google-cli account get work
+google-cli account remove work --force
 ```
