@@ -14,6 +14,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
 	skillsub "github.com/oskarhane/google-cli/internal/subcommands/skill"
+	"github.com/oskarhane/google-cli/internal/subcommands/update"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
@@ -53,6 +54,7 @@ func newMountedTree() *cobra.Command {
 		gmail.NewCmd(cfg),
 		calendar.NewCmd(cfg),
 		skillsub.NewCmd(cfg),
+		update.NewCmd(cfg),
 	)
 	return root
 }
