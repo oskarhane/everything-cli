@@ -80,6 +80,7 @@ jobs:
             tar -czf "dist/google-cli_${os}_${arch}.tar.gz" \
               -C "dist/google-cli_${os}_${arch}" google-cli
           done
+          rm -rf dist/google-cli_*/
           (cd dist && sha256sum google-cli_*.tar.gz > checksums.txt)
 
       - name: Tag and push
@@ -94,7 +95,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.ver.outputs.version }}" dist/* \
+          gh release create "${{ steps.ver.outputs.version }}" \
+            dist/*.tar.gz dist/checksums.txt \
             --title "Release ${{ steps.ver.outputs.version }}" \
             --generate-notes
 
