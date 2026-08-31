@@ -58,14 +58,25 @@ func TestListInstancesRowsCarryRecurringFields(t *testing.T) {
 }
 
 func TestListJSONKeysAreSnakeCase(t *testing.T) {
-	svc := &fakeEventService{items: seedListEvents()}
+	svc := &fakeEventService{items: appendCancelled(seedListEvents())}
 	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
 
 	rows := cmdtest.DecodeJSON(t, out).([]any)
 	first := rows[0].(map[string]any)
 	keys := cmdtest.JSONKeys(t, first)
-	require.ElementsMatch(t, []string{"id", "summary", "start", "end", "recurring", "recurring_event_id"}, keys)
+	require.ElementsMatch(t, []string{
+		"id", "summary", "start", "end", "status", "self_response",
+		"recurring", "recurring_event_id", "organizer", "created", "updated", "description",
+	}, keys)
 	cmdtest.RequireSnakeCase(t, keys)
+
+	byID := make(map[string]map[string]any, len(rows))
+	for _, r := range rows {
+		row := r.(map[string]any)
+		byID[row["id"].(string)] = row
+	}
+	require.Equal(t, "cancelled", byID[cancelledEventID]["status"],
+		"the seeded cancelled instance reports status=cancelled")
 }
 
 func TestListMastersReturnsDefaultList(t *testing.T) {
@@ -136,6 +147,61 @@ func TestListEmpty(t *testing.T) {
 	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
 
 	require.Equal(t, []any{}, cmdtest.DecodeJSON(t, out))
+}
+
+func TestListShowDeletedAndUpdatedSinceDefaults(t *testing.T) {
+	freezeNow(t)
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
+
+	require.Len(t, svc.listParams, 1)
+	require.True(t, svc.listParams[0].ShowDeleted, "default --show-deleted is true")
+	require.Empty(t, svc.listParams[0].UpdatedMin, "empty --updated-since stays unset")
+}
+
+func TestListShowDeletedFalsePropagates(t *testing.T) {
+	for _, mode := range []string{"instances", "masters", "all"} {
+		svc := &fakeEventService{items: seedListEvents()}
+		cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"),
+			"--recurring", mode, "--show-deleted=false")
+
+		require.NotEmpty(t, svc.listParams, mode)
+		for _, p := range svc.listParams {
+			require.False(t, p.ShowDeleted, "%s mode must carry --show-deleted=false", mode)
+		}
+	}
+}
+
+func TestListUpdatedSinceRelative(t *testing.T) {
+	freezeNow(t)
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"), "--updated-since", "-1d")
+
+	p := svc.listParams[0]
+	require.Equal(t, "2026-08-31T12:00:00Z", p.UpdatedMin,
+		"--updated-since -1d resolves against the pinned now")
+	require.True(t, p.ShowDeleted, "--show-deleted default carries alongside --updated-since")
+}
+
+func TestListUpdatedSinceExplicit(t *testing.T) {
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"),
+		"--updated-since", "2026-09-01T00:00:00Z")
+
+	require.Equal(t, "2026-09-01T00:00:00Z", svc.listParams[0].UpdatedMin)
+}
+
+func TestListAllModeCarriesShowDeletedAndUpdatedMin(t *testing.T) {
+	freezeNow(t)
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"),
+		"--recurring", "all", "--updated-since", "-1d", "--show-deleted=false")
+
+	require.Len(t, svc.listParams, 2)
+	for i, p := range svc.listParams {
+		require.False(t, p.ShowDeleted, "call %d carries --show-deleted=false", i)
+		require.Equal(t, "2026-08-31T12:00:00Z", p.UpdatedMin, "call %d carries --updated-since", i)
+	}
 }
 
 func TestListInvalidRecurringMode(t *testing.T) {

@@ -227,6 +227,22 @@ func seedListEvents() []*calendar.Event {
 	}
 }
 
+// cancelledEventID is the id of the seeded cancelled event.
+const cancelledEventID = "cxl999"
+
+// appendCancelled returns the given list plus a cancelled instance (status
+// "cancelled", the shape --show-deleted is meant to surface), so list tests
+// can observe the status field.
+func appendCancelled(events []*calendar.Event) []*calendar.Event {
+	return append(events, &calendar.Event{
+		Id:      cancelledEventID,
+		Summary: "Cancelled sync",
+		Status:  "cancelled",
+		Start:   &calendar.EventDateTime{DateTime: "2026-09-02T11:00:00Z", TimeZone: "UTC"},
+		End:     &calendar.EventDateTime{DateTime: "2026-09-02T11:30:00Z", TimeZone: "UTC"},
+	})
+}
+
 // seedAllDayEvent returns an all-day event for update date handling.
 func seedAllDayEvent() map[string]*calendar.Event {
 	return map[string]*calendar.Event{

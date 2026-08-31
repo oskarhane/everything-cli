@@ -36,6 +36,9 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *c
 		Example: `# This week's events as JSON, recurring series expanded into occurrences
 google-cli calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
 
+# Change-detection pull: only events modified since yesterday
+google-cli calendar event list --updated-since -1d --format json
+
 # Show the underlying recurring masters and one-off events instead
 google-cli calendar event list --recurring masters --format table
 
@@ -62,8 +65,10 @@ google-cli calendar event list --calendar work@example.com --query "design revie
 	}
 	f := cmd.Flags()
 	f.String("calendar", "primary", "Calendar id")
-	f.String("from", "now", "Window start: RFC3339, date, or relative (now, -1d, +7d)")
-	f.String("to", "+7d", "Window end: RFC3339, date, or relative; expansion is always bounded")
+	f.String("from", "now", "Window start: RFC3339 (offset optional), date, or relative (now, -1d, +7d)")
+	f.String("to", "+7d", "Window end: RFC3339 (offset optional), date, or relative; expansion is always bounded")
+	f.Bool("show-deleted", true, "Include cancelled events (status \"cancelled\")")
+	f.String("updated-since", "", "Only events modified since: RFC3339 (offset optional), date, or relative (now, -1d); empty = no filter")
 	f.String("query", "", "Free-text search term")
 	f.Int64("max", defaultListMax, "Total max events across all pages (0 = no cap)")
 	f.String("recurring", "instances", "Show instances (expanded occurrences), masters, or all")
@@ -80,6 +85,8 @@ func listEvents(cmd *cobra.Command, svc service.EventService, mode string) ([]*c
 	max, _ := f.GetInt64("max")
 	fromRaw, _ := f.GetString("from")
 	toRaw, _ := f.GetString("to")
+	showDeleted, _ := f.GetBool("show-deleted")
+	updatedSinceRaw, _ := f.GetString("updated-since")
 	now := nowFunc()
 
 	from, err := parseWindowTime(fromRaw, now)
@@ -90,12 +97,18 @@ func listEvents(cmd *cobra.Command, svc service.EventService, mode string) ([]*c
 	if err != nil {
 		return nil, err
 	}
+	updatedMin, err := parseWindowTime(updatedSinceRaw, now)
+	if err != nil {
+		return nil, err
+	}
 	base := service.ListEventsParams{
-		CalendarID: calendarID,
-		TimeMin:    from,
-		TimeMax:    to,
-		Query:      query,
-		MaxResults: max,
+		CalendarID:  calendarID,
+		TimeMin:     from,
+		TimeMax:     to,
+		Query:       query,
+		MaxResults:  max,
+		ShowDeleted: showDeleted,
+		UpdatedMin:  updatedMin,
 	}
 	if mode == "masters" {
 		return svc.ListEvents(cmd.Context(), base)
@@ -107,6 +120,8 @@ func listEvents(cmd *cobra.Command, svc service.EventService, mode string) ([]*c
 		TimeMax:      base.TimeMax,
 		Query:        base.Query,
 		MaxResults:   base.MaxResults,
+		ShowDeleted:  base.ShowDeleted,
+		UpdatedMin:   base.UpdatedMin,
 		OrderBy:      "startTime",
 	})
 	if err != nil {
