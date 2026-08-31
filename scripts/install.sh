@@ -75,7 +75,10 @@ printf '%s  %s\n' "$expected" "$asset" | (
 		fi
 ) || die "checksum verification failed for $asset; installing nothing"
 
-tar -xzf "$tmp/$asset" -C "$tmp"
+# Extract ONLY the named binary member: any other member (e.g. a crafted
+# "../path" traversal name in a compromised release) is never written to disk,
+# and a tarball missing "$BIN_NAME" makes tar fail, aborting the install.
+tar -xzf "$tmp/$asset" -C "$tmp" "$BIN_NAME"
 
 mkdir -p "$INSTALL_DIR"
 mv "$tmp/$BIN_NAME" "$INSTALL_DIR/$BIN_NAME"
