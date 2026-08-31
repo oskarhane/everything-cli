@@ -12,7 +12,7 @@ import (
 
 // seedDetected installs the DetectDir for each named agent so Install sees
 // them as present. opencode requires XDG seeding which callers handle.
-func seedAgents(t *testing.T, fsys afero.Fs, home string, names ...string) {
+func seedAgents(t *testing.T, fsys afero.Fs, names ...string) {
 	t.Helper()
 	for _, name := range names {
 		a := FindAgent(name)
@@ -34,7 +34,7 @@ func destFor(a Agent, home string) string {
 func TestInstallAllDetected(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code", "codex")
+	seedAgents(t, fsys, "claude-code", "codex")
 
 	installed, err := Install(fsys, "v1.2.3", "")
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestInstallAllDetected(t *testing.T) {
 func TestInstallSingleAgent(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code", "codex")
+	seedAgents(t, fsys, "claude-code", "codex")
 
 	installed, err := Install(fsys, "v1", "CLAUDE-CODE")
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestInstallErrors(t *testing.T) {
 func TestInstallCleanSlate(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	dest := destFor(*FindAgent("claude-code"), home)
 	stale := filepath.Join(dest, "references", "old.md")
@@ -130,7 +130,7 @@ func TestInstallCleanSlate(t *testing.T) {
 func TestInstallRewritesVersionLine(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	_, err := Install(fsys, "v9.9.9", "")
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestInstallRewritesVersionLine(t *testing.T) {
 func TestInstallFileModes(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	_, err := Install(fsys, "v1", "")
 	require.NoError(t, err)
@@ -217,7 +217,7 @@ func TestInjectVersion(t *testing.T) {
 func TestInstallWrittenBundleIsComplete(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	_, err := Install(fsys, "v1", "")
 	require.NoError(t, err)

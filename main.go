@@ -7,6 +7,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/account"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
+	"github.com/oskarhane/google-cli/internal/subcommands/skill"
 )
 
 func main() {
@@ -16,6 +17,7 @@ func main() {
 		account.NewCmd(cfg),
 		gmail.NewCmd(cfg),
 		calendar.NewCmd(cfg),
+		skill.NewCmd(cfg),
 	)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

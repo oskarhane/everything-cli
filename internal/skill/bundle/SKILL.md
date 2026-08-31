@@ -60,6 +60,23 @@ harness detected (→ `toon`) > interactive TTY (→ `table`) > piped (→ `json
 | Gmail: messages, threads, drafts, labels, attachments | [references/gmail.md](references/gmail.md) |
 | Calendars, events, invitations, ACL, free/busy | [references/calendar.md](references/calendar.md) |
 
+## Skill bundle management
+
+`google-cli` ships its own agent documentation as an embedded bundle and can
+install it into AI agents' skills directories.
+
+- `google-cli skill install` — install the bundle into every detected agent
+  (`--agent <id>` to limit). Clean-slate: replaces any prior install.
+- `google-cli skill remove` — delete the installed bundle (idempotent).
+- `google-cli skill print` — print the whole bundle as raw markdown to
+  stdout (bypasses `--format`).
+
+Detection is by config directory existing on disk (e.g. `~/.claude`).
+Supported agents: `claude-code`, `cursor`, `windsurf`, `copilot`,
+`antigravity`, `gemini-cli`, `cline`, `codex`, `pi`, `opencode`, `junie`.
+Files install under each agent's skills dir (e.g. `~/.claude/skills/google-cli/`),
+never under `~/.config/google-cli`.
+
 ## Tips & gotchas
 
 - Under agent harnesses (e.g. `CLAUDECODE`) output is automatically `toon`;

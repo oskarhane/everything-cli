@@ -14,7 +14,7 @@ import (
 func TestRemoveIdempotentMissingDir(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	removed, err := Remove(fsys, "")
 	require.NoError(t, err)
@@ -27,7 +27,7 @@ func TestRemoveIdempotentMissingDir(t *testing.T) {
 func TestRemoveAgentScoping(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code", "codex")
+	seedAgents(t, fsys, "claude-code", "codex")
 
 	for _, name := range []string{"claude-code", "codex"} {
 		dest := destFor(*FindAgent(name), home)
@@ -63,7 +63,7 @@ func TestRemoveAllDetected(t *testing.T) {
 	t.Run("all detected", func(t *testing.T) {
 		home := t.TempDir()
 		fsys := newTestFS(t, home)
-		seedAgents(t, fsys, home, "claude-code", "junie")
+		seedAgents(t, fsys, "claude-code", "junie")
 
 		for _, name := range []string{"claude-code", "junie"} {
 			dest := destFor(*FindAgent(name), home)
@@ -95,7 +95,7 @@ func TestRemoveAllDetected(t *testing.T) {
 func TestRemoveCaseInsensitiveFilter(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	removed, err := Remove(fsys, "Claude-Code")
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestRemoveCaseInsensitiveFilter(t *testing.T) {
 func TestRemoveDeletesWholeSkillDir(t *testing.T) {
 	home := t.TempDir()
 	fsys := newTestFS(t, home)
-	seedAgents(t, fsys, home, "claude-code")
+	seedAgents(t, fsys, "claude-code")
 
 	dest := filepath.Join(destFor(*FindAgent("claude-code"), home), "references")
 	require.NoError(t, fsys.MkdirAll(dest, 0o755))

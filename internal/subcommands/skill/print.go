@@ -1,0 +1,70 @@
+package skill
+
+import (
+	"fmt"
+	"io/fs"
+	"slices"
+
+	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/skill"
+	"github.com/spf13/cobra"
+)
+
+// newPrintCmd builds skill print: echo the whole embedded bundle (SKILL.md,
+// then every references/*.md in sorted order) as raw markdown.
+//
+// The output is written straight to the command's stdout with raw Write
+// calls, deliberately bypassing output.Print: the bundle is markdown, and
+// pushing it through the toon/table/json auto-detection would re-marshal
+// (and corrupt) it.
+func newPrintCmd(cfg *app.Config) *cobra.Command {
+	return &cobra.Command{
+		Use:   "print",
+		Short: "Print the embedded google-cli skill bundle as raw markdown",
+		Long: "Print the entire embedded google-cli agent-skill bundle to stdout: " +
+			"SKILL.md first, then every references/*.md in sorted order, each " +
+			"preceded by a '===== references/<name>.md =====' separator line.\n\n" +
+			"The output is raw markdown written directly to stdout. It deliberately " +
+			"bypasses the --format auto-detection entirely (markdown must never be " +
+			"marshalled through toon/table/json), so --format has no effect here.",
+		Example: `# Show exactly what skill install writes on disk
+google-cli skill print
+
+# Capture the bundle to a file
+google-cli skill print > google-cli-skill.md`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
+
+			data, err := fs.ReadFile(skill.Bundle, "SKILL.md")
+			if err != nil {
+				return fmt.Errorf("reading embedded SKILL.md: %w", err)
+			}
+			if _, werr := out.Write(data); werr != nil {
+				return fmt.Errorf("writing SKILL.md: %w", werr)
+			}
+
+			refs, err := fs.Glob(skill.Bundle, "references/*.md")
+			if err != nil {
+				return fmt.Errorf("listing embedded references: %w", err)
+			}
+			// fs.Glob on embed.FS returns sorted paths, but the contract is
+			// explicit enough to not rely on that guarantee.
+			slices.Sort(refs)
+
+			for _, name := range refs {
+				data, rerr := fs.ReadFile(skill.Bundle, name)
+				if rerr != nil {
+					return fmt.Errorf("reading embedded %s: %w", name, rerr)
+				}
+				if _, werr := fmt.Fprintf(out, "===== %s =====\n", name); werr != nil {
+					return fmt.Errorf("writing %s header: %w", name, werr)
+				}
+				if _, werr := out.Write(data); werr != nil {
+					return fmt.Errorf("writing %s: %w", name, werr)
+				}
+			}
+			return nil
+		},
+	}
+}

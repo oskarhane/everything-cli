@@ -19,8 +19,10 @@ import (
 // correct on Windows.
 //
 // Existing files at the destination are overwritten. Parent directories are
-// created with mode 0755, files with mode 0600.
-func CopyBundle(dst afero.Fs, dstDir string, bundle fs.FS) error {
+// created with mode 0755, files with mode 0600. transform, when non-nil, is
+// applied to each file's bytes before writing (keyed by its slash path
+// inside the bundle).
+func CopyBundle(dst afero.Fs, dstDir string, bundle fs.FS, transform func(path string, data []byte) []byte) error {
 	if bundle == nil {
 		return errors.New("skill: nil bundle FS")
 	}
@@ -39,6 +41,9 @@ func CopyBundle(dst afero.Fs, dstDir string, bundle fs.FS) error {
 		data, rerr := fs.ReadFile(bundle, p)
 		if rerr != nil {
 			return rerr
+		}
+		if transform != nil {
+			data = transform(p, data)
 		}
 
 		// Embed.FS guarantees forward slashes; translate to OS separators

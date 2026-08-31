@@ -94,6 +94,21 @@ google-cli calendar acl add primary --scope-user a@x.com --role reader
 
 Dates accept RFC3339, `YYYY-MM-DD` (with `--all-day`), and relative forms (`now`, `-1d`, `+7d`, `-30m`).
 
+### Agent skills
+
+`google-cli` embeds a skill bundle (a `SKILL.md` plus `references/*.md` docs covering accounts, Gmail, and Calendar) that teaches AI agents how to drive the CLI. Install it into any supported agent's skills directory, remove it again, or print the raw markdown:
+
+```sh
+google-cli skill install                        # every detected agent
+google-cli skill install --agent claude-code    # only one agent
+google-cli skill remove                         # idempotent; no-ops where absent
+google-cli skill print > google-cli-skill.md    # bundle as raw markdown
+```
+
+`--agent <id>` (on install/remove) scopes the command to one agent, case-insensitive. Supported agents: `claude-code`, `cursor`, `windsurf`, `copilot`, `antigravity`, `gemini-cli`, `cline`, `codex`, `pi`, `opencode`, `junie`.
+
+Detection is by the agent's config directory existing on disk (e.g. `~/.claude`). Installed files live under each agent's skills dir — e.g. `~/.claude/skills/google-cli/` — not under `~/.config/google-cli`.
+
 ## Output formats
 
 `--format json|table|toon` on read commands; when unset it auto-detects:

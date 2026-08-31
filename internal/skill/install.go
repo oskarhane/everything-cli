@@ -83,29 +83,15 @@ func resolveTargets(filesystem afero.Fs, agentFilter string) ([]Agent, error) {
 	return []Agent{*a}, nil
 }
 
-// copyBundleWithVersion copies the bundle FS into dstDir, rewriting the
-// SKILL.md frontmatter `version:` line to version (or inserting one when
-// upstream has none). References are copied verbatim.
+// copyBundleWithVersion copies the bundle FS into dstDir via CopyBundle,
+// rewriting the SKILL.md frontmatter `version:` line to version (or
+// inserting one when upstream has none). References are copied verbatim.
 func copyBundleWithVersion(dst afero.Fs, dstDir string, bundle fs.FS, version string) error {
-	return fs.WalkDir(bundle, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		data, rerr := fs.ReadFile(bundle, p)
-		if rerr != nil {
-			return rerr
-		}
+	return CopyBundle(dst, dstDir, bundle, func(p string, data []byte) []byte {
 		if p == "SKILL.md" {
-			data = injectVersion(data, version)
+			return injectVersion(data, version)
 		}
-		destPath := filepath.Join(dstDir, filepath.FromSlash(p))
-		if mkerr := dst.MkdirAll(filepath.Dir(destPath), 0755); mkerr != nil {
-			return mkerr
-		}
-		return afero.WriteFile(dst, destPath, data, 0600)
+		return data
 	})
 }
 
