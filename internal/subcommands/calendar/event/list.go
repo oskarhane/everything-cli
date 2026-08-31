@@ -113,17 +113,11 @@ func listEvents(cmd *cobra.Command, svc service.EventService, mode string) ([]*c
 	if mode == "masters" {
 		return svc.ListEvents(cmd.Context(), base)
 	}
-	instances, err := svc.ListEvents(cmd.Context(), service.ListEventsParams{
-		CalendarID:   base.CalendarID,
-		SingleEvents: true,
-		TimeMin:      base.TimeMin,
-		TimeMax:      base.TimeMax,
-		Query:        base.Query,
-		MaxResults:   base.MaxResults,
-		ShowDeleted:  base.ShowDeleted,
-		UpdatedMin:   base.UpdatedMin,
-		OrderBy:      "startTime",
-	})
+	// Instances expand the base window with singleEvents + startTime order.
+	p := base
+	p.SingleEvents = true
+	p.OrderBy = "startTime"
+	instances, err := svc.ListEvents(cmd.Context(), p)
 	if err != nil {
 		return nil, err
 	}
