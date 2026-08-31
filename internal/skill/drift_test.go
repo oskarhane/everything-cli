@@ -1,8 +1,6 @@
 package skill_test
 
 import (
-	"io/fs"
-	"slices"
 	"strings"
 	"testing"
 
@@ -67,25 +65,12 @@ func walkTree(cmd *cobra.Command, visit func(*cobra.Command)) {
 	}
 }
 
-// bundleText concatenates every file in the embedded Bundle — SKILL.md plus
-// all references — in the same order skill print emits them.
+// bundleText renders the embedded bundle through the single owner of the
+// print contract (skillapi.Render) — the same bytes skill print emits.
 func bundleText(t *testing.T) string {
 	t.Helper()
 
-	skillMD, err := fs.ReadFile(skillapi.Bundle, "SKILL.md")
-	require.NoError(t, err)
-
 	var b strings.Builder
-	b.Write(skillMD)
-
-	refs, err := fs.Glob(skillapi.Bundle, "references/*.md")
-	require.NoError(t, err)
-	slices.Sort(refs)
-	for _, name := range refs {
-		data, rerr := fs.ReadFile(skillapi.Bundle, name)
-		require.NoError(t, rerr)
-		b.WriteString("\n===== " + name + " =====\n")
-		b.Write(data)
-	}
+	require.NoError(t, skillapi.Render(&b))
 	return b.String()
 }

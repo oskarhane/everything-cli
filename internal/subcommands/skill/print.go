@@ -1,10 +1,6 @@
 package skill
 
 import (
-	"fmt"
-	"io/fs"
-	"slices"
-
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/skill"
 	"github.com/spf13/cobra"
@@ -34,37 +30,7 @@ google-cli skill print
 google-cli skill print > google-cli-skill.md`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := cmd.OutOrStdout()
-
-			data, err := fs.ReadFile(skill.Bundle, "SKILL.md")
-			if err != nil {
-				return fmt.Errorf("reading embedded SKILL.md: %w", err)
-			}
-			if _, werr := out.Write(data); werr != nil {
-				return fmt.Errorf("writing SKILL.md: %w", werr)
-			}
-
-			refs, err := fs.Glob(skill.Bundle, "references/*.md")
-			if err != nil {
-				return fmt.Errorf("listing embedded references: %w", err)
-			}
-			// fs.Glob on embed.FS returns sorted paths, but the contract is
-			// explicit enough to not rely on that guarantee.
-			slices.Sort(refs)
-
-			for _, name := range refs {
-				data, rerr := fs.ReadFile(skill.Bundle, name)
-				if rerr != nil {
-					return fmt.Errorf("reading embedded %s: %w", name, rerr)
-				}
-				if _, werr := fmt.Fprintf(out, "===== %s =====\n", name); werr != nil {
-					return fmt.Errorf("writing %s header: %w", name, werr)
-				}
-				if _, werr := out.Write(data); werr != nil {
-					return fmt.Errorf("writing %s: %w", name, werr)
-				}
-			}
-			return nil
+			return skill.Render(cmd.OutOrStdout())
 		},
 	}
 }
