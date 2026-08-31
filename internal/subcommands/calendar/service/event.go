@@ -27,7 +27,9 @@ type EventService interface {
 
 // ListEventsParams carries the events.list options. TimeMin and TimeMax must
 // be RFC3339 with an offset; they bound with overlap semantics (end > timeMin
-// AND start < timeMax). MaxResults is the TOTAL cap across all pages
+// AND start < timeMax). ShowDeleted includes cancelled events; UpdatedMin
+// (RFC3339) filters on last-modification time and forces deletions since then
+// to be included. MaxResults is the TOTAL cap across all pages
 // (pagination stops once reached, per-page size honors the remaining
 // budget); 0 or less means no cap.
 type ListEventsParams struct {
@@ -37,20 +39,24 @@ type ListEventsParams struct {
 	TimeMax      string
 	Query        string
 	MaxResults   int64
+	ShowDeleted  bool
+	UpdatedMin   string
 	// OrderBy is only legal with SingleEvents=true ("startTime").
 	OrderBy string
 }
 
 // ListInstancesParams carries the events.instances options; EventID is the
-// recurring (master) event id. MaxResults is the TOTAL cap across all pages
+// recurring (master) event id. ShowDeleted includes cancelled instances.
+// MaxResults is the TOTAL cap across all pages
 // (pagination stops once reached, per-page size honors the remaining
 // budget); 0 or less means no cap.
 type ListInstancesParams struct {
-	CalendarID string
-	EventID    string
-	TimeMin    string
-	TimeMax    string
-	MaxResults int64
+	CalendarID  string
+	EventID     string
+	TimeMin     string
+	TimeMax     string
+	MaxResults  int64
+	ShowDeleted bool
 }
 
 // ListEvents implements EventService. Empty params are left unset so the
@@ -68,6 +74,12 @@ func (s *realCalendarService) ListEvents(ctx context.Context, p ListEventsParams
 	}
 	if p.OrderBy != "" {
 		call = call.OrderBy(p.OrderBy)
+	}
+	if p.ShowDeleted {
+		call = call.ShowDeleted(true)
+	}
+	if p.UpdatedMin != "" {
+		call = call.UpdatedMin(p.UpdatedMin)
 	}
 	return pageAllBudgeted(p.MaxResults, func(page string, remaining int64) ([]*calendar.Event, string, error) {
 		if remaining > 0 {
@@ -95,6 +107,9 @@ func (s *realCalendarService) ListInstances(ctx context.Context, p ListInstances
 	}
 	if p.TimeMax != "" {
 		call = call.TimeMax(p.TimeMax)
+	}
+	if p.ShowDeleted {
+		call = call.ShowDeleted(true)
 	}
 	return pageAllBudgeted(p.MaxResults, func(page string, remaining int64) ([]*calendar.Event, string, error) {
 		if remaining > 0 {
