@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -48,6 +49,22 @@ func TestRootWiresDebugFlagToOutput(t *testing.T) {
 	require.NotNil(t, root.PersistentPreRunE, "root must define the single cfg.Debug consumer")
 
 	require.NoError(t, root.PersistentPreRunE(root, nil))
+}
+
+func TestRootCommandVersionFlag(t *testing.T) {
+	prev := Version
+	Version = "v9.9.9-test"
+	t.Cleanup(func() { Version = prev })
+
+	cfg := &Config{Fs: afero.NewMemMapFs()}
+	root := NewRootCommand(cfg)
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+
+	root.SetArgs([]string{"--version"})
+	require.NoError(t, root.Execute(), "--version must exit without error")
+
+	assert.Equal(t, "google-cli version v9.9.9-test\n", out.String())
 }
 
 func TestNewConfigDefaults(t *testing.T) {

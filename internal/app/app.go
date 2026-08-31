@@ -43,6 +43,9 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "google-cli",
 		Short: "Interact with Google services from the command line",
+		// Version enables the built-in --version flag; cobra prints it as
+		// "google-cli version <Version>" via its default template.
+		Version: Version,
 		// Run prints help so the root's flags and usage stay visible
 		// until subcommands are attached.
 		RunE: func(cmd *cobra.Command, _ []string) error {
