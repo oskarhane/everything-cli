@@ -9,6 +9,14 @@ google-cli calendar event decline kq3abc123_20260901T100000Z   # one occurrence
 google-cli calendar freebusy --from -1d --to +7d
 ```
 
+## Install
+
+```sh
+curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+```
+
+Installs the latest release binary (with sha256 verification) to `~/.local/bin/google-cli` — make sure that directory is on your `PATH`. After upgrading, run `google-cli update` to check for new releases in the future, or `google-cli skill install` to (re)install the agent skill bundle.
+
 ## Build & development
 
 Requires Go (the repo pins a `toolchain` line — any Go ≥ 1.26.2 auto-downloads it).
@@ -111,6 +119,17 @@ google-cli skill print > google-cli-skill.md    # bundle as raw markdown
 
 Detection is by the agent's config directory existing on disk (e.g. `~/.claude`). Installed files live under each agent's skills dir — e.g. `~/.claude/skills/google-cli/` — not under `~/.config/google-cli`.
 
+### Self-update
+
+```sh
+google-cli update --check      # report current + latest version, change nothing
+google-cli update              # interactive: prompt before skill refresh
+google-cli update --yes        # update, auto-install the refreshed skill bundle
+google-cli update --yes --agent claude-code   # skill reinstall into one agent
+```
+
+`google-cli update` checks GitHub releases for a newer version; if one exists it downloads the tarball matching your platform, verifies it against the release checksum manifest, and atomically replaces the running binary. It then refreshes the installed skill bundle: `[y/N]` prompt at an interactive terminal, automatic with `--yes`, or skipped with a `run: google-cli skill install` hint in non-interactive/agent contexts. `--agent <id>` scopes the post-update skill reinstall, same semantics as `skill install --agent`. Output includes `current_version`, `latest_version`, `update_available`, `binary_path`, and skill fields. Rate-limit errors suggest `export GITHUB_TOKEN`.
+
 ## Output formats
 
 `--format json|table|toon` on read commands; when unset it auto-detects:
@@ -132,6 +151,7 @@ Invalid values warn and fall back to auto-detection.
 | `--credentials <path>` | OAuth client JSON (default: `<config>/credentials.json`) |
 | `--format` | output format (see above) |
 | `--debug` | redacted debug lines to stderr (credential paths, account names — never token values) |
+| `--version` | print `google-cli version <version>` and exit |
 
 ## Files
 
