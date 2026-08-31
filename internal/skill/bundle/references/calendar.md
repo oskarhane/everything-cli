@@ -2,10 +2,11 @@
 
 Manage calendars, their sharing rules, events, and free/busy.
 
-Timestamp flags (`--start`, `--end`, `--from`, `--to`) accept RFC3339
-(`2026-09-03T14:00:00Z`), a date (`2026-09-03`, needs `--all-day` for event
-create/update), or relative offsets anchored at now (`now`, `-1d`, `+7d`,
-`-30m`, `+2h`, bare `7d` counts forward).
+Timestamp flags (`--start`, `--end`, `--from`, `--to`, `--updated-since`)
+accept RFC3339 (`2026-09-03T14:00:00Z`), naive RFC3339
+(`2026-09-03T14:00:00` — read in the local timezone), a date (`2026-09-03`,
+needs `--all-day` for event create/update), or relative offsets anchored at
+now (`now`, `-1d`, `+7d`, `-30m`, `+2h`, bare `7d` counts forward).
 
 ## calendar (CRUD)
 
@@ -25,10 +26,14 @@ google-cli calendar delete abc123.group.calendar.google.com --force
 ## event
 
 - `calendar event list` — `--calendar` (default `primary`), `--from` (default
-  `now`), `--to` (default `+7d`), `--query`, `--max` (default 250; `0` = no
-  cap), `--recurring instances|masters|all` (default `instances` = recurring
-  series expanded into occurrences; `masters` = raw masters plus one-offs and
-  exceptions; `all` = both merged and deduped).
+  `now`), `--to` (default `+7d`), `--query`, `--updated-since <ts>` (events
+  modified since; deletions since then included — good for change-detection
+  pulls), `--show-deleted` (default true; cancelled events surface with
+  `status: "cancelled"`), `--max` (default 250; `0` = no cap), `--recurring
+  instances|masters|all` (default `instances` = recurring series expanded
+  into occurrences; `masters` = raw masters plus one-offs and exceptions;
+  `all` = both merged and deduped). Rows carry `status` and `self_response`
+  (the account's RSVP); `get` adds `created`/`updated`.
 - `calendar event get <event-id>` — `--calendar`.
 - `calendar event create` — `--summary` (required), `--start`, `--end`
   (required; RFC3339, or YYYY-MM-DD with `--all-day`), `--calendar`,
@@ -43,7 +48,9 @@ google-cli calendar delete abc123.group.calendar.google.com --force
   (default true; false with an instance id deletes its master). Refuses
   without `--force`.
 - `calendar event instances <master-id>` — expand a recurring series;
-  `--calendar`, `--from`/`--to` (empty = unbounded), `--max` (default 250).
+  `--calendar`, `--from` (default `now`), `--to` (default `+7d`),
+  `--max` (default 250), `--show-deleted` (default true). Pass a wide
+  window explicitly for long-range expansion.
 - `calendar event move <event-id>` — `--to-calendar` (required),
   `--calendar` (source).
 - `calendar event accept <event-id>`, `calendar event decline <event-id>`,
@@ -61,6 +68,8 @@ google-cli calendar event create --summary "Standup" --start 2026-09-01T09:00:00
   --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10' --format json
 google-cli calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
 google-cli calendar event list --calendar work@example.com --query "design review" --max 10
+google-cli calendar event list --updated-since -1d --format json
+google-cli calendar event get abc123 --format json
 google-cli calendar event update abc123 --summary "Design review"
 google-cli calendar event delete kq3abc123_20260929T030000Z --force
 google-cli calendar event accept kq3abc123_20260929T030000Z --all

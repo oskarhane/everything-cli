@@ -85,14 +85,16 @@ google-cli calendar event get <id>              # master or <masterId>_<time> in
 google-cli calendar event decline kq3abc123_20260901T100000Z          # just that occurrence
 google-cli calendar event decline kq3abc123 --all                    # the series
 google-cli calendar event delete kq3abc123_20260901T100000Z --force  # cancels 1 occurrence
-google-cli calendar event instances kq3abc123                        # list occurrences
+google-cli calendar event instances kq3abc123                        # occurrences, now..+7d
 
 google-cli calendar freebusy --from now --to +1d [--calendar work@group.calendar.google.com]
 google-cli calendar acl list primary
 google-cli calendar acl add primary --scope-user a@x.com --role reader
 ```
 
-Dates accept RFC3339, `YYYY-MM-DD` (with `--all-day`), and relative forms (`now`, `-1d`, `+7d`, `-30m`).
+Dates accept RFC3339 (with or without a UTC offset — naive times are read in the local timezone), `YYYY-MM-DD` (with `--all-day`), and relative forms (`now`, `-1d`, `+7d`, `-30m`).
+
+Change-detection pulls: `google-cli calendar event list --updated-since -1d` lists events modified since that time (deletions included, `--show-deleted`, default true).
 
 ### Agent skills
 
