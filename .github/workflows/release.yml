@@ -112,6 +112,10 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     permissions:
+      # A job-level permissions block replaces the workflow-level one, so
+      # contents:read must be repeated here — without it, checkout of a
+      # private repo fails with "repository not found".
+      contents: read
       pages: write
       id-token: write
     environment:
