@@ -28,6 +28,10 @@ Strict one-file-per-leaf layout under `internal/subcommands/<resource>/`. Mirror
 - Singular nouns; `<resource> <action>`; ≤1 positional (extras → flags); `--format json|table|toon` on reads.
 - Follow https://clig.dev/.
 
+## Docs Sync
+
+Feature work that adds or changes commands, flags, output fields, or defaults MUST also update the embedded skill (`internal/skill/bundle/SKILL.md` + `internal/skill/bundle/references/*.md`) and `README.md` in the same change. Verify before done; `make test` (incl. skill drift tests) must pass.
+
 ## Output / TTY / Casing
 
 - Output format auto-detection precedence: explicit `--format` flag > agent harness (`IsAgent` → `toon`) > TTY (`table`) > `json`. Agent detection reads env (e.g. `CLAUDECODE`); tests seed `IsAgent = func() bool { return false }` via TestMain so the host's harness env can't flip expectations.
