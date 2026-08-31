@@ -127,7 +127,7 @@ func (e *env) seedSkill(t *testing.T, version string) {
 func testRelease(t *testing.T, wrongInner, badSum bool) (*Release, map[string][]byte) {
 	t.Helper()
 
-	tarName := assetName(runtime.GOOS, runtime.GOARCH)
+	tarName := AssetName(runtime.GOOS, runtime.GOARCH)
 	files := map[string][]byte{
 		binaryName:               []byte("NEW-PAYLOAD"),
 		"references/overview.md": []byte("docs"),
@@ -373,7 +373,7 @@ func TestRunMissingTarballAsset(t *testing.T) {
 func TestRunMissingChecksumEntry(t *testing.T) {
 	e, _ := newEnv(t)
 	rel, bodies := testRelease(t, false, false)
-	tarName := assetName(runtime.GOOS, runtime.GOARCH)
+	tarName := AssetName(runtime.GOOS, runtime.GOARCH)
 	sumURL := "https://releases.test/" + checksumsAsset
 	bodies[sumURL] = []byte(fmt.Sprintf("%s  other-file\n", "1111111111111111111111111111111111111111111111111111111111111111"))
 	e.client = &fakeClient{rel: rel, bodies: bodies}
@@ -387,7 +387,7 @@ func TestRunMissingChecksumEntry(t *testing.T) {
 
 func TestRunDownloadFailureNamesAsset(t *testing.T) {
 	e, _ := newEnv(t)
-	tarName := assetName(runtime.GOOS, runtime.GOARCH)
+	tarName := AssetName(runtime.GOOS, runtime.GOARCH)
 	e.client = &fakeClient{rel: &Release{
 		Tag: testTag,
 		Assets: []Asset{

@@ -195,7 +195,7 @@ func Run(ctx context.Context, client Client, current string, opts Options) (Resu
 // performUpdate runs the download/verify/replace/reinstall pipeline for an
 // available update. res carries the already-populated comparison fields.
 func performUpdate(ctx context.Context, client Client, rel *Release, current string, opts Options, res Result) (Result, error) {
-	tarAsset, err := rel.Asset(assetName(runtime.GOOS, runtime.GOARCH))
+	tarAsset, err := rel.Asset(AssetName(runtime.GOOS, runtime.GOARCH))
 	if err != nil {
 		return res, fmt.Errorf("release %s: %w", rel.Tag, err)
 	}

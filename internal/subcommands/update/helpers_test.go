@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"runtime"
 	"testing"
 
 	"github.com/oskarhane/google-cli/internal/app"
@@ -83,7 +84,7 @@ func relFixture() *updateapi.Release {
 	return &updateapi.Release{
 		Tag: "v1.2.3",
 		Assets: []updateapi.Asset{
-			{Name: "google-cli_darwin_arm64.tar.gz", URL: "https://example.com/tar.gz"},
+			{Name: updateapi.AssetName(runtime.GOOS, runtime.GOARCH), URL: "https://example.com/tar.gz"},
 			{Name: "checksums.txt", URL: "https://example.com/checksums"},
 		},
 	}

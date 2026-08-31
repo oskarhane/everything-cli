@@ -190,6 +190,6 @@ func TestReleaseAssetLookup(t *testing.T) {
 }
 
 func TestAssetName(t *testing.T) {
-	assert.Equal(t, "google-cli_darwin_arm64.tar.gz", assetName("darwin", "arm64"))
-	assert.Equal(t, "google-cli_linux_amd64.tar.gz", assetName("linux", "amd64"))
+	assert.Equal(t, "google-cli_darwin_arm64.tar.gz", AssetName("darwin", "arm64"))
+	assert.Equal(t, "google-cli_linux_amd64.tar.gz", AssetName("linux", "amd64"))
 }

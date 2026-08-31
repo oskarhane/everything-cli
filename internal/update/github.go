@@ -57,8 +57,8 @@ func (r *Release) Asset(name string) (*Asset, error) {
 	return nil, fmt.Errorf("%w: %s", ErrAssetNotFound, name)
 }
 
-// assetName is the single source of truth for release asset naming.
-func assetName(os, arch string) string {
+// AssetName is the single source of truth for release asset naming.
+func AssetName(os, arch string) string {
 	return fmt.Sprintf("google-cli_%s_%s.tar.gz", os, arch)
 }
 
