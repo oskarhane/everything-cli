@@ -1,0 +1,40 @@
+name: pages
+
+# Standalone Pages publish: runnable on its own (workflow_dispatch) so
+# install.sh can be (re)published without cutting a release, and callable
+# from the release workflow (workflow_call) so releases publish it too.
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare pages content
+        run: |
+          mkdir -p _pages
+          cp scripts/install.sh _pages/install.sh
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _pages
+
+      - name: Deploy pages
+        id: deployment
+        uses: actions/deploy-pages@v4
