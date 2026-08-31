@@ -26,13 +26,35 @@ func TestInstancesCallsInstancesEndpoint(t *testing.T) {
 	require.Len(t, rows, 3)
 }
 
-func TestInstancesUnboundedByDefault(t *testing.T) {
+func TestInstancesDefaultsBoundedWindow(t *testing.T) {
+	freezeNow(t)
 	svc := &fakeEventService{items: seedListEvents()}
 	cmdtest.RunCmd(t, newLeafCmd(newInstancesCmd, svc, "json"), masterEventID)
 
+	require.Len(t, svc.instancesParams, 1)
 	p := svc.instancesParams[0]
-	require.Empty(t, p.TimeMin, "no --from means unbounded")
-	require.Empty(t, p.TimeMax, "no --to means unbounded")
+	require.Equal(t, "2026-09-01T12:00:00Z", p.TimeMin, "default --from is now")
+	require.Equal(t, "2026-09-08T12:00:00Z", p.TimeMax, "default --to is +7d")
+	require.True(t, p.ShowDeleted, "cancelled occurrences are included by default")
+}
+
+func TestInstancesExplicitWindowOverridesDefaults(t *testing.T) {
+	svc := &fakeEventService{}
+	cmdtest.RunCmd(t, newLeafCmd(newInstancesCmd, svc, "json"), masterEventID,
+		"--from", "2020-01-01", "--to", "2030-01-01")
+
+	p := svc.instancesParams[0]
+	require.Contains(t, p.TimeMin, "2020-01-01T00:00:00")
+	require.Contains(t, p.TimeMax, "2030-01-01T00:00:00")
+}
+
+func TestInstancesShowDeletedFalse(t *testing.T) {
+	svc := &fakeEventService{items: seedListEvents()}
+	cmdtest.RunCmd(t, newLeafCmd(newInstancesCmd, svc, "json"), masterEventID,
+		"--show-deleted=false")
+
+	require.False(t, svc.instancesParams[0].ShowDeleted,
+		"--show-deleted=false hides cancelled occurrences")
 }
 
 func TestInstancesDateBoundsBecomeMidnight(t *testing.T) {
@@ -52,7 +74,11 @@ func TestInstancesJSONKeysAreSnakeCase(t *testing.T) {
 	rows := cmdtest.DecodeJSON(t, out).([]any)
 	first := rows[0].(map[string]any)
 	keys := cmdtest.JSONKeys(t, first)
-	require.ElementsMatch(t, []string{"id", "summary", "start", "end", "recurring", "recurring_event_id"}, keys)
+	require.ElementsMatch(t, []string{
+		"id", "summary", "start", "end", "status", "self_response",
+		"recurring", "recurring_event_id", "organizer", "created", "updated",
+		"description",
+	}, keys)
 	cmdtest.RequireSnakeCase(t, keys)
 }
 

@@ -15,11 +15,14 @@ func newInstancesCmd(cfg *app.Config, newSvc service.Dialer[service.EventService
 	cmd := &cobra.Command{
 		Use:   "instances <master-id>",
 		Short: "List the occurrences of a recurring event",
-		Example: `# Expand a weekly series into its occurrences as JSON
+		Example: `# Expand the next week of a series (default window: now to +7d) as JSON
 google-cli calendar event instances kq3abc123 --format json
 
-# Only the next two weeks of occurrences
-google-cli calendar event instances kq3abc123 --from now --to +14d --format table
+# Pull a year of occurrences instead of the default week
+google-cli calendar event instances kq3abc123 --from 2026-01-01 --to 2026-12-31 --format table
+
+# Hide cancelled occurrences
+google-cli calendar event instances kq3abc123 --show-deleted=false --format json
 
 # Cap the expansion at 50 occurrences on another calendar
 google-cli calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
@@ -34,6 +37,7 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --max 
 			fromRaw, _ := f.GetString("from")
 			toRaw, _ := f.GetString("to")
 			max, _ := f.GetInt64("max")
+			showDeleted, _ := f.GetBool("show-deleted")
 			now := nowFunc()
 			from, err := parseWindowTime(fromRaw, now)
 			if err != nil {
@@ -44,11 +48,12 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --max 
 				return err
 			}
 			events, err := svc.ListInstances(cmd.Context(), service.ListInstancesParams{
-				CalendarID: calendarID,
-				EventID:    args[0],
-				TimeMin:    from,
-				TimeMax:    to,
-				MaxResults: max,
+				CalendarID:  calendarID,
+				EventID:     args[0],
+				TimeMin:     from,
+				TimeMax:     to,
+				MaxResults:  max,
+				ShowDeleted: showDeleted,
 			})
 			if err != nil {
 				return err
@@ -59,8 +64,9 @@ google-cli calendar event instances kq3abc123 --calendar work@example.com --max 
 	}
 	f := cmd.Flags()
 	f.String("calendar", "primary", "Calendar id")
-	f.String("from", "", "Window start: RFC3339, date, or relative (now, -1d, +7d); empty = unbounded")
-	f.String("to", "", "Window end: RFC3339, date, or relative; empty = unbounded")
+	f.String("from", "now", "Window start: RFC3339 (offset optional), date, or relative (now, -1d, +7d)")
+	f.String("to", "+7d", "Window end: RFC3339, date, or relative")
+	f.Bool("show-deleted", true, "Include cancelled occurrences (status \"cancelled\")")
 	f.Int64("max", defaultListMax, "Total max occurrences across all pages (0 = no cap)")
 	return cmd
 }
