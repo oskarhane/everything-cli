@@ -62,16 +62,7 @@ func RequireScopes(acct *config.Account, required []string) error {
 	if acct == nil {
 		return fmt.Errorf("no account: run \"google-cli account add <name>\" first")
 	}
-	granted := make(map[string]bool, len(acct.Scopes))
-	for _, s := range acct.Scopes {
-		granted[s] = true
-	}
-	var missing []string
-	for _, s := range required {
-		if !granted[s] {
-			missing = append(missing, s)
-		}
-	}
+	missing := missingScopes(acct, required)
 	if len(missing) == 0 {
 		return nil
 	}
@@ -93,15 +84,26 @@ func RequireAnyScopes(acct *config.Account, required []string) error {
 	if acct == nil {
 		return fmt.Errorf("no account: run \"google-cli account add <name>\" first")
 	}
+	if len(missingScopes(acct, required)) < len(required) {
+		return nil
+	}
+	return fmt.Errorf("account %q is missing scope %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
+		acct.Name, strings.Join(required, " or "))
+}
+
+// missingScopes returns the entries of required the account has not granted,
+// in required's order. It exists so RequireScopes and RequireAnyScopes share
+// the granted-set construction instead of duplicating it.
+func missingScopes(acct *config.Account, required []string) []string {
 	granted := make(map[string]bool, len(acct.Scopes))
 	for _, s := range acct.Scopes {
 		granted[s] = true
 	}
+	var missing []string
 	for _, s := range required {
-		if granted[s] {
-			return nil
+		if !granted[s] {
+			missing = append(missing, s)
 		}
 	}
-	return fmt.Errorf("account %q is missing scope %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
-		acct.Name, strings.Join(required, " or "))
+	return missing
 }

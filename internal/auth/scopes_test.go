@@ -47,6 +47,19 @@ func TestScopes(t *testing.T) {
 	assert.Equal(t, "https://www.googleapis.com/auth/userinfo.email", ScopeUserEmail)
 }
 
+// TestMissingScopes pins the shared set-comparison helper: it returns only
+// required entries absent from the account's grants, in required's order.
+func TestMissingScopes(t *testing.T) {
+	acct := &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesDrive[0]}}
+
+	assert.Nil(t, missingScopes(acct, []string{ScopesDrive[0], ScopeUserEmail}), "all granted → no missing")
+	assert.Equal(t,
+		[]string{ScopesDocs[0], ScopesSheets[0]},
+		missingScopes(acct, []string{ScopesDocs[0], ScopesDrive[0], ScopesSheets[0]}),
+		"granted entry skipped, missing listed in required order")
+	assert.Nil(t, missingScopes(acct, nil), "empty required → no missing")
+}
+
 // TestRequireScopes pins the scope guard: full-grant accounts pass, narrowed
 // grants fail with the re-consent action naming the account and every
 // missing scope.
