@@ -59,25 +59,6 @@ func (f *fakeSheetService) GetValues(_ context.Context, id, a1Range string) ([][
 	return f.values[a1Range], nil
 }
 
-// fakeFileService is the hermetic FileService double for the delete leaf:
-// it records the delete call and fails on demand. The embedded nil
-// service.FileService satisfies the rest of the seam the parent hands down.
-type fakeFileService struct {
-	service.FileService
-
-	err       error // when set, every call fails
-	deleted   bool
-	deletedID string
-}
-
-func (f *fakeFileService) DeleteFile(_ context.Context, id string) error {
-	if f.err != nil {
-		return f.err
-	}
-	f.deleted, f.deletedID = true, id
-	return nil
-}
-
 // newSheetCmd builds a leaf against a fake service, ready to execute.
 func newSheetCmd[T any](build func(*app.Config, service.Dialer[T]) *cobra.Command, svc T, format string) *cobra.Command {
 	return build(cmdtest.NewTestConfig(format), func(context.Context) (T, error) { return svc, nil })

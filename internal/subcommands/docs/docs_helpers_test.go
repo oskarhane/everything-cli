@@ -76,25 +76,6 @@ func (f *fakeDocService) ReplaceDocText(_ context.Context, docID, find, replaceW
 	return f.replaceCount, nil
 }
 
-// fakeFileService is the hermetic service.FileService double for delete. The
-// embedded nil service.FileService satisfies the surface the parent hands
-// down that delete never calls, so it stays nil.
-type fakeFileService struct {
-	service.FileService
-
-	err       error // when set, every call fails
-	deleted   bool
-	deletedID string
-}
-
-func (f *fakeFileService) DeleteFile(_ context.Context, id string) error {
-	if f.err != nil {
-		return f.err
-	}
-	f.deleted, f.deletedID = true, id
-	return nil
-}
-
 // fakeNewSvc returns a service.Dialer[service.DocService] handing out svc, so
 // content leaves run hermetically with no network and no real account store.
 func fakeNewSvc(svc *fakeDocService) service.Dialer[service.DocService] {
@@ -103,7 +84,7 @@ func fakeNewSvc(svc *fakeDocService) service.Dialer[service.DocService] {
 
 // fakeNewFileSvc returns a service.Dialer[service.FileService] handing out
 // svc, for the delete leaf, which rides the Drive surface instead of Docs.
-func fakeNewFileSvc(svc *fakeFileService) service.Dialer[service.FileService] {
+func fakeNewFileSvc(svc *cmdtest.DeleteRecorder) service.Dialer[service.FileService] {
 	return func(context.Context) (service.FileService, error) { return svc, nil }
 }
 
@@ -123,7 +104,7 @@ func newLeafCmdWithFs(build func(*app.Config, service.Dialer[service.DocService]
 
 // newFileLeafCmd builds the delete leaf against a fake FileService, ready to
 // execute.
-func newFileLeafCmd(build func(*app.Config, service.Dialer[service.FileService]) *cobra.Command, svc *fakeFileService, format string) *cobra.Command {
+func newFileLeafCmd(build func(*app.Config, service.Dialer[service.FileService]) *cobra.Command, svc *cmdtest.DeleteRecorder, format string) *cobra.Command {
 	return build(cmdtest.NewTestConfig(format), fakeNewFileSvc(svc))
 }
 
