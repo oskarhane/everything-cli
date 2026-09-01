@@ -17,21 +17,15 @@ import (
 var transcriptFields = []string{"video_id", "title", "lang", "is_generated", "segments"}
 
 // transcriptView is the structured transcript report for one video: player
-// metadata plus the timed caption segments of the selected track.
+// metadata plus the timed caption segments of the selected track. The
+// segments marshal directly as yt.Segment, whose json tags provide the
+// snake_case JSON and TOON keys.
 type transcriptView struct {
-	VideoID     string        `json:"video_id"`
-	Title       string        `json:"title"`
-	Lang        string        `json:"lang"`
-	IsGenerated bool          `json:"is_generated"`
-	Segments    []segmentView `json:"segments"`
-}
-
-// segmentView is one timed caption segment; the keys mirror the snake_case
-// JSON and TOON renderings.
-type segmentView struct {
-	StartMS    int64  `json:"start_ms"`
-	DurationMS int64  `json:"duration_ms"`
-	Text       string `json:"text"`
+	VideoID     string       `json:"video_id"`
+	Title       string       `json:"title"`
+	Lang        string       `json:"lang"`
+	IsGenerated bool         `json:"is_generated"`
+	Segments    []yt.Segment `json:"segments"`
 }
 
 // newTranscriptCmd returns `youtube transcript`: the timed captions of one
@@ -128,20 +122,12 @@ google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 // cell shows a compact count + total-duration summary instead of a raw struct
 // dump.
 func printTranscript(cmd *cobra.Command, cfg *app.Config, player *yt.Player, track yt.Track, segs []yt.Segment) {
-	segments := make([]segmentView, 0, len(segs))
-	for _, seg := range segs {
-		segments = append(segments, segmentView{
-			StartMS:    seg.StartMS,
-			DurationMS: seg.DurationMS,
-			Text:       seg.Text,
-		})
-	}
 	view := transcriptView{
 		VideoID:     player.VideoID,
 		Title:       player.Title,
 		Lang:        track.Lang,
 		IsGenerated: track.Generated,
-		Segments:    segments,
+		Segments:    segs,
 	}
 	row := map[string]any{
 		"video_id":     view.VideoID,

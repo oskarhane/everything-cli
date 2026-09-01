@@ -59,18 +59,6 @@ func TestTranscript(t *testing.T) {
 		assert.Equal(t, wantSegments, got)
 	})
 
-	t.Run("json3 payload", func(t *testing.T) {
-		got, err := fetchTranscript(t, `{
-			"wireMagic": "pb3",
-			"events": [
-				{"tStartMs": 1360, "dDurationMs": 1680, "segs": [{"utf8": "Hello "}, {"utf8": "there, it&#39;s me &amp; you"}]},
-				{"tStartMs": 3040, "dDurationMs": 2000, "segs": [{"utf8": "line one\nline two"}]}
-			]
-		}`)
-		require.NoError(t, err)
-		assert.Equal(t, wantSegments, got)
-	})
-
 	t.Run("empty body is ErrEmptyTranscript", func(t *testing.T) {
 		_, err := fetchTranscript(t, "")
 		require.ErrorIs(t, err, ErrEmptyTranscript)

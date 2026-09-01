@@ -2,7 +2,6 @@ package youtube
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"html"
@@ -13,10 +12,10 @@ import (
 )
 
 // parseTranscriptBody turns a timedtext response body into Segments. It
-// accepts the modern XML shape (<p t="ms" d="ms">), the legacy XML shape
-// (<text start="sec" dur="sec">), and fmt=json3 JSON payloads. A body with
-// no parseable content yields a nil slice (the caller maps it to
-// ErrEmptyTranscript).
+// accepts the two XML shapes YouTube serves for caption tracks: the modern
+// shape (<p t="ms" d="ms">) and the legacy shape (<text start="sec"
+// dur="sec">). A body with no parseable content yields a nil slice (the
+// caller maps it to ErrEmptyTranscript).
 func parseTranscriptBody(data []byte) ([]Segment, error) {
 	body := bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF}) // allow a UTF-8 BOM
 	trimmed := bytes.TrimSpace(body)
@@ -26,8 +25,6 @@ func parseTranscriptBody(data []byte) ([]Segment, error) {
 	switch trimmed[0] {
 	case '<':
 		return parseTranscriptXML(trimmed)
-	case '{':
-		return parseTranscriptJSON3(trimmed)
 	default:
 		return nil, fmt.Errorf("unrecognized transcript format (first byte %q)", trimmed[0])
 	}
@@ -75,41 +72,6 @@ func parseTranscriptXML(data []byte) ([]Segment, error) {
 		}
 	}
 	return segs, nil
-}
-
-// parseTranscriptJSON3 parses a fmt=json3 timedtext payload
-// ({"events":[{"tStartMs":...,"dDurationMs":...,"segs":[{"utf8":...}]}]}).
-func parseTranscriptJSON3(data []byte) ([]Segment, error) {
-	var doc json3Transcript
-	if err := json.Unmarshal(data, &doc); err != nil {
-		return nil, err
-	}
-	var segs []Segment
-	for _, ev := range doc.Events {
-		var text strings.Builder
-		for _, s := range ev.Segs {
-			text.WriteString(s.UTF8)
-		}
-		if text.Len() == 0 {
-			continue
-		}
-		segs = append(segs, Segment{
-			StartMS:    ev.TStartMS,
-			DurationMS: ev.DDurationMS,
-			Text:       html.UnescapeString(text.String()),
-		})
-	}
-	return segs, nil
-}
-
-type json3Transcript struct {
-	Events []struct {
-		TStartMS    int64 `json:"tStartMs"`
-		DDurationMS int64 `json:"dDurationMs"`
-		Segs        []struct {
-			UTF8 string `json:"utf8"`
-		} `json:"segs"`
-	} `json:"events"`
 }
 
 // msAttr reads an integer attribute (milliseconds) from an XML element,
