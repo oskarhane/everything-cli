@@ -115,10 +115,10 @@ google-cli drive file permissions 1AbCdEfGh --format json
   user and group permissions (and allows at most one year out).
 
 ```sh
-google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com
-google-cli drive file share 1AbCdEfGh --role commenter --anyone
-google-cli drive file share 1AbCdEfGh --role writer --domain example.com \
+google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com \
   --expires 2027-09-01T00:00:00Z
+google-cli drive file share 1AbCdEfGh --role commenter --anyone
+google-cli drive file share 1AbCdEfGh --role writer --domain example.com
 ```
 
 ## file unshare

@@ -1,12 +1,13 @@
 # google-cli
 
-Command-line client for Gmail and Google Calendar, across multiple Google accounts (Workspace or personal).
+Command-line client for Gmail, Google Calendar, and Google Drive (including Docs, Sheets, and Slides), across multiple Google accounts (Workspace or personal).
 
 ```
 google-cli account list
 google-cli gmail message list --query "from:boss" --unread-only
 google-cli calendar event decline kq3abc123_20260901T100000Z   # one occurrence
 google-cli calendar freebusy --from -1d --to +7d
+google-cli drive file share 1AbCdEfGh --role reader --email a@x.com
 ```
 
 ## Install
@@ -47,7 +48,7 @@ Conventions for contributing: see [CLAUDE.md](CLAUDE.md).
 google-cli account add personal
 ```
 
-The flow requests Gmail + Calendar + userinfo scopes and stores the token at `~/.config/google-cli/accounts/personal.json` (0600, atomic writes, auto-refreshed on use).
+The flow requests Gmail + Calendar + Drive/Docs/Sheets/Slides + userinfo scopes and stores the token at `~/.config/google-cli/accounts/<name>.json` (0600, atomic writes, auto-refreshed on use).
 
 3. **Add more accounts** and switch between them:
 
@@ -103,6 +104,47 @@ google-cli calendar acl add primary --scope-user a@x.com --role reader
 Dates accept RFC3339 (with or without a UTC offset — naive times are read in the local timezone), `YYYY-MM-DD` (with `--all-day`), and relative forms (`now`, `-1d`, `+7d`, `-30m`).
 
 Change-detection pulls: `google-cli calendar event list --updated-since -1d` lists events modified since that time (deletions included, `--show-deleted`, default true).
+
+### Drive, Docs, Sheets, Slides
+
+Drive covers files and sharing; the Docs, Sheets, and Slides trees edit one Google-native document's content by its Drive file id.
+
+```sh
+google-cli drive file list --name "invoice" [--parent <folder-id>] [--mime folder] [--trashed]
+google-cli drive file get 1AbCdEfGh --format json
+google-cli drive file create "Reports"                    # folder; --type doc|sheet|slide or --mime-type <raw>
+google-cli drive file upload ./report.pdf [--name "Q3 report" --parent 1AbCdEfGh]
+google-cli drive file download 1AbCdEfGh --out report.pdf # Google-native files export instead: --export text/csv
+google-cli drive file trash 1AbCdEfGh                     # recoverable (drive file untrash)
+google-cli drive file delete 1AbCdEfGh --force            # permanent
+
+google-cli drive file permissions 1AbCdEfGh                              # who it's shared with
+google-cli drive file share 1AbCdEfGh --role reader --email a@x.com
+google-cli drive file share 1AbCdEfGh --role reader --email a@x.com --expires 2027-01-01T00:00:00Z   # expiry: user/group only
+google-cli drive file share 1AbCdEfGh --role commenter --anyone          # anyone with the link
+google-cli drive file share 1AbCdEfGh --role writer --domain example.com
+google-cli drive file unshare 1AbCdEfGh --email a@x.com                  # or --permission <id>
+
+google-cli docs get 1AbCdEfGh --out notes.txt       # raw text; without --out it streams to stdout
+google-cli docs append 1AbCdEfGh --text "Reviewed by Oskar"
+google-cli docs insert 1AbCdEfGh --index 1 --text "Q4 plan"   # before a Docs-API content index
+google-cli docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
+google-cli docs delete 1AbCdEfGh --force            # permanent; drive file trash is the recoverable path
+
+google-cli sheets get 1AbCdEfGh                     # sheet tabs, grid sizes, header row
+google-cli sheets values get 1AbCdEfGh --range "Sheet1!A1:D10"
+google-cli sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values '[[1,"a",true],[2,"b",false]]'
+google-cli sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" --values '[[1,"a"],[2,"b"]]'
+google-cli sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+
+google-cli slides get 1AbCdEfGh --slide 3           # text per shape; --slide narrows to one slide
+google-cli slides replace 1AbCdEfGh --find Acme --replace-with Zenith
+google-cli slides delete 1AbCdEfGh --force          # permanent
+```
+
+`--values` takes an inline JSON array of arrays; `--values-file` reads the same shape from a `.json`/`.csv`/`.tsv` file instead. Both `sheets values append` and `sheets values update` take `--input-option RAW|USER_ENTERED` (default `USER_ENTERED`, which parses formulas).
+
+Accounts added before Drive support lack the new scopes: re-run `google-cli account add <name>` to consent again — the flow re-prompts and updates that account in place (same name, refreshed token).
 
 ### Agent skills
 

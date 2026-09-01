@@ -30,11 +30,14 @@ func newShareCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cob
 		Example: `# Give one user reader access
 google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com
 
+# Give one user read access for a year (--expires: user and group permissions only)
+google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com --expires 2027-09-01T00:00:00Z
+
 # Let anyone with the link comment
 google-cli drive file share 1AbCdEfGh --role commenter --anyone
 
-# Give a whole domain write access, expiring in a year
-google-cli drive file share 1AbCdEfGh --role writer --domain example.com --expires 2027-09-01T00:00:00Z`,
+# Give a whole domain write access
+google-cli drive file share 1AbCdEfGh --role writer --domain example.com`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !validRole(role) {
