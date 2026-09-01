@@ -118,10 +118,13 @@ bundled agent docs match the binary.
   download the tarball matching this platform, verify its sha256 against
   the release checksum manifest, and atomically replace the running
   binary. The refreshed skill bundle is then installed: prompted
-  `[y/N]` at an interactive terminal, automatically with `--yes`, or not
-  at all in non-interactive/agent contexts (a `run: google-cli skill
-  install` hint is printed instead). Local/`dev` builds always offer the
-  latest release.
+  `[Y/n]` (Yes is the default) at an interactive terminal, automatically
+  with `--yes`, or not at all in non-interactive/agent contexts (a `run:
+  google-cli skill install` hint is printed instead). Local/`dev` builds
+  always offer the latest release. Table output lists the installed skill
+  paths as one `installed google-cli -> <path>` line each below the
+  summary table instead of a `skill_installed` column; json/toon keep the
+  field.
 - `google-cli update --check` — report current and latest versions and
   change nothing.
 - `--yes` — skip confirmation and auto-install the updated skill bundle.

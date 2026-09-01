@@ -94,7 +94,7 @@ func TestUpdatePrompt_Accepted(t *testing.T) {
 	assert.Equal(t, 1, *yesCalls)
 	require.Len(t, *calls, 1)
 	assert.False(t, (*calls)[0].SkipSkillInstall)
-	assert.Contains(t, stdout, "Install the refreshed skill bundle? [y/N] ")
+	assert.Contains(t, stdout, "Install the refreshed skill bundle? [Y/n] ")
 	assert.Contains(t, stdout, `"skill_installed"`)
 }
 
@@ -117,6 +117,39 @@ func TestUpdatePrompt_Declined(t *testing.T) {
 	// The row always carries the key; skipped installs render it empty.
 	assert.Contains(t, stdout, `"skill_installed": null`)
 	assert.Contains(t, stdout, `"skill_version": ""`)
+}
+
+// TestIsYes_DefaultIsYes pins the [Y/n] prompt semantics: only an explicit
+// n/no declines; empty (just Enter) and anything else accepts.
+func TestIsYes_DefaultIsYes(t *testing.T) {
+	yes := []string{"", "y", "Y", "yes", "YES", "junk"}
+	for _, in := range yes {
+		assert.True(t, isYes(in), "%q should accept", in)
+	}
+	no := []string{"n", "N", "no", "NO"}
+	for _, in := range no {
+		assert.False(t, isYes(in), "%q should decline", in)
+	}
+}
+
+// TestUpdateTable_CompactSkillPaths: table view drops the skill_installed
+// column (a path list in one cell blows the table out horizontally) and
+// lists the installed paths as one line each after the table instead.
+// JSON/TOON keep the field.
+func TestUpdateTable_CompactSkillPaths(t *testing.T) {
+	_, root, out, _ := newUpdateEnv(t)
+	setVersion(t, "v1.0.0")
+	stubClient(t, &fakeClient{rel: relFixture()})
+	calls := stubRun(t)
+
+	stdout, err := execute(t, root, out, "update", "--yes", "--format", "table")
+	require.NoError(t, err)
+
+	require.Len(t, *calls, 1)
+	assert.NotContains(t, stdout, "SKILL_INSTALLED", "no path-list column in table view")
+	assert.Contains(t, stdout, "CURRENT_VERSION")
+	assert.Contains(t, stdout, "SKILL_VERSION")
+	assert.Contains(t, stdout, "installed google-cli -> /home/u/.claude/skills/google-cli")
 }
 
 // TestUpdatePrompt_NotReadWhenNonTTYOrAgent: when stdin is not a terminal,

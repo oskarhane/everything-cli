@@ -16,6 +16,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/skill"
 	updateapi "github.com/oskarhane/google-cli/internal/update"
 )
 
@@ -30,23 +31,38 @@ var runUpdate = func(ctx context.Context, client updateapi.Client, current strin
 	return updateapi.Run(ctx, client, current, opts)
 }
 
-// readYesNo reads a yes/no answer from os.Stdin: y/yes (case-insensitive) is
-// true; EOF, a read error, or anything else is false. Seam for tests.
+// readYesNo reads a yes/no answer from os.Stdin with Yes as the default:
+// only an explicit n/no (case-insensitive) declines; empty (just Enter) and
+// anything else accepts. EOF or a read error is false. Seam for tests.
 var readYesNo = func() (bool, error) {
 	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil {
 		return false, err
 	}
-	switch strings.ToLower(strings.TrimSpace(line)) {
-	case "y", "yes":
-		return true, nil
+	return isYes(strings.TrimSpace(line)), nil
+}
+
+// isYes interprets one prompt answer under a [Y/n] default.
+func isYes(answer string) bool {
+	switch strings.ToLower(answer) {
+	case "n", "no":
+		return false
 	default:
-		return false, nil
+		return true
 	}
 }
 
 // checkFields is the output field order for --check output.
 var checkFields = []string{"current_version", "latest_version", "update_available"}
+
+// tableFields is the table-format field order for a Run result. It drops
+// skill_installed: a row of nine absolute paths in one cell blows the table
+// out horizontally. Table view prints those paths as one line each after the
+// table instead (mirroring skill install's output); json/toon keep the field.
+var tableFields = []string{
+	"current_version", "latest_version", "update_available", "local_build",
+	"updated", "binary_path", "skill_version", "skill_hint",
+}
 
 // NewCmd builds the top-level update command: it is its own leaf.
 func NewCmd(cfg *app.Config) *cobra.Command {
@@ -118,7 +134,7 @@ func skipSkillInstall(yes bool, cmd *cobra.Command) bool {
 		return false
 	}
 	if output.StdinIsTerminal() && !output.IsAgent() {
-		_, _ = fmt.Fprint(cmd.OutOrStdout(), "Install the refreshed skill bundle? [y/N] ")
+		_, _ = fmt.Fprint(cmd.OutOrStdout(), "Install the refreshed skill bundle? [Y/n] ")
 		ok, err := readYesNo()
 		return err != nil || !ok
 	}
@@ -135,8 +151,17 @@ func printCheck(w io.Writer, format output.Format, rel *updateapi.Release, avail
 	output.Print(w, format, checkFields, row, []map[string]any{row})
 }
 
-// printResult renders a Run Result (success or already-up-to-date).
+// printResult renders a Run Result (success or already-up-to-date). Table
+// view renders the summary row under tableFields and then lists the
+// installed skill paths one per line, like skill install does.
 func printResult(w io.Writer, format output.Format, res updateapi.Result) {
+	if format == output.FormatTable {
+		output.PrintTable(w, tableFields, []map[string]any{res.Row()})
+		for _, p := range res.SkillInstalled {
+			_, _ = fmt.Fprintf(w, "installed %s -> %s\n", skill.SkillName, p)
+		}
+		return
+	}
 	output.Print(w, format, res.Fields(), res.Row(), []map[string]any{res.Row()})
 }
 

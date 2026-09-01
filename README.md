@@ -237,7 +237,7 @@ google-cli update --yes        # update, auto-install the refreshed skill bundle
 google-cli update --yes --agent claude-code   # skill reinstall into one agent
 ```
 
-`google-cli update` checks GitHub releases for a newer version; if one exists it downloads the tarball matching your platform, verifies it against the release checksum manifest, and atomically replaces the running binary. It then refreshes the installed skill bundle: `[y/N]` prompt at an interactive terminal, automatic with `--yes`, or skipped with a `run: google-cli skill install` hint in non-interactive/agent contexts. `--agent <id>` scopes the post-update skill reinstall, same semantics as `skill install --agent`. Output includes `current_version`, `latest_version`, `update_available`, `binary_path`, and skill fields. Rate-limit errors suggest `export GITHUB_TOKEN`.
+`google-cli update` checks GitHub releases for a newer version; if one exists it downloads the tarball matching your platform, verifies it against the release checksum manifest, and atomically replaces the running binary. It then refreshes the installed skill bundle: `[Y/n]` prompt (Yes is the default) at an interactive terminal, automatic with `--yes`, or skipped with a `run: google-cli skill install` hint in non-interactive/agent contexts. `--agent <id>` scopes the post-update skill reinstall, same semantics as `skill install --agent`. Output includes `current_version`, `latest_version`, `update_available`, `binary_path`, and skill fields; table output lists the installed skill paths as one `installed google-cli -> <path>` line each below the summary table instead of a `skill_installed` column. Rate-limit errors suggest `export GITHUB_TOKEN`.
 
 ## Output formats
 
