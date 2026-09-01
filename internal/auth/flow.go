@@ -278,9 +278,3 @@ func ensureScope(scopes []string, scope string) []string {
 	}
 	return append(out, scope)
 }
-
-// withEmailScope appends the Google userinfo.email scope unless already
-// granted, so RunFlow can always resolve the account email.
-func withEmailScope(scopes []string) []string {
-	return ensureScope(scopes, ScopeUserEmail)
-}

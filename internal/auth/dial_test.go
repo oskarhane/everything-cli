@@ -74,10 +74,16 @@ func TestResolveAccount(t *testing.T) {
 	})
 
 	t.Run("accounts exist but no default set", func(t *testing.T) {
-		store := newTestStore(t)
-		seedDialAccount(t, store, "personal", false)
+		// Store.Save auto-sets the provider default on first save, so the
+		// no-default state can only be constructed by writing the account
+		// file directly, with no config.json holding a default.
+		fs := afero.NewMemMapFs()
+		accountJSON := `{"name":"personal","email":"personal@example.com"}` + "\n"
+		require.NoError(t, afero.WriteFile(fs, "/config/accounts/google/personal.json", []byte(accountJSON), 0o600))
+		store, err := config.NewStore(fs, "/config")
+		require.NoError(t, err)
 
-		_, err := ResolveAccount(&app.Config{}, store)
+		_, err = ResolveAccount(&app.Config{}, store)
 		require.EqualError(t, err, noDefaultErr)
 	})
 }

@@ -405,7 +405,7 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 	assert.Equal(t, "test-code", form.Get("code"))
 }
 
-func TestWithEmailScope(t *testing.T) {
+func TestEnsureEmailScope(t *testing.T) {
 	tests := []struct {
 		name   string
 		scopes []string
@@ -429,7 +429,7 @@ func TestWithEmailScope(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, withEmailScope(tt.scopes))
+			assert.Equal(t, tt.want, ensureScope(tt.scopes, ScopeUserEmail))
 		})
 	}
 }
