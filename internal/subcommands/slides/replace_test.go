@@ -34,7 +34,7 @@ func TestReplaceEmptyFindRefused(t *testing.T) {
 	_, err := cmdtest.RunCmdErr(t, newSlideLeafCmd(newReplaceCmd, svc, "json"),
 		"pres_1", "--find", "", "--replace-with", "Zenith")
 
-	require.Contains(t, err.Error(), "--find must be non-empty")
+	require.Contains(t, err.Error(), "--find is required: give the text to replace")
 }
 
 func TestReplaceFindRequired(t *testing.T) {
@@ -42,7 +42,7 @@ func TestReplaceFindRequired(t *testing.T) {
 	_, err := cmdtest.RunCmdErr(t, newSlideLeafCmd(newReplaceCmd, svc, "json"),
 		"pres_1", "--replace-with", "Zenith")
 
-	require.Contains(t, err.Error(), `required flag(s) "find" not set`)
+	require.Contains(t, err.Error(), "--find is required: give the text to replace")
 }
 
 func TestReplacePropagatesAPIError(t *testing.T) {

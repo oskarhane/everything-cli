@@ -25,7 +25,7 @@ google-cli drive file delete 1AbCdEfGh --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {
-				return fmt.Errorf("refusing to permanently delete file %q without --force (this cannot be undone; use trash instead)", args[0])
+				return fmt.Errorf("refusing to permanently delete file %q without --force (this cannot be undone; use \"google-cli drive file trash <id>\" instead)", args[0])
 			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {

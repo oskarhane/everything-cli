@@ -9,32 +9,33 @@ import (
 )
 
 func TestDeleteRefusesWithoutForce(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	_, err := cmdtest.RunCmdErr(t, newFileLeafCmd(newDeleteCmd, svc, "json"), "doc_1")
 
-	// The refusal wording is contractual: it names the document and the
-	// --force remedy, and no service call may have happened.
+	// The refusal wording is contractual: it names the document, the
+	// --force remedy, and the recoverable alternative, and no service call
+	// may have happened.
 	require.ErrorContains(t, err, `refusing to permanently delete document "doc_1" without --force`)
-	require.False(t, svc.deleted)
+	require.ErrorContains(t, err, `use "google-cli drive file trash <id>" instead`)
+	require.Empty(t, svc.DeletedIDs)
 }
 
 func TestDeleteWithForce(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	cmdtest.RunCmd(t, newFileLeafCmd(newDeleteCmd, svc, "json"), "doc_1", "--force")
 
-	require.True(t, svc.deleted)
-	require.Equal(t, "doc_1", svc.deletedID)
+	require.Equal(t, []string{"doc_1"}, svc.DeletedIDs)
 }
 
 func TestDeletePropagatesAPIError(t *testing.T) {
-	svc := &fakeFileService{err: errAPI}
+	svc := &cmdtest.DeleteRecorder{Err: errAPI}
 	_, err := cmdtest.RunCmdErr(t, newFileLeafCmd(newDeleteCmd, svc, "json"), "doc_1", "--force")
 
 	require.ErrorIs(t, err, errAPI)
 }
 
 func TestDeleteRequiresExactlyOneArg(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	_, err := cmdtest.RunCmdErr(t, newFileLeafCmd(newDeleteCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")

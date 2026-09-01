@@ -12,8 +12,8 @@ import (
 )
 
 // NewCmd returns the `drive` parent command with its subtrees attached.
-// Each subtree lives in its own dir; sharing leaves are added later by the
-// sharing node into file/file.go (one AddCommand line per leaf).
+// Each subtree lives in its own dir; every leaf lives in its own file with
+// one AddCommand line per leaf.
 func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "drive",

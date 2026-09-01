@@ -33,7 +33,7 @@ google-cli drive file unshare 1AbCdEfGh --permission 8zK`,
 			if (permissionID == "") == (email == "") {
 				return fmt.Errorf("exactly one of --permission or --email is required")
 			}
-			permSvc, err := unshareSvc(cmd, newSvc)
+			permSvc, err := service.As[service.PermissionService](newSvc(cmd.Context()))
 			if err != nil {
 				return err
 			}
@@ -62,11 +62,6 @@ google-cli drive file unshare 1AbCdEfGh --permission 8zK`,
 	f.StringVar(&permissionID, "permission", "", "Id of the permission to revoke (see `drive file permissions`)")
 	f.StringVar(&email, "email", "", "Email address of the user whose access to revoke")
 	return cmd
-}
-
-// unshareSvc dials and narrows to the permission surface.
-func unshareSvc(cmd *cobra.Command, newSvc service.Dialer[service.FileService]) (service.PermissionService, error) {
-	return service.As[service.PermissionService](newSvc(cmd.Context()))
 }
 
 // permissionForEmail finds the one permission on fileID whose emailAddress

@@ -17,6 +17,7 @@ var getFields = []string{"slide", "shape_id", "text"}
 // order. --slide narrows the view to one slide's shapes (1-based, matching
 // the slide column).
 func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.SlideService]) *cobra.Command {
+	var slide int
 	cmd := &cobra.Command{
 		Use:   "get <presentation-id>",
 		Short: "Show the text on every slide of a presentation",
@@ -38,7 +39,6 @@ google-cli slides get 1AbCpresentationID --format table`,
 			if err != nil {
 				return err
 			}
-			slide, _ := cmd.Flags().GetInt("slide")
 			if slide > 0 {
 				shapes = filterSlide(shapes, slide)
 			}
@@ -50,7 +50,7 @@ google-cli slides get 1AbCpresentationID --format table`,
 			return nil
 		},
 	}
-	cmd.Flags().Int("slide", 0, "Only shapes on this 1-based slide number (0 = all slides)")
+	cmd.Flags().IntVar(&slide, "slide", 0, "Only shapes on this 1-based slide number (0 = all slides)")
 	return cmd
 }
 

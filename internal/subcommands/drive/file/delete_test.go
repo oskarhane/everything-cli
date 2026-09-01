@@ -13,9 +13,11 @@ func TestDeleteRefusesWithoutForce(t *testing.T) {
 	svc := &fakeService{}
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, "json"), "file_1")
 
-	// The refusal wording is contractual: it names the file and the --force
-	// remedy, and no service call may have happened.
+	// The refusal wording is contractual: it names the file, the --force
+	// remedy, and the recoverable alternative, and no service call may have
+	// happened.
 	require.ErrorContains(t, err, `refusing to permanently delete file "file_1" without --force`)
+	require.ErrorContains(t, err, `use "google-cli drive file trash <id>" instead`)
 	require.False(t, svc.deleted)
 }
 

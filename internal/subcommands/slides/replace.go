@@ -14,6 +14,11 @@ import (
 // --match-case is set. The echoed count is the API's own occurrence count,
 // not a local one.
 func newReplaceCmd(_ *app.Config, newSvc service.Dialer[service.SlideService]) *cobra.Command {
+	var (
+		find        string
+		replaceWith string
+		matchCase   bool
+	)
 	cmd := &cobra.Command{
 		Use:   "replace <presentation-id>",
 		Short: "Replace text across every slide of a presentation",
@@ -24,13 +29,9 @@ google-cli slides replace 1AbCpresentationID --find Acme --replace-with Zenith
 google-cli slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f := cmd.Flags()
-			find, _ := f.GetString("find")
 			if find == "" {
-				return fmt.Errorf("--find must be non-empty")
+				return fmt.Errorf("--find is required: give the text to replace")
 			}
-			replaceWith, _ := f.GetString("replace-with")
-			matchCase, _ := f.GetBool("match-case")
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
@@ -44,9 +45,8 @@ google-cli slides replace 1AbCpresentationID --find KPI --replace-with OKR --mat
 		},
 	}
 	f := cmd.Flags()
-	f.String("find", "", "Text to find")
-	f.String("replace-with", "", "Replacement text")
-	f.Bool("match-case", false, "Match the find text case-sensitively")
-	_ = cmd.MarkFlagRequired("find")
+	f.StringVar(&find, "find", "", "Text to find")
+	f.StringVar(&replaceWith, "replace-with", "", "Replacement text")
+	f.BoolVar(&matchCase, "match-case", false, "Match the find text case-sensitively")
 	return cmd
 }

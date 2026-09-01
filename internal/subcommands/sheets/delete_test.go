@@ -11,31 +11,31 @@ import (
 )
 
 func TestDeleteWithoutForceRefuses(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	_, err := cmdtest.RunCmdErr(t, newSheetCmd[service.FileService](newDeleteCmd, svc, "json"), "sheet_1")
 
 	require.Contains(t, err.Error(), "without --force")
 	require.Contains(t, err.Error(), "cannot be undone")
-	require.Empty(t, svc.deletedID)
+	require.Contains(t, err.Error(), `use "google-cli drive file trash <id>" instead`)
+	require.Empty(t, svc.DeletedIDs)
 }
 
 func TestDeleteWithForceDeletesTheFile(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	cmdtest.RunCmd(t, newSheetCmd[service.FileService](newDeleteCmd, svc, "json"), "sheet_1", "--force")
 
-	require.True(t, svc.deleted)
-	require.Equal(t, "sheet_1", svc.deletedID)
+	require.Equal(t, []string{"sheet_1"}, svc.DeletedIDs)
 }
 
 func TestDeletePropagatesAPIError(t *testing.T) {
-	svc := &fakeFileService{err: errors.New("googleapi: Error 403")}
+	svc := &cmdtest.DeleteRecorder{Err: errors.New("googleapi: Error 403")}
 	_, err := cmdtest.RunCmdErr(t, newSheetCmd[service.FileService](newDeleteCmd, svc, "json"), "sheet_1", "--force")
 
 	require.Contains(t, err.Error(), "googleapi: Error 403")
 }
 
 func TestDeleteRequiresExactlyOneArg(t *testing.T) {
-	svc := &fakeFileService{}
+	svc := cmdtest.NewDeleteRecorder()
 	_, err := cmdtest.RunCmdErr(t, newSheetCmd[service.FileService](newDeleteCmd, svc, "json"), "a", "b")
 
 	require.Contains(t, err.Error(), "accepts 1 arg")

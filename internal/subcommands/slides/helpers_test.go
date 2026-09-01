@@ -50,25 +50,6 @@ func (f *fakeSlideService) ReplaceSlideText(_ context.Context, id, find, replace
 	return 3, nil
 }
 
-// fakeFileService serves the service.FileService surface slides delete uses.
-// The embedded nil interface satisfies the file-shaped seam; delete never
-// calls the other methods, so they stay nil.
-type fakeFileService struct {
-	service.FileService
-
-	err       error // when set, every call fails
-	deleted   bool
-	deletedID string
-}
-
-func (f *fakeFileService) DeleteFile(_ context.Context, fileID string) error {
-	if f.err != nil {
-		return f.err
-	}
-	f.deleted, f.deletedID = true, fileID
-	return nil
-}
-
 // newSlideLeafCmd builds a slide-service leaf against a fake, ready to
 // execute hermetically with no network and no real account store.
 func newSlideLeafCmd(build func(*app.Config, service.Dialer[service.SlideService]) *cobra.Command, svc *fakeSlideService, format string) *cobra.Command {
@@ -76,7 +57,7 @@ func newSlideLeafCmd(build func(*app.Config, service.Dialer[service.SlideService
 }
 
 // newFileLeafCmd builds a FileService leaf against a fake.
-func newFileLeafCmd(build func(*app.Config, service.Dialer[service.FileService]) *cobra.Command, svc *fakeFileService, format string) *cobra.Command {
+func newFileLeafCmd(build func(*app.Config, service.Dialer[service.FileService]) *cobra.Command, svc *cmdtest.DeleteRecorder, format string) *cobra.Command {
 	return build(cmdtest.NewTestConfig(format), func(context.Context) (service.FileService, error) { return svc, nil })
 }
 

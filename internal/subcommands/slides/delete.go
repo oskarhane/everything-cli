@@ -13,6 +13,7 @@ import (
 // file from Drive. The file is gone, not trashed, so --force is required and
 // the refusal names what would be deleted.
 func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cobra.Command {
+	var force bool
 	cmd := &cobra.Command{
 		Use:   "delete <presentation-id>",
 		Short: "Permanently delete a presentation (destructive)",
@@ -23,9 +24,8 @@ google-cli slides delete 1AbCpresentationID
 google-cli slides delete 1AbCpresentationID --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			force, _ := cmd.Flags().GetBool("force")
 			if !force {
-				return fmt.Errorf("refusing to permanently delete presentation %q without --force", args[0])
+				return fmt.Errorf("refusing to permanently delete presentation %q without --force (this cannot be undone; use \"google-cli drive file trash <id>\" instead)", args[0])
 			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
@@ -34,6 +34,6 @@ google-cli slides delete 1AbCpresentationID --force`,
 			return svc.DeleteFile(cmd.Context(), args[0])
 		},
 	}
-	cmd.Flags().Bool("force", false, "Permanently delete the presentation instead of refusing")
+	cmd.Flags().BoolVar(&force, "force", false, "Permanently delete the presentation instead of refusing")
 	return cmd
 }
