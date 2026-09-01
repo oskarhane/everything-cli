@@ -65,9 +65,14 @@ func TestFileRowSizeEmptyForNative(t *testing.T) {
 	require.EqualValues(t, 7, binary["size"])
 }
 
-// TestEscapeQ doubles single quotes so a quote-bearing name stays one term.
+// TestEscapeQ backslash-escapes single quotes (and backslashes, first) so a
+// quote- or backslash-bearing name stays one Drive q term.
 func TestEscapeQ(t *testing.T) {
-	require.Equal(t, "O''Brien report", escapeQ("O'Brien report"))
+	require.Equal(t, `O\'Brien report`, escapeQ("O'Brien report"))
+	require.Equal(t, `back\\slash`, escapeQ(`back\slash`))
+	require.Equal(t, `O\'Brien\\\'s`, escapeQ(`O'Brien\'s`))
+	// A trailing backslash doubles, so the literal stays terminated.
+	require.Equal(t, `trailing\\`, escapeQ(`trailing\`))
 	require.Empty(t, escapeQ(""))
 }
 
@@ -88,12 +93,15 @@ func TestComposeQuery(t *testing.T) {
 		{"query only", "owner = 'me@example.com'", "", "", "", false,
 			"owner = 'me@example.com' trashed = false"},
 		{"name only", "", "invoice", "", "", false, "name contains 'invoice' trashed = false"},
-		{"name escapes quotes", "", "O'Brien's", "", "", false, "name contains 'O''Brien''s' trashed = false"},
+		{"name escapes quotes", "", "O'Brien's", "", "", false, `name contains 'O\'Brien\'s' trashed = false`},
+		{"name escapes trailing backslash", "", `trailing\`, "", "", false, `name contains 'trailing\\' trashed = false`},
 		{"parent only", "", "", "1AbC", "", false, "'1AbC' in parents trashed = false"},
+		{"parent escapes quotes", "", "", `my'O'folder`, "", false, `'my\'O\'folder' in parents trashed = false`},
 		{"mime shorthand", "", "", "", "folder", false,
 			"mimeType = 'application/vnd.google-apps.folder' trashed = false"},
 		{"mime raw passthrough", "", "", "", "image/png", false,
 			"mimeType = 'image/png' trashed = false"},
+		{"mime escapes quotes", "", "", "", `we'ird`, false, `mimeType = 'we\'ird' trashed = false`},
 		{"trashed flag drops term", "", "", "", "", true, ""},
 		{"all combined", "fullText = 'q'", "note", "1AbC", "doc", false,
 			"fullText = 'q' name contains 'note' '1AbC' in parents " +

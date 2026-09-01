@@ -9,7 +9,6 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
 
 // fileListFields is the file list row field order for table output; the same
@@ -95,10 +94,14 @@ func sizeString(n int64) any {
 	return n
 }
 
-// escapeQ doubles embedded single quotes so a name containing a quote stays
-// one Drive q term.
+// escapeQ escapes s for a quoted Drive q literal using backslash escaping:
+// backslashes first, then single quotes, so 'O'Brien\'s' stays one term
+// ("Escape single quotes in queries with \'"). Drive q does NOT use the
+// quote-doubling grammar — that belongs to A1-quoted sheet titles, which
+// service.DoubleSingleQuotes covers.
 func escapeQ(s string) string {
-	return service.DoubleSingleQuotes(s)
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	return strings.ReplaceAll(s, `'`, `\'`)
 }
 
 // composeQuery builds the API's q parameter from the raw --query passthrough
@@ -114,10 +117,10 @@ func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 		terms = append(terms, "name contains '"+escapeQ(name)+"'")
 	}
 	if parentID != "" {
-		terms = append(terms, "'"+parentID+"' in parents")
+		terms = append(terms, "'"+escapeQ(parentID)+"' in parents")
 	}
 	if mimeType != "" {
-		terms = append(terms, "mimeType = '"+mimeType+"'")
+		terms = append(terms, "mimeType = '"+escapeQ(mimeType)+"'")
 	}
 	if !trashed {
 		terms = append(terms, "trashed = false")
