@@ -58,4 +58,4 @@ func TestAllLeafCommands_HaveExamples(t *testing.T) {
 // minLeaves is the known minimum of runnable leaves; a whole-tree walk that
 // finds fewer means the tree failed to mount or silently atrophied and the
 // gate must not pass vacuously.
-const minLeaves = 40
+const minLeaves = 70

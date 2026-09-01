@@ -17,8 +17,12 @@ import (
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/subcommands/account"
 	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
+	"github.com/oskarhane/google-cli/internal/subcommands/docs"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive"
 	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
+	"github.com/oskarhane/google-cli/internal/subcommands/sheets"
 	"github.com/oskarhane/google-cli/internal/subcommands/skill"
+	"github.com/oskarhane/google-cli/internal/subcommands/slides"
 	"github.com/oskarhane/google-cli/internal/subcommands/update"
 )
 
@@ -31,6 +35,10 @@ func newWholeTree() *cobra.Command {
 		account.NewCmd(cfg),
 		gmail.NewCmd(cfg),
 		calendar.NewCmd(cfg),
+		drive.NewCmd(cfg),
+		docs.NewCmd(cfg),
+		sheets.NewCmd(cfg),
+		slides.NewCmd(cfg),
 		skill.NewCmd(cfg),
 		update.NewCmd(cfg),
 	)
@@ -40,7 +48,7 @@ func newWholeTree() *cobra.Command {
 // expectedTopLevel is the set of resource subtrees main.go mounts on the
 // root. The mount guard asserts the walk finds each of these, so losing an
 // entire top-level subtree fails loudly naming it, not silently.
-var expectedTopLevel = []string{"account", "gmail", "calendar", "skill", "update"}
+var expectedTopLevel = []string{"account", "gmail", "calendar", "drive", "docs", "sheets", "slides", "skill", "update"}
 
 // autoAddedTopLevel are commands cobra may inject into the root (at walk
 // time or on Execute); they are tolerated as top-level children but never

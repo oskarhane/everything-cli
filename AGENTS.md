@@ -14,6 +14,8 @@ PRIMARY LANGUAGES: [Go]
 
 `google-cli` — command-line tool for managing Gmail and Google Calendar across multiple Google accounts (OAuth, per-account token cache).
 
+`internal/subcommands/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource.
+
 ## Cobra Command Layout
 
 Strict one-file-per-leaf layout under `internal/subcommands/<resource>/`. Mirror it for new trees.

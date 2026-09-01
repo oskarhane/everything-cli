@@ -5,11 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
-	"path"
 	"strings"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
@@ -48,7 +45,9 @@ google-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 > report.pdf`,
 			if out == "" {
 				return copyDecoded(cmd.OutOrStdout(), decodeData(part.Data), "writing attachment to stdout")
 			}
-			return writeFile(cfg.Fs, out, decodeData(part.Data))
+			return app.WriteToFile(cfg.Fs, out, func(w io.Writer) error {
+				return copyDecoded(w, decodeData(part.Data), "writing --out "+out)
+			})
 		},
 	}
 	f := cmd.Flags()
@@ -68,28 +67,6 @@ func copyDecoded(w io.Writer, r io.Reader, context string) error {
 			return fmt.Errorf("decoding attachment data: %w", err)
 		}
 		return fmt.Errorf("%s: %w", context, err)
-	}
-	return nil
-}
-
-// writeFile creates the destination's parent dirs as needed, then streams the
-// decoded attachment bytes into it through the config's afero FS.
-func writeFile(fs afero.Fs, out string, decoded io.Reader) error {
-	if dir := path.Dir(out); dir != "" && dir != "." {
-		if err := fs.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("creating directory for --out %s: %w", out, err)
-		}
-	}
-	f, err := fs.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening --out %s: %w", out, err)
-	}
-	if err := copyDecoded(f, decoded, "writing --out "+out); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("closing --out %s: %w", out, err)
 	}
 	return nil
 }
