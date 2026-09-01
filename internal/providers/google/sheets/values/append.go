@@ -16,13 +16,13 @@ func newAppendCmd(cfg *app.Config, newSvc service.Dialer[service.SheetValuesServ
 		Use:   "append <spreadsheet-id>",
 		Short: "Append rows after the last row of a range's table",
 		Example: `# Append rows from an inline JSON array of arrays
-everything-cli sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values '[[1,"a",true],[2,"b",false]]' --format json
+everything-cli google sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values '[[1,"a",true],[2,"b",false]]' --format json
 
 # Append rows from a CSV file
-everything-cli sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values-file ./rows.csv
+everything-cli google sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values-file ./rows.csv
 
 # Append values as raw strings (no formula parsing)
-everything-cli sheets values append 1AbCdEfGh --range "Sheet1!A1:B" --values '[[=SUM(A1:A2)]]' --input-option RAW`,
+everything-cli google sheets values append 1AbCdEfGh --range "Sheet1!A1:B" --values '[[=SUM(A1:A2)]]' --input-option RAW`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := in.validateInputOption(); err != nil {

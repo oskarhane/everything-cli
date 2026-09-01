@@ -18,10 +18,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *co
 		Use:   "get <id-or-name>",
 		Short: "Show a Gmail label by id or name",
 		Example: `# Show the INBOX label as JSON
-everything-cli gmail label get INBOX --format json
+everything-cli google gmail label get INBOX --format json
 
 # Show a label by name as a table
-everything-cli gmail label get Travel --format table`,
+everything-cli google gmail label get Travel --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

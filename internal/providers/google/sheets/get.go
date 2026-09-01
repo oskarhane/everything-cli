@@ -21,13 +21,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[sheetMetaService]) *cobra.
 		Use:   "get <spreadsheet-id>",
 		Short: "Show a spreadsheet's sheet tabs with their grid sizes",
 		Example: `# List the sheet tabs as JSON
-everything-cli sheets get 1AbCdEfGh --format json
+everything-cli google sheets get 1AbCdEfGh --format json
 
 # Show the same tabs as a table
-everything-cli sheets get 1AbCdEfGh --format table
+everything-cli google sheets get 1AbCdEfGh --format table
 
 # Get a tab by exact title for scripting
-everything-cli sheets get 1AbCdEfGh --format json | jq '.sheets[] | select(.title=="Budget")'`,
+everything-cli google sheets get 1AbCdEfGh --format json | jq '.sheets[] | select(.title=="Budget")'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]

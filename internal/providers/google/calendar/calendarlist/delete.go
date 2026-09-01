@@ -18,10 +18,10 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "delete <calendar-id>",
 		Short: "Delete a calendar (destructive)",
 		Example: `# See the refusal without --force
-everything-cli calendar delete abc123.group.calendar.google.com
+everything-cli google calendar delete abc123.group.calendar.google.com
 
 # Actually delete the calendar
-everything-cli calendar delete abc123.group.calendar.google.com --force`,
+everything-cli google calendar delete abc123.group.calendar.google.com --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

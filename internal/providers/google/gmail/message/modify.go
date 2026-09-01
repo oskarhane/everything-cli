@@ -22,13 +22,13 @@ func newModifyCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]
 		Use:   "modify <id>",
 		Short: "Add or remove labels on a Gmail message",
 		Example: `# Add two labels and remove one
-everything-cli gmail message modify 19c2a4b7 --add-label-ids Label_7,Label_9 --remove-label-ids INBOX
+everything-cli google gmail message modify 19c2a4b7 --add-label-ids Label_7,Label_9 --remove-label-ids INBOX
 
 # Remove a single label
-everything-cli gmail message modify 19c2a4b7 --remove-label-ids UNREAD
+everything-cli google gmail message modify 19c2a4b7 --remove-label-ids UNREAD
 
 # See the resulting label set as JSON
-everything-cli gmail message modify 19c2a4b7 --add-label-ids STARRED --format json`,
+everything-cli google gmail message modify 19c2a4b7 --add-label-ids STARRED --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req := &gmail.ModifyMessageRequest{

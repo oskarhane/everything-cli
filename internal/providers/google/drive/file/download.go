@@ -27,10 +27,10 @@ func newDownloadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService])
 		Use:   "download <file-id>",
 		Short: "Download a Drive file's content, exporting Google-native types",
 		Example: `# Download a binary file to a local path
-everything-cli drive file download 1AbCdEfGh --out report.pdf
+everything-cli google drive file download 1AbCdEfGh --out report.pdf
 
 # Export a Google Sheet as CSV (first sheet only) to stdout for piping
-everything-cli drive file download 1AbCdEfGh --export text/csv > data.csv`,
+everything-cli google drive file download 1AbCdEfGh --export text/csv > data.csv`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

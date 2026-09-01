@@ -17,8 +17,8 @@ func newRemoveCmd(cfg *app.Config) *cobra.Command {
 		Use:   "remove <name>",
 		Short: "Remove a Google account and its cached token",
 		Example: `# Inspect what would be removed, then remove the "old" account
-everything-cli account get old
-everything-cli account remove old --force`,
+everything-cli google account get old
+everything-cli google account remove old --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

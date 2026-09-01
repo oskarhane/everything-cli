@@ -14,10 +14,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *cob
 		Use:   "get <file-id>",
 		Short: "Show a Drive file's metadata",
 		Example: `# Show a file's metadata as JSON
-everything-cli drive file get 1AbCdEfGh --format json
+everything-cli google drive file get 1AbCdEfGh --format json
 
 # Show the same file as a table
-everything-cli drive file get 1AbCdEfGh --format table`,
+everything-cli google drive file get 1AbCdEfGh --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

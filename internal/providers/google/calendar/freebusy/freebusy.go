@@ -32,13 +32,13 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.FreeBusyService]) *co
 		Use:   "freebusy",
 		Short: "List busy time intervals for one or all calendars",
 		Example: `# Free/busy for every listed calendar over the next day, as JSON
-everything-cli calendar freebusy --format json
+everything-cli google calendar freebusy --format json
 
 # Free/busy for two named calendars during a fixed window
-everything-cli calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09-01T17:00:00Z --calendar work@example.com --calendar personal@example.com --format table
+everything-cli google calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09-01T17:00:00Z --calendar work@example.com --calendar personal@example.com --format table
 
 # This afternoon's busy slots on one calendar, relative window
-everything-cli calendar freebusy --from now --to +8h --calendar primary --format json`,
+everything-cli google calendar freebusy --from now --to +8h --calendar primary --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

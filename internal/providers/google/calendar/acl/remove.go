@@ -15,10 +15,10 @@ func newRemoveCmd(_ *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "remove <calendar-id>",
 		Short: "Revoke a calendar sharing rule",
 		Example: `# Find the rule id to revoke
-everything-cli calendar acl list primary --format json
+everything-cli google calendar acl list primary --format json
 
 # Revoke a sharing rule
-everything-cli calendar acl remove primary --rule-id user:colleague@example.com`,
+everything-cli google calendar acl remove primary --rule-id user:colleague@example.com`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ruleID, _ := cmd.Flags().GetString("rule-id")

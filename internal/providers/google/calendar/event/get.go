@@ -15,13 +15,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *co
 		Use:   "get <event-id>",
 		Short: "Show an event by id (master or instance)",
 		Example: `# Show a single event as JSON
-everything-cli calendar event get abc123 --format json
+everything-cli google calendar event get abc123 --format json
 
 # Show one occurrence of a recurring series (instance ids end in _<UTC time>)
-everything-cli calendar event get kq3abc123_20260929T030000Z --format json
+everything-cli google calendar event get kq3abc123_20260929T030000Z --format json
 
 # Show the recurring master with its RRULE lines on another calendar
-everything-cli calendar event get kq3abc123 --calendar work@example.com --format table`,
+everything-cli google calendar event get kq3abc123 --calendar work@example.com --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

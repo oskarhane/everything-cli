@@ -14,10 +14,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *co
 		Use:   "get <id>",
 		Short: "Show a Gmail draft by id",
 		Example: `# Show a draft's stored message headers as JSON
-everything-cli gmail draft get draft_19c2a4b7 --format json
+everything-cli google gmail draft get draft_19c2a4b7 --format json
 
 # Show the same draft as a table
-everything-cli gmail draft get draft_19c2a4b7 --format table`,
+everything-cli google gmail draft get draft_19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

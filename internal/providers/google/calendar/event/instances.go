@@ -16,16 +16,16 @@ func newInstancesCmd(cfg *app.Config, newSvc service.Dialer[service.EventService
 		Use:   "instances <master-id>",
 		Short: "List the occurrences of a recurring event",
 		Example: `# Expand the next week of a series (default window: now to +7d) as JSON
-everything-cli calendar event instances kq3abc123 --format json
+everything-cli google calendar event instances kq3abc123 --format json
 
 # Pull a year of occurrences instead of the default week
-everything-cli calendar event instances kq3abc123 --from 2026-01-01 --to 2026-12-31 --format table
+everything-cli google calendar event instances kq3abc123 --from 2026-01-01 --to 2026-12-31 --format table
 
 # Hide cancelled occurrences
-everything-cli calendar event instances kq3abc123 --show-deleted=false --format json
+everything-cli google calendar event instances kq3abc123 --show-deleted=false --format json
 
 # Cap the expansion at 50 occurrences on another calendar
-everything-cli calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
+everything-cli google calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

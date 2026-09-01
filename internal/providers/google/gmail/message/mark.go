@@ -20,13 +20,13 @@ func newMarkCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) 
 		Use:   "mark <id>",
 		Short: "Mark a Gmail message read/unread or starred/unstarred",
 		Example: `# Mark a message as read
-everything-cli gmail message mark 19c2a4b7 --read
+everything-cli google gmail message mark 19c2a4b7 --read
 
 # Mark a message unread and starred
-everything-cli gmail message mark 19c2a4b7 --unread --starred
+everything-cli google gmail message mark 19c2a4b7 --unread --starred
 
 # Unstar a message
-everything-cli gmail message mark 19c2a4b7 --unstarred`,
+everything-cli google gmail message mark 19c2a4b7 --unstarred`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req, err := markRequest(cmd.Flags(), read, unread, starred, unstarred)

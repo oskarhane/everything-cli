@@ -13,10 +13,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "list <calendar-id>",
 		Short: "List a calendar's sharing rules",
 		Example: `# List the primary calendar's sharing rules as JSON
-everything-cli calendar acl list primary --format json
+everything-cli google calendar acl list primary --format json
 
 # List sharing rules as a table
-everything-cli calendar acl list primary --format table`,
+everything-cli google calendar acl list primary --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -34,16 +34,16 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *c
 		Use:   "list",
 		Short: "List events, expanding or hiding recurring series",
 		Example: `# This week's events as JSON, recurring series expanded into occurrences
-everything-cli calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
+everything-cli google calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
 
 # Change-detection pull: only events modified since yesterday
-everything-cli calendar event list --updated-since -1d --format json
+everything-cli google calendar event list --updated-since -1d --format json
 
 # Show the underlying recurring masters and one-off events instead
-everything-cli calendar event list --recurring masters --format table
+everything-cli google calendar event list --recurring masters --format table
 
 # Search events by keyword on another calendar
-everything-cli calendar event list --calendar work@example.com --query "design review" --max 10`,
+everything-cli google calendar event list --calendar work@example.com --query "design review" --max 10`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			f := cmd.Flags()

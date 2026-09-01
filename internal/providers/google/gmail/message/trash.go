@@ -16,10 +16,10 @@ func newTrashCmd(_ *app.Config, newSvc service.Dialer[service.MessageService]) *
 		Use:   "trash <id>",
 		Short: "Move a Gmail message to trash",
 		Example: `# Trash a message
-everything-cli gmail message trash 19c2a4b7
+everything-cli google gmail message trash 19c2a4b7
 
 # Trash a message on another account
-everything-cli gmail message trash 19c2a4b7 --account work`,
+everything-cli google gmail message trash 19c2a4b7 --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

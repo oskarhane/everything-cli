@@ -18,10 +18,10 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.MessageService]) 
 		Use:   "delete <id>",
 		Short: "Permanently delete a Gmail message (destructive)",
 		Example: `# See the refusal without --force
-everything-cli gmail message delete 19c2a4b7
+everything-cli google gmail message delete 19c2a4b7
 
 # Actually delete the message permanently
-everything-cli gmail message delete 19c2a4b7 --force`,
+everything-cli google gmail message delete 19c2a4b7 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

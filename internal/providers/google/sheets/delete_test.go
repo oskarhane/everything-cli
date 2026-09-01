@@ -16,7 +16,7 @@ func TestDeleteWithoutForceRefuses(t *testing.T) {
 
 	require.Contains(t, err.Error(), "without --force")
 	require.Contains(t, err.Error(), "cannot be undone")
-	require.Contains(t, err.Error(), `use "everything-cli drive file trash <id>" instead`)
+	require.Contains(t, err.Error(), `use "everything-cli google drive file trash <id>" instead`)
 	require.Empty(t, svc.DeletedIDs)
 }
 

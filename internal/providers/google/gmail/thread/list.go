@@ -21,10 +21,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.ThreadService]) *
 		Use:   "list",
 		Short: "List Gmail threads",
 		Example: `# List the 25 most recent threads as JSON
-everything-cli gmail thread list --format json
+everything-cli google gmail thread list --format json
 
 # Search threads mentioning an invoice, at most 10, with a label, as a table
-everything-cli gmail thread list --query "subject:invoice" --label-ids Label_7 --max 10 --format table`,
+everything-cli google gmail thread list --query "subject:invoice" --label-ids Label_7 --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

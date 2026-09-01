@@ -13,10 +13,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *c
 		Use:   "list",
 		Short: "List Gmail labels",
 		Example: `# List labels as JSON
-everything-cli gmail label list --format json
+everything-cli google gmail label list --format json
 
 # List labels as a table
-everything-cli gmail label list --format table`,
+everything-cli google gmail label list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

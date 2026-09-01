@@ -16,7 +16,7 @@ func TestDeleteRefusesWithoutForce(t *testing.T) {
 	// --force remedy, and the recoverable alternative, and no service call
 	// may have happened.
 	require.ErrorContains(t, err, `refusing to permanently delete document "doc_1" without --force`)
-	require.ErrorContains(t, err, `use "everything-cli drive file trash <id>" instead`)
+	require.ErrorContains(t, err, `use "everything-cli google drive file trash <id>" instead`)
 	require.Empty(t, svc.DeletedIDs)
 }
 

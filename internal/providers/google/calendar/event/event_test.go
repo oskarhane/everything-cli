@@ -39,7 +39,7 @@ func TestLeafExamples(t *testing.T) {
 			require.True(t, strings.HasPrefix(example, "# "), "Example must be flush-left, starting with a # comment")
 
 			require.GreaterOrEqual(t,
-				strings.Count(example, "everything-cli calendar event "+leaf.Name()),
+				strings.Count(example, "everything-cli google calendar event "+leaf.Name()),
 				2, "Example needs at least two everything-cli invocations")
 			require.Contains(t, example, "# ", "Example needs # comments")
 

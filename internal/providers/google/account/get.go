@@ -27,10 +27,10 @@ func newGetCmd(cfg *app.Config) *cobra.Command {
 		Use:   "get <name>",
 		Short: "Show a Google account's email, scopes and token expiry",
 		Example: `# Show the "work" account
-everything-cli account get work
+everything-cli google account get work
 
 # Show the "work" account as JSON (token values are never printed)
-everything-cli account get work --format json`,
+everything-cli google account get work --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

@@ -18,14 +18,14 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *co
 		Use:   "delete <presentation-id>",
 		Short: "Permanently delete a presentation (destructive)",
 		Example: `# See the refusal without --force
-everything-cli slides delete 1AbCpresentationID
+everything-cli google slides delete 1AbCpresentationID
 
 # Actually delete the presentation permanently
-everything-cli slides delete 1AbCpresentationID --force`,
+everything-cli google slides delete 1AbCpresentationID --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {
-				return fmt.Errorf("refusing to permanently delete presentation %q without --force (this cannot be undone; use \"everything-cli drive file trash <id>\" instead)", args[0])
+				return fmt.Errorf("refusing to permanently delete presentation %q without --force (this cannot be undone; use \"everything-cli google drive file trash <id>\" instead)", args[0])
 			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {

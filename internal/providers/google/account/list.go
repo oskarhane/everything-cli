@@ -22,10 +22,10 @@ func newListCmd(cfg *app.Config) *cobra.Command {
 		Use:   "list",
 		Short: "List configured Google accounts",
 		Example: `# List all configured accounts
-everything-cli account list
+everything-cli google account list
 
 # List accounts as JSON; the default account carries "default": true
-everything-cli account list --format json`,
+everything-cli google account list --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

@@ -20,10 +20,10 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService
 		Use:   "update <calendar-id>",
 		Short: "Update a calendar",
 		Example: `# Rename a calendar
-everything-cli calendar update abc123.group.calendar.google.com --summary "Team PTO 2026"
+everything-cli google calendar update abc123.group.calendar.google.com --summary "Team PTO 2026"
 
 # Change the timezone and color
-everything-cli calendar update abc123.group.calendar.google.com --timezone Europe/Stockholm --color-id tomato`,
+everything-cli google calendar update abc123.group.calendar.google.com --timezone Europe/Stockholm --color-id tomato`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

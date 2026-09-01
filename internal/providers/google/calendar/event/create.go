@@ -22,13 +22,13 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) 
 		Use:   "create",
 		Short: "Create an event",
 		Example: `# Create a one-off meeting
-everything-cli calendar event create --summary "Design review" --start 2026-09-03T14:00:00Z --end 2026-09-03T15:00:00Z
+everything-cli google calendar event create --summary "Design review" --start 2026-09-03T14:00:00Z --end 2026-09-03T15:00:00Z
 
 # Create a weekly recurring series with a guest, as JSON
-everything-cli calendar event create --summary "Standup" --start 2026-09-01T09:00:00+02:00 --end 2026-09-01T09:30:00+02:00 --attendee colleague@example.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10' --format json
+everything-cli google calendar event create --summary "Standup" --start 2026-09-01T09:00:00+02:00 --end 2026-09-01T09:30:00+02:00 --attendee colleague@example.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10' --format json
 
 # Create an all-day event spanning three days
-everything-cli calendar event create --summary "Conference" --start 2026-10-01 --end 2026-10-03 --all-day`,
+everything-cli google calendar event create --summary "Conference" --start 2026-10-01 --end 2026-10-03 --all-day`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			f := cmd.Flags()

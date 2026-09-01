@@ -16,10 +16,10 @@ func newUntrashCmd(_ *app.Config, newSvc service.Dialer[service.MessageService])
 		Use:   "untrash <id>",
 		Short: "Restore a Gmail message from trash",
 		Example: `# Restore a trashed message
-everything-cli gmail message untrash 19c2a4b7
+everything-cli google gmail message untrash 19c2a4b7
 
 # Restore a trashed message on another account
-everything-cli gmail message untrash 19c2a4b7 --account work`,
+everything-cli google gmail message untrash 19c2a4b7 --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

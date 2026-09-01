@@ -198,7 +198,7 @@ func TestExamplesGate(t *testing.T) {
 	example := leaf.Example
 	require.NotEmpty(t, example, "the leaf needs an Example")
 	require.True(t, strings.HasPrefix(example, "# "), "Example must be flush-left, starting with a # comment")
-	require.GreaterOrEqual(t, strings.Count(example, "everything-cli calendar freebusy"), 2,
+	require.GreaterOrEqual(t, strings.Count(example, "everything-cli google calendar freebusy"), 2,
 		"Example needs at least two everything-cli invocations")
 	require.Contains(t, example, "# ", "Example needs # comments")
 	require.Contains(t, example, "--format json", "Example needs a --format json call")

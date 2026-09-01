@@ -44,13 +44,13 @@ func newTranscriptCmd(cfg *app.Config, client yt.Client) *cobra.Command {
 		Use:   "transcript <url-or-id>",
 		Short: "Print a video's timed transcript",
 		Example: `# Stream a video's captions as plain text
-everything-cli youtube transcript https://www.youtube.com/watch?v=dQw4w9WgXcQ
+everything-cli google youtube transcript https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
 # Render the transcript with timings as JSON
-everything-cli youtube transcript dQw4w9WgXcQ --format json
+everything-cli google youtube transcript dQw4w9WgXcQ --format json
 
 # Save a German caption track to a file
-everything-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
+everything-cli google youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := yt.ParseVideoID(args[0])

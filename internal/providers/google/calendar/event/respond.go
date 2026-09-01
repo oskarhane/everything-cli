@@ -31,13 +31,13 @@ func newRespondCmd(cfg *app.Config, newSvc service.Dialer[service.EventService],
 		Use:   verb + " <event-id>",
 		Short: respondShort(verb) + " an event invitation",
 		Example: fmt.Sprintf(`# %s a single event
-everything-cli calendar event %s abc123
+everything-cli google calendar event %s abc123
 
 # Respond to only one occurrence of a recurring series (instance ids end in _<UTC time>)
-everything-cli calendar event %s kq3abc123_20260929T030000Z
+everything-cli google calendar event %s kq3abc123_20260929T030000Z
 
 # Respond for the entire recurring series from any of its occurrences
-everything-cli calendar event %s kq3abc123_20260929T030000Z --all`, respondShort(verb), verb, verb, verb),
+everything-cli google calendar event %s kq3abc123_20260929T030000Z --all`, respondShort(verb), verb, verb, verb),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

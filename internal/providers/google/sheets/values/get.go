@@ -15,10 +15,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.SheetValuesService
 		Use:   "get <spreadsheet-id>",
 		Short: "Read cell values from an A1 range",
 		Example: `# Read a range as JSON
-everything-cli sheets values get 1AbCdEfGh --range "Sheet1!A1:D10" --format json
+everything-cli google sheets values get 1AbCdEfGh --range "Sheet1!A1:D10" --format json
 
 # Show the same range as a table
-everything-cli sheets values get 1AbCdEfGh --range "Budget!A1:C20" --format table`,
+everything-cli google sheets values get 1AbCdEfGh --range "Budget!A1:C20" --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

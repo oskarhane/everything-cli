@@ -18,10 +18,10 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.GmailService]) *c
 		Use:   "delete <id>",
 		Short: "Delete a Gmail label (destructive)",
 		Example: `# See the refusal without --force
-everything-cli gmail label delete Label_42
+everything-cli google gmail label delete Label_42
 
 # Actually delete the label
-everything-cli gmail label delete Label_42 --force`,
+everything-cli google gmail label delete Label_42 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

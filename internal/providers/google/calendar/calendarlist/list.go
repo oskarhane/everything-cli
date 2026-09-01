@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "list",
 		Short: "List calendars",
 		Example: `# List calendars as JSON
-everything-cli calendar list --format json
+everything-cli google calendar list --format json
 
 # List calendars as a table
-everything-cli calendar list --format table`,
+everything-cli google calendar list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -15,10 +15,10 @@ func newUntrashCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *c
 		Use:   "untrash <file-id>",
 		Short: "Restore a Drive file from trash",
 		Example: `# Restore a trashed file
-everything-cli drive file untrash 1AbCdEfGh
+everything-cli google drive file untrash 1AbCdEfGh
 
 # Restore a trashed file on another account
-everything-cli drive file untrash 1AbCdEfGh --account work`,
+everything-cli google drive file untrash 1AbCdEfGh --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -18,10 +18,10 @@ func newAddCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) 
 		Use:   "add <calendar-id>",
 		Short: "Share a calendar with a user",
 		Example: `# Share the primary calendar as read-only
-everything-cli calendar acl add primary --scope-user colleague@example.com --role reader
+everything-cli google calendar acl add primary --scope-user colleague@example.com --role reader
 
 # Share a calendar with write access
-everything-cli calendar acl add primary --scope-user teammate@example.com --role writer`,
+everything-cli google calendar acl add primary --scope-user teammate@example.com --role writer`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

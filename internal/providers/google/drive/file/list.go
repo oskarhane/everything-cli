@@ -23,13 +23,13 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *co
 		Use:   "list",
 		Short: "List files in Drive",
 		Example: `# List the 25 most recent non-trashed files as JSON
-everything-cli drive file list --format json
+everything-cli google drive file list --format json
 
 # List folders inside a parent folder, as a table
-everything-cli drive file list --parent 1AbC --mime folder --format table
+everything-cli google drive file list --parent 1AbC --mime folder --format table
 
 # Search by name substring with a raw query ANDed in
-everything-cli drive file list --name "invoice" --query "owner = 'me'" --max 100`,
+everything-cli google drive file list --name "invoice" --query "owner = 'me'" --max 100`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

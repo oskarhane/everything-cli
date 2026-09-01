@@ -26,13 +26,13 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *
 		Use:   "create <name>",
 		Short: "Create a Drive file (folder, doc, sheet, slide, or raw MIME type)",
 		Example: `# Create a folder
-everything-cli drive file create "Reports" --format json
+everything-cli google drive file create "Reports" --format json
 
 # Create an empty Google Sheet inside a parent folder
-everything-cli drive file create "Q3 budget" --type sheet --parent 1AbCdEfGh
+everything-cli google drive file create "Q3 budget" --type sheet --parent 1AbCdEfGh
 
 # Create a file with a raw MIME type
-everything-cli drive file create "notes.md" --mime-type text/markdown`,
+everything-cli google drive file create "notes.md" --mime-type text/markdown`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

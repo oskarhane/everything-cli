@@ -23,10 +23,10 @@ func newReplaceCmd(_ *app.Config, newSvc service.Dialer[service.SlideService]) *
 		Use:   "replace <presentation-id>",
 		Short: "Replace text across every slide of a presentation",
 		Example: `# Rename a client everywhere it appears
-everything-cli slides replace 1AbCpresentationID --find Acme --replace-with Zenith
+everything-cli google slides replace 1AbCpresentationID --find Acme --replace-with Zenith
 
 # Replace an exact-case literal only
-everything-cli slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case`,
+everything-cli google slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if find == "" {

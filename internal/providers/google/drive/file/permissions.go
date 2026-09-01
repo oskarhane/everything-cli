@@ -45,10 +45,10 @@ func newPermissionsCmd(cfg *app.Config, newSvc service.Dialer[service.FileServic
 		Use:   "permissions <file-id>",
 		Short: "List the permissions on a Drive file",
 		Example: `# List who a file is shared with, as a table
-everything-cli drive file permissions 1AbCdEfGh --format table
+everything-cli google drive file permissions 1AbCdEfGh --format table
 
 # List the same permissions as JSON
-everything-cli drive file permissions 1AbCdEfGh --format json`,
+everything-cli google drive file permissions 1AbCdEfGh --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			permSvc, err := service.As[service.PermissionService](newSvc(cmd.Context()))

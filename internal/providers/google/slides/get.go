@@ -22,13 +22,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.SlideService]) *co
 		Use:   "get <presentation-id>",
 		Short: "Show the text on every slide of a presentation",
 		Example: `# List every text-bearing shape as JSON
-everything-cli slides get 1AbCpresentationID --format json
+everything-cli google slides get 1AbCpresentationID --format json
 
 # Only the shapes on slide 3
-everything-cli slides get 1AbCpresentationID --slide 3
+everything-cli google slides get 1AbCpresentationID --slide 3
 
 # Same view as a table
-everything-cli slides get 1AbCpresentationID --format table`,
+everything-cli google slides get 1AbCpresentationID --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

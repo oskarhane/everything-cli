@@ -23,13 +23,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *
 		Use:   "get <id>",
 		Short: "Show a Gmail message by id",
 		Example: `# Show a message with its From/Subject/Date headers as JSON
-everything-cli gmail message get 19c2a4b7 --format json
+everything-cli google gmail message get 19c2a4b7 --format json
 
 # Print the raw RFC 2822 message as plain text
-everything-cli gmail message get 19c2a4b7 --raw
+everything-cli google gmail message get 19c2a4b7 --raw
 
 # Show the same message as a table
-everything-cli gmail message get 19c2a4b7 --format table`,
+everything-cli google gmail message get 19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

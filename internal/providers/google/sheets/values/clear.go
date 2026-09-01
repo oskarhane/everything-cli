@@ -15,10 +15,10 @@ func newClearCmd(cfg *app.Config, newSvc service.Dialer[service.SheetValuesServi
 		Use:   "clear <spreadsheet-id>",
 		Short: "Clear the values in an A1 range",
 		Example: `# Clear a bounded range
-everything-cli sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
 
 # Clear everything below the header in one column
-everything-cli sheets values clear 1AbCdEfGh --range "Sheet1!B2:B" --format json`,
+everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!B2:B" --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			a1Range, _ := cmd.Flags().GetString("range")

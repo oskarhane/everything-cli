@@ -36,10 +36,10 @@ func newAddCmd(cfg *app.Config) *cobra.Command {
 		Use:   "add <name>",
 		Short: "Authorize a Google account via the OAuth flow",
 		Example: `# Authorize a new account named "work" with the default scopes
-everything-cli account add work
+everything-cli google account add work
 
 # Authorize "work" with an explicit credentials file and scope set
-everything-cli account add work --credentials ~/google/credentials.json --scopes https://www.googleapis.com/auth/gmail.send`,
+everything-cli google account add work --credentials ~/google/credentials.json --scopes https://www.googleapis.com/auth/gmail.send`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

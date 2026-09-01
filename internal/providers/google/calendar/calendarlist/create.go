@@ -17,10 +17,10 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService
 		Use:   "create <summary>",
 		Short: "Create a calendar",
 		Example: `# Create a calendar
-everything-cli calendar create "Team PTO"
+everything-cli google calendar create "Team PTO"
 
 # Create a calendar with a timezone, description, and color
-everything-cli calendar create "Team PTO" --timezone Europe/Stockholm --description "Shared time off" --color-id tomato`,
+everything-cli google calendar create "Team PTO" --timezone Europe/Stockholm --description "Shared time off" --color-id tomato`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cal := &calendar.Calendar{Summary: args[0]}

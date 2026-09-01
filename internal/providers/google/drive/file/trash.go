@@ -16,10 +16,10 @@ func newTrashCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cob
 		Use:   "trash <file-id>",
 		Short: "Move a Drive file to trash",
 		Example: `# Trash a file
-everything-cli drive file trash 1AbCdEfGh
+everything-cli google drive file trash 1AbCdEfGh
 
 # Trash a file on another account
-everything-cli drive file trash 1AbCdEfGh --account work`,
+everything-cli google drive file trash 1AbCdEfGh --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

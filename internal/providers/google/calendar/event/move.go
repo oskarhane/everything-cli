@@ -17,13 +17,13 @@ func newMoveCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *c
 		Use:   "move <event-id>",
 		Short: "Move an event to another calendar",
 		Example: `# Move an event to a secondary calendar
-everything-cli calendar event move abc123 --to-calendar work.group.calendar.google.com
+everything-cli google calendar event move abc123 --to-calendar work.group.calendar.google.com
 
 # Move one occurrence of a recurring series
-everything-cli calendar event move kq3abc123_20260929T030000Z --to-calendar work.group.calendar.google.com
+everything-cli google calendar event move kq3abc123_20260929T030000Z --to-calendar work.group.calendar.google.com
 
 # Move an event off a secondary calendar back to the primary one
-everything-cli calendar event move abc123 --calendar work.group.calendar.google.com --to-calendar primary`,
+everything-cli google calendar event move abc123 --calendar work.group.calendar.google.com --to-calendar primary`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

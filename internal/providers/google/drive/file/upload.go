@@ -25,10 +25,10 @@ func newUploadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *
 		Use:   "upload <local-path>",
 		Short: "Upload a local file to Drive",
 		Example: `# Upload a file, naming it after the local base name
-everything-cli drive file upload ./report.pdf --format json
+everything-cli google drive file upload ./report.pdf --format json
 
 # Upload a file into a Drive folder under a new name
-everything-cli drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh`,
+everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			localPath := args[0]

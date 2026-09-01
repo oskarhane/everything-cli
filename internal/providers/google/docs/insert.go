@@ -24,10 +24,10 @@ func newInsertCmd(cfg *app.Config, newSvc service.Dialer[service.DocService]) *c
 		Use:   "insert <doc-id>",
 		Short: "Insert text into a Google Doc at a content index",
 		Example: `# Insert a heading as the document's very first content
-everything-cli docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
+everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
 
 # Insert the contents of a file before index 120
-everything-cli docs insert 1AbCdEfGh --text-file block.txt --index 120`,
+everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if index <= 0 {

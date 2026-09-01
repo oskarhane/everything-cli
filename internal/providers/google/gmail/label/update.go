@@ -19,10 +19,10 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) 
 		Use:   "update <id>",
 		Short: "Update a Gmail label",
 		Example: `# Rename a label
-everything-cli gmail label update Label_42 --name "Travel 2026"
+everything-cli google gmail label update Label_42 --name "Travel 2026"
 
 # Recolor a label and hide its messages from the message list
-everything-cli gmail label update Label_42 --color-text "#ffffff" --color-bg "#039be5" --message-list-visibility hide`,
+everything-cli google gmail label update Label_42 --color-text "#ffffff" --color-bg "#039be5" --message-list-visibility hide`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !anyLabelFlagChanged(cmd.Flags()) {

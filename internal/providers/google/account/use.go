@@ -15,10 +15,10 @@ func newUseCmd(cfg *app.Config) *cobra.Command {
 		Use:   "use <name>",
 		Short: "Set the default Google account",
 		Example: `# Make the "work" account the default
-everything-cli account use work
+everything-cli google account use work
 
 # Switch back to the "personal" account
-everything-cli account use personal`,
+everything-cli google account use personal`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

@@ -30,10 +30,10 @@ func newSendCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) 
 		Use:   "send",
 		Short: "Send a Gmail message",
 		Example: `# Send a plain-text message
-everything-cli gmail message send --to alice@example.com --subject "Lunch" --body "Noon works"
+everything-cli google gmail message send --to alice@example.com --subject "Lunch" --body "Noon works"
 
 # Send a message with attachments, reading the body from a file
-everything-cli gmail message send --to a@example.com,b@example.com --subject "Report" \
+everything-cli google gmail message send --to a@example.com,b@example.com --subject "Report" \
   --body-file report.txt --attachment q1.pdf --attachment data.csv`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

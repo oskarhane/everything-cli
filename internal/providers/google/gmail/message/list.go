@@ -22,10 +22,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) 
 		Use:   "list",
 		Short: "List Gmail messages",
 		Example: `# List the 25 most recent inbox messages as JSON
-everything-cli gmail message list --query "label:INBOX" --format json
+everything-cli google gmail message list --query "label:INBOX" --format json
 
 # List at most 10 unread messages with a label, as a table
-everything-cli gmail message list --label-ids Label_7 --unread-only --max 10 --format table`,
+everything-cli google gmail message list --label-ids Label_7 --unread-only --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *c
 		Use:   "list",
 		Short: "List Gmail drafts",
 		Example: `# List the 25 most recent drafts as JSON
-everything-cli gmail draft list --format json
+everything-cli google gmail draft list --format json
 
 # List at most 10 drafts as a table
-everything-cli gmail draft list --max 10 --format table`,
+everything-cli google gmail draft list --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -15,10 +15,10 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) 
 		Use:   "create <name>",
 		Short: "Create a Gmail label",
 		Example: `# Create a label
-everything-cli gmail label create Travel
+everything-cli google gmail label create Travel
 
 # Create a colored label, hidden from the label list
-everything-cli gmail label create Travel --color-text "#ffffff" --color-bg "#039be5" --label-list-visibility labelHide`,
+everything-cli google gmail label create Travel --color-text "#ffffff" --color-bg "#039be5" --label-list-visibility labelHide`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			label := &gmail.Label{}

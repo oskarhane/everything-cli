@@ -27,16 +27,16 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) 
 		Use:   "update <event-id>",
 		Short: "Update an event (one occurrence or the series)",
 		Example: `# Rename an event
-everything-cli calendar event update abc123 --summary "Design review"
+everything-cli google calendar event update abc123 --summary "Design review"
 
 # Move one occurrence of a recurring series (creates an exception)
-everything-cli calendar event update kq3abc123_20260929T030000Z --start 2026-09-29T15:00:00Z --end 2026-09-29T16:00:00Z
+everything-cli google calendar event update kq3abc123_20260929T030000Z --start 2026-09-29T15:00:00Z --end 2026-09-29T16:00:00Z
 
 # Rename the whole series from any of its occurrences
-everything-cli calendar event update kq3abc123_20260929T030000Z --this-only=false --summary "Standup moved"
+everything-cli google calendar event update kq3abc123_20260929T030000Z --this-only=false --summary "Standup moved"
 
 # Add a guest to the series master
-everything-cli calendar event update kq3abc123 --add-attendee colleague@example.com`,
+everything-cli google calendar event update kq3abc123 --add-attendee colleague@example.com`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()
