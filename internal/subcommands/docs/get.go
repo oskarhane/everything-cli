@@ -3,10 +3,7 @@ package docs
 import (
 	"fmt"
 	"io"
-	"os"
-	"path"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
@@ -43,31 +40,12 @@ google-cli docs get 1AbCdEfGh | head -20`,
 				}
 				return nil
 			}
-			return writeFile(cfg.Fs, out, text)
+			return app.WriteToFile(cfg.Fs, out, func(w io.Writer) error {
+				_, err := io.WriteString(w, text)
+				return err
+			})
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "Write the document's text to this file instead of stdout")
 	return cmd
-}
-
-// writeFile creates the destination's parent dirs as needed, then writes the
-// document text into it verbatim through the config's afero FS.
-func writeFile(fs afero.Fs, out, text string) error {
-	if dir := path.Dir(out); dir != "" && dir != "." {
-		if err := fs.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("creating directory for --out %s: %w", out, err)
-		}
-	}
-	f, err := fs.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening --out %s: %w", out, err)
-	}
-	if _, err := io.WriteString(f, text); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("writing --out %s: %w", out, err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("closing --out %s: %w", out, err)
-	}
-	return nil
 }

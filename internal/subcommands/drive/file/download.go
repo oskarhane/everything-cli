@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
-	"path"
 	"strings"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
@@ -46,7 +43,7 @@ google-cli drive file download 1AbCdEfGh --export text/csv > data.csv`,
 			if out == "" {
 				return stream(cmd.OutOrStdout())
 			}
-			return writeFile(cfg.Fs, out, stream)
+			return app.WriteToFile(cfg.Fs, out, stream)
 		},
 	}
 	f := cmd.Flags()
@@ -76,26 +73,4 @@ func streamDownload(svc service.FileService, ctx context.Context, fileID, export
 			fileID, file.MimeType, supportedExports)
 	}
 	return svc.DownloadTo(ctx, fileID, w)
-}
-
-// writeFile creates the destination's parent dirs as needed, then streams the
-// downloaded bytes into it through the config's afero FS.
-func writeFile(fs afero.Fs, out string, stream func(io.Writer) error) error {
-	if dir := path.Dir(out); dir != "" && dir != "." {
-		if err := fs.MkdirAll(dir, 0o755); err != nil {
-			return fmt.Errorf("creating directory for --out %s: %w", out, err)
-		}
-	}
-	f, err := fs.OpenFile(out, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("opening --out %s: %w", out, err)
-	}
-	if err := stream(f); err != nil {
-		_ = f.Close()
-		return err
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("closing --out %s: %w", out, err)
-	}
-	return nil
 }

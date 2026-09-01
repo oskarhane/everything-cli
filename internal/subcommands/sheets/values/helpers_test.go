@@ -105,8 +105,8 @@ func newLeafCmdWithFs(build func(*app.Config, service.Dialer[service.SheetValues
 	return build(cfg, fakeNewSvc(svc))
 }
 
-// writeFile seeds one file on fs.
-func writeFile(t *testing.T, fs afero.Fs, path, content string) {
+// writeTestFile seeds one file on fs.
+func writeTestFile(t *testing.T, fs afero.Fs, path, content string) {
 	t.Helper()
 	require.NoError(t, afero.WriteFile(fs, path, []byte(content), 0o600))
 }
