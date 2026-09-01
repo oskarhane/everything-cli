@@ -130,7 +130,7 @@ func TestAddFlowErrorPropagates(t *testing.T) {
 
 	_, err := execute(t, root, out, "account", "add", "work")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "authorizing account \"work\"")
+	assert.Contains(t, err.Error(), "adding account \"work\"")
 	assert.Contains(t, err.Error(), "flow blew up")
 
 	accounts, err := newStore(t, cfg).List()

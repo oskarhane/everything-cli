@@ -68,16 +68,21 @@ func copyLegacyDir(fsys afero.Fs, newRoot string) error {
 		if err != nil {
 			return fmt.Errorf("reading legacy file: %w", err)
 		}
-		defer func() { _ = src.Close() }()
 		// O_EXCL: the new dir was absent above, so any existing target is
 		// unexpected and must not be overwritten.
 		dst, err := fsys.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePermPrivate)
 		if err != nil {
+			_ = src.Close()
 			return fmt.Errorf("creating migrated file: %w", err)
 		}
 		if _, err := io.Copy(dst, src); err != nil {
+			_ = src.Close()
 			_ = dst.Close()
 			return fmt.Errorf("copying legacy file: %w", err)
+		}
+		if err := src.Close(); err != nil {
+			_ = dst.Close()
+			return fmt.Errorf("closing legacy file: %w", err)
 		}
 		if err := dst.Close(); err != nil {
 			return fmt.Errorf("closing migrated file: %w", err)

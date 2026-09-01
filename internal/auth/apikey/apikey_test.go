@@ -215,13 +215,12 @@ func TestSecretFields(t *testing.T) {
 func TestKeyRegisteredForRedaction(t *testing.T) {
 	s := newTestStrategy(t, linearConfig)
 	s.getenv = func(string) string { return "" }
-	s.prompt = func() (string, error) { return "test-key-redact", nil }
 	store, fs := newTestStore(t)
 
 	// Inside the prompt the key exists but Add has not captured it yet;
 	// nothing has had a chance to print it.
 	s.prompt = func() (string, error) {
-		assert.NotContains(t, Redact("test-key-redact"), redacted,
+		assert.NotContains(t, auth.Redact("test-key-redact"), "***",
 			"registration happens at capture, not before the key exists")
 		return "test-key-redact", nil
 	}
@@ -230,15 +229,15 @@ func TestKeyRegisteredForRedaction(t *testing.T) {
 	require.NoError(t, err)
 
 	// After Add, any output string carrying the key is scrubbed.
-	out := Redact("name: work\nauth:\n  api_key: test-key-redact\n")
+	out := auth.Redact("name: work\nauth:\n  api_key: test-key-redact\n")
 	assert.NotContains(t, out, "test-key-redact")
-	assert.Contains(t, out, redacted)
+	assert.Contains(t, out, "***")
 
 	// The persisted account document — what a generic account get would
 	// render — is safe once redacted.
 	raw, err := afero.ReadFile(fs, "/cfg/accounts/linear/work.json")
 	require.NoError(t, err)
-	scrubbed := Redact(string(raw))
+	scrubbed := auth.Redact(string(raw))
 	assert.NotContains(t, scrubbed, "test-key-redact")
 
 	// After Client re-reads the key from disk (a fresh process in real
@@ -247,5 +246,5 @@ func TestKeyRegisteredForRedaction(t *testing.T) {
 		Name: "work", Provider: "linear", Auth: json.RawMessage(`{"api_key":"test-key-client"}`),
 	})
 	require.NoError(t, err)
-	assert.NotContains(t, Redact("leak: test-key-client"), "test-key-client")
+	assert.NotContains(t, auth.Redact("leak: test-key-client"), "test-key-client")
 }

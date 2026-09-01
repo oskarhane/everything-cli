@@ -63,7 +63,7 @@ google-cli account add work --credentials ~/google/credentials.json --scopes htt
 				Scopes:          scopes,
 			})
 			if err != nil {
-				return fmt.Errorf("authorizing account %q: %w", args[0], err)
+				return fmt.Errorf("adding account %q: %w", args[0], err)
 			}
 
 			view := addedAccount{Name: acct.Name, Email: acct.Email}

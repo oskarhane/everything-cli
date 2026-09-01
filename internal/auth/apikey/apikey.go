@@ -92,7 +92,7 @@ func (s *Strategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts 
 		return nil, err
 	}
 	// Mint point (AGENTS.md rule): register before any output path exists.
-	RegisterSecret(key)
+	auth.RegisterSecret(key)
 	payload, err := json.Marshal(authPayload{APIKey: key})
 	if err != nil {
 		return nil, fmt.Errorf("encoding auth payload: %w", err)
@@ -163,7 +163,7 @@ func (s *Strategy) Client(_ context.Context, acct *config.Account) (*http.Client
 		return nil, fmt.Errorf("account %q holds no API key", acct.Name)
 	}
 	// Read point: a key restored from disk must be scrubbed from output too.
-	RegisterSecret(payload.APIKey)
+	auth.RegisterSecret(payload.APIKey)
 	base := http.DefaultTransport
 	if http.DefaultClient.Transport != nil {
 		base = http.DefaultClient.Transport

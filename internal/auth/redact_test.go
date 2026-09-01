@@ -25,6 +25,23 @@ func TestRegisterSecretIgnoresEmpty(t *testing.T) {
 	assert.Equal(t, "still here", Redact("still here"))
 }
 
+// TestRedactScrubsEveryOccurrence: a secret appearing several times is
+// scrubbed at every occurrence.
+func TestRedactScrubsEveryOccurrence(t *testing.T) {
+	RegisterSecret("redact-test-multi")
+	out := Redact("a redact-test-multi b redact-test-multi")
+	assert.NotContains(t, out, "redact-test-multi")
+	assert.Equal(t, "a *** b ***", out)
+}
+
+// TestRegisterSecretIsIdempotent: re-registering the same value changes
+// nothing (the registry is a set).
+func TestRegisterSecretIsIdempotent(t *testing.T) {
+	RegisterSecret("redact-test-once")
+	RegisterSecret("redact-test-once")
+	assert.Equal(t, "***", Redact("redact-test-once"))
+}
+
 // TestSaveAccountRegistersTokenSecrets: the save point registers both token
 // values so a caller persisting a token minted outside RunFlowWith is still
 // covered.
