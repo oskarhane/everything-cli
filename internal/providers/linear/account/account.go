@@ -1,0 +1,36 @@
+// Package account implements the `linear account` subcommands: managing
+// Linear's provider-scoped API-key accounts and the provider's default
+// account.
+package account
+
+import (
+	"github.com/spf13/cobra"
+
+	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/auth"
+)
+
+// StrategyFactory builds the auth strategy account add onboards through.
+// Production wires the linear provider's API-key strategy; tests substitute
+// fakes so the flag/env/prompt capture paths run hermetically.
+type StrategyFactory func() auth.Strategy
+
+// NewCmd builds the linear account parent command, scoped to the provider
+// ID so accounts resolve under accounts/<provider>/ only. Every leaf
+// inherits the root's persistent flags (--account, --format, --debug).
+func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "account",
+		Short: "Manage Linear accounts and their API keys",
+		Long: "Manage Linear accounts: add them with a personal API key, " +
+			"list them, inspect one, pick the default account, and remove them.",
+	}
+
+	cmd.AddCommand(newListCmd(cfg, providerID))
+	cmd.AddCommand(newAddCmd(cfg, providerID, newStrategy))
+	cmd.AddCommand(newGetCmd(cfg, providerID))
+	cmd.AddCommand(newUseCmd(cfg, providerID))
+	cmd.AddCommand(newRemoveCmd(cfg, providerID))
+
+	return cmd
+}
