@@ -11,16 +11,20 @@ description: >
   or free/busy time; or list, get, create, upload, download, trash, delete,
   share, and unshare Drive files, and read or edit Google Docs (text),
   Spreadsheets (values), and Presentations (text); or add, switch between,
-  and inspect Google accounts via OAuth. Skip for Meet, Chrome, or anything
-  the gcloud CLI manages (projects, Cloud SDK services) — google-cli covers
-  only Gmail, Google Calendar, Drive, Docs, Sheets, and Slides.
+  and inspect Google accounts via OAuth; or fetch YouTube video metadata
+  and timed transcripts with `youtube metadata` / `youtube transcript`
+  (any watch URL or video ID — no account or OAuth needed). Skip for Meet,
+  Chrome, or anything the gcloud CLI manages (projects, Cloud SDK services)
+  — google-cli covers only Gmail, Google Calendar, Drive, Docs, Sheets,
+  Slides, and YouTube metadata/transcripts.
 version: dev
 ---
 
 # google-cli
 
 A command-line tool for managing Gmail, Google Calendar, Drive, Docs,
-Sheets, and Slides across multiple Google accounts. `google-cli` is the
+Sheets, and Slides across multiple Google accounts — and for YouTube video
+metadata and timed transcripts without any account. `google-cli` is the
 binary name; the command layout is `google-cli <resource> <action>`.
 
 ## Overview
@@ -31,6 +35,11 @@ binary name; the command layout is `google-cli <resource> <action>`.
 - Token cache at `~/.config/google-cli/accounts/<name>.json` (mode 0600);
   override the location with `$GOOGLE_CLI_CONFIG_DIR`. Token values are never
   printed in any output format.
+- No-account YouTube: `youtube transcript` and `youtube metadata` work on any
+  watch URL (`?v=...`), youtu.be / shorts / embed / live link, or bare
+  11-character video ID, via YouTube's unofficial InnerTube endpoint — no
+  OAuth, no API key of your own (details and caveats in
+  [references/youtube.md](references/youtube.md)).
 
 ## Setup
 
@@ -75,6 +84,7 @@ harness detected (→ `toon`) > interactive TTY (→ `table`) > piped (→ `json
 | Docs: read and edit Google Doc text | [references/docs.md](references/docs.md) |
 | Sheets: spreadsheet metadata and cell values | [references/sheets.md](references/sheets.md) |
 | Slides: presentation text | [references/slides.md](references/slides.md) |
+| YouTube: video metadata and timed transcripts (`youtube metadata`, `youtube transcript`) | [references/youtube.md](references/youtube.md) |
 
 ## Skill bundle management
 
@@ -144,6 +154,10 @@ hint to `export GITHUB_TOKEN` when the GitHub API rate limit is hit.
   never printed — `account get` shows metadata only.
 - `--max` budgets API paging (default 25 on gmail list commands and
   `drive file list`, 250 on calendar event list/instances; `0` = no cap).
+- `youtube transcript` deviates from the auto-format table above: when
+  piped it streams plain caption text (not JSON), and `--raw` forces that
+  even on a TTY; only an explicit `--format` renders the structured
+  report. `--out <file>` always writes plain text, like `docs get`.
 - `gmail message get --raw` prints the RFC 2822 message with control bytes
   stripped.
 - `$GOOGLE_CLI_CONFIG_DIR` relocates the whole token cache.
