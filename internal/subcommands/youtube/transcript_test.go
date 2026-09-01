@@ -129,6 +129,24 @@ func TestTranscriptRawSanitizesControlBytes(t *testing.T) {
 	}
 }
 
+func TestTranscriptOutSanitizesControlBytes(t *testing.T) {
+	// The --out file sink shares writeRaw with stdout, so the same
+	// sanitization applies — pin it explicitly rather than relying on the
+	// shared-chokepoint structure.
+	fake := seedTranscriptFake()
+	fake.segments = []yt.Segment{{StartMS: 0, DurationMS: 100, Text: "\x1b[31mred\x1b[0m"}}
+	stubTerminal(t, false)
+	fs := afero.NewMemMapFs()
+	cmd := newLeafCmdWithFs(newTranscriptCmd, fake, "", fs)
+
+	out := cmdtest.RunCmd(t, cmd, videoID, "--out", "notes.txt")
+
+	require.Empty(t, out)
+	data, err := afero.ReadFile(fs, "notes.txt")
+	require.NoError(t, err)
+	require.Equal(t, "?[31mred?[0m\n", string(data), "--out file contents must be control-byte sanitized too")
+}
+
 func TestTranscriptOutWritesFile(t *testing.T) {
 	fake := seedTranscriptFake()
 	stubTerminal(t, false)
