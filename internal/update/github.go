@@ -13,8 +13,13 @@ import (
 
 const (
 	defaultGitHubBase = "https://api.github.com"
-	defaultRepo       = "oskarhane/everything-cli"
-	acceptHeader      = "application/vnd.github+json"
+	// defaultRepo is the GitHub repo hosting the releases. The GitHub repo
+	// has NOT been renamed yet — it is still oskarhane/google-cli today
+	// (scripts/install.sh agrees). Flip this to oskarhane/everything-cli
+	// when the repo is renamed on GitHub; the module/binary rename is
+	// independent of that.
+	defaultRepo  = "oskarhane/google-cli"
+	acceptHeader = "application/vnd.github+json"
 
 	// maxBodyBytes caps how many bytes are read from any single response
 	// body. Release metadata responses are tiny (a few KB); the largest
@@ -70,7 +75,7 @@ type HTTPClient struct {
 }
 
 // NewClient builds a GitHub releases Client. Empty baseURL or repo fall
-// back to https://api.github.com and oskarhane/everything-cli.
+// back to https://api.github.com and defaultRepo.
 func NewClient(baseURL, repo string) *HTTPClient {
 	if baseURL == "" {
 		baseURL = defaultGitHubBase

@@ -189,6 +189,13 @@ func TestReleaseAssetLookup(t *testing.T) {
 	}
 }
 
+// TestDefaultRepo pins the release repo slug. It must stay
+// "oskarhane/google-cli" — matching scripts/install.sh's REPO — until the
+// GitHub repo is renamed; flip it deliberately at that point.
+func TestDefaultRepo(t *testing.T) {
+	assert.Equal(t, "oskarhane/google-cli", defaultRepo)
+}
+
 func TestAssetName(t *testing.T) {
 	assert.Equal(t, "everything-cli_darwin_arm64.tar.gz", AssetName("darwin", "arm64"))
 	assert.Equal(t, "everything-cli_linux_amd64.tar.gz", AssetName("linux", "amd64"))

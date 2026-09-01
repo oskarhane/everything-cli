@@ -58,5 +58,5 @@ jobs:
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
               go build -trimpath \
               -ldflags "-s -w" \
-              -o "dist/google-cli_${os}_${arch}/google-cli" .
+              -o "dist/everything-cli_${os}_${arch}/everything-cli" .
           done

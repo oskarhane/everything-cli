@@ -1,5 +1,6 @@
 #!/bin/sh
-# google-cli installer: curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+# everything-cli installer: curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+# (pages URL still uses the google-cli repo slug until the GitHub repo is renamed)
 set -eu
 
 REPO=oskarhane/google-cli

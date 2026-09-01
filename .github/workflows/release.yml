@@ -83,13 +83,13 @@ jobs:
             arch="${platform#*/}"
             CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" \
               go build -trimpath \
-              -ldflags "-s -w -X github.com/oskarhane/google-cli/internal/app.Version=${{ steps.ver.outputs.version }}" \
-              -o "dist/google-cli_${os}_${arch}/google-cli" .
-            tar -czf "dist/google-cli_${os}_${arch}.tar.gz" \
-              -C "dist/google-cli_${os}_${arch}" google-cli
+              -ldflags "-s -w -X github.com/oskarhane/everything-cli/internal/app.Version=${{ steps.ver.outputs.version }}" \
+              -o "dist/everything-cli_${os}_${arch}/everything-cli" .
+            tar -czf "dist/everything-cli_${os}_${arch}.tar.gz" \
+              -C "dist/everything-cli_${os}_${arch}" everything-cli
           done
-          rm -rf dist/google-cli_*/
-          (cd dist && sha256sum google-cli_*.tar.gz > checksums.txt)
+          rm -rf dist/everything-cli_*/
+          (cd dist && sha256sum everything-cli_*.tar.gz > checksums.txt)
 
       - name: Tag and push
         run: |
