@@ -15,3 +15,23 @@ var ScopesGmail = []string{
 var ScopesCalendar = []string{
 	"https://www.googleapis.com/auth/calendar",
 }
+
+// ScopesDrive grants full Google Drive access: files and sharing.
+var ScopesDrive = []string{
+	"https://www.googleapis.com/auth/drive",
+}
+
+// ScopesDocs grants full Google Docs access.
+var ScopesDocs = []string{
+	"https://www.googleapis.com/auth/documents",
+}
+
+// ScopesSheets grants full Google Sheets access.
+var ScopesSheets = []string{
+	"https://www.googleapis.com/auth/spreadsheets",
+}
+
+// ScopesSlides grants full Google Slides access.
+var ScopesSlides = []string{
+	"https://www.googleapis.com/auth/presentations",
+}

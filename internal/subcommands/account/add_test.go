@@ -40,6 +40,22 @@ func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 	assert.Equal(t, "secret-access-work", saved.Token.AccessToken, "the token is cached on disk")
 }
 
+// TestDefaultScopes pins the exact default scope set: full Gmail, Calendar,
+// Drive, Docs, Sheets and Slides access, plus userinfo.email.
+func TestDefaultScopes(t *testing.T) {
+	assert.Equal(t, []string{
+		"https://www.googleapis.com/auth/gmail.modify",
+		"https://www.googleapis.com/auth/gmail.send",
+		"https://www.googleapis.com/auth/gmail.compose",
+		"https://www.googleapis.com/auth/calendar",
+		"https://www.googleapis.com/auth/drive",
+		"https://www.googleapis.com/auth/documents",
+		"https://www.googleapis.com/auth/spreadsheets",
+		"https://www.googleapis.com/auth/presentations",
+		"https://www.googleapis.com/auth/userinfo.email",
+	}, defaultScopes())
+}
+
 // TestAddScopesFlag: --scopes overrides the default set, splitting on commas
 // and trimming blanks.
 func TestAddScopesFlag(t *testing.T) {

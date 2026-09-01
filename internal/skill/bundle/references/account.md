@@ -16,7 +16,8 @@ google-cli account list --format json
 
 Authorize a new account via OAuth. Flags: `--credentials <path>` (explicit
 OAuth client credentials.json), `--scopes <csv>` (empty = Gmail
-modify/send/compose + Calendar + userinfo.email).
+modify/send/compose + Calendar + Drive + Docs + Sheets + Slides +
+userinfo.email).
 
 ```sh
 google-cli account add work

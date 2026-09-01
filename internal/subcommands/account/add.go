@@ -70,15 +70,20 @@ google-cli account add work --credentials ~/google/credentials.json --scopes htt
 	cmd.Flags().StringVar(&credentials, "credentials", "",
 		"Path to OAuth app credentials JSON (empty = auto-resolve)")
 	cmd.Flags().StringVar(&scopesFlag, "scopes", "",
-		"Comma-separated OAuth scopes (empty = Gmail + Calendar + userinfo.email)")
+		"Comma-separated OAuth scopes (empty = Gmail + Calendar + Drive + Docs + Sheets + Slides + userinfo.email)")
 	return cmd
 }
 
 // defaultScopes returns the scopes granted when --scopes is not given: full
-// Gmail and Calendar access, plus userinfo.email.
+// Gmail, Calendar, Drive, Docs, Sheets and Slides access, plus
+// userinfo.email.
 func defaultScopes() []string {
 	scopes := append([]string{}, auth.ScopesGmail...)
 	scopes = append(scopes, auth.ScopesCalendar...)
+	scopes = append(scopes, auth.ScopesDrive...)
+	scopes = append(scopes, auth.ScopesDocs...)
+	scopes = append(scopes, auth.ScopesSheets...)
+	scopes = append(scopes, auth.ScopesSlides...)
 	return append(scopes, auth.ScopeUserEmail)
 }
 
