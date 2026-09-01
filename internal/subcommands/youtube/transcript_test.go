@@ -98,6 +98,37 @@ func TestTranscriptRawForcesPlainTextOnTTY(t *testing.T) {
 	require.NotContains(t, out, "VIDEO_ID", "--raw must bypass the table report")
 }
 
+func TestTranscriptRawSanitizesControlBytes(t *testing.T) {
+	// Caption text is creator-controlled: control bytes must be neutralized
+	// on the raw path (which bypasses output.Print) so a malicious video
+	// cannot inject ANSI styling or OSC 52 clipboard writes into the user's
+	// terminal. StripControl replaces C0 bytes (and DEL) with "?", keeping
+	// the per-line \n framing.
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{"ANSI red sequence neutralized", "\x1b[31mred\x1b[0m", "?[31mred?[0m\n"},
+		{"BEL byte neutralized", "ring\x07bell", "ring?bell\n"},
+		{"plain text unchanged", "hello world", "hello world\n"},
+		{"tab and newline preserved", "a\tb\nc", "a\tb\nc\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := seedTranscriptFake()
+			fake.segments = []yt.Segment{{StartMS: 0, DurationMS: 100, Text: tt.text}}
+			stubTerminal(t, false)
+
+			out := cmdtest.RunCmd(t, newLeafCmd(newTranscriptCmd, fake, ""), videoID)
+
+			require.Equal(t, tt.want, out, "C0 control bytes must render as ? on the piped raw path")
+			require.NotContains(t, out, "\x1b", "no raw ESC byte may reach stdout")
+			require.NotContains(t, out, "\x07", "no raw BEL byte may reach stdout")
+		})
+	}
+}
+
 func TestTranscriptOutWritesFile(t *testing.T) {
 	fake := seedTranscriptFake()
 	stubTerminal(t, false)

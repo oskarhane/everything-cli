@@ -73,11 +73,14 @@ google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 				return fmt.Errorf("video %s: %w", id, err)
 			}
 
-			// writeRaw emits one caption line per segment, streamed verbatim
-			// like docs get: no table/JSON framing, no rewriting.
+			// writeRaw emits one caption line per segment, streamed plainly
+			// like docs get: no table/JSON framing. The text is still passed
+			// through output.StripControl first — caption text is
+			// creator-controlled, so control bytes (ANSI escapes, OSC 52)
+			// must be neutralized before they reach the user's terminal.
 			writeRaw := func(w io.Writer) error {
 				for _, seg := range segs {
-					if _, err := fmt.Fprintln(w, seg.Text); err != nil {
+					if _, err := fmt.Fprintln(w, output.StripControl(seg.Text)); err != nil {
 						return err
 					}
 				}

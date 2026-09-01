@@ -27,6 +27,9 @@ the token cache.
     terminal.
   - `--out <file>` — write the plain caption text to a file instead of
     stdout (beats everything, like `docs get --out`).
+  - Plain-text caption lines are control-byte sanitized before writing —
+    caption text is creator-controlled, so C0 bytes (ANSI/OSC terminal
+    escapes) are replaced with `?` (tabs and newlines are preserved).
 - Rendering: piped/non-TTY stdout streams plain text (one caption line per
   segment); an interactive terminal shows the structured report as a table;
   an explicit `--format json|table|toon` always renders the structured
