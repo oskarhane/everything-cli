@@ -199,7 +199,8 @@ func TestAccountFileJSONShape(t *testing.T) {
 	var raw map[string]any
 	require.NoError(t, json.Unmarshal(data, &raw))
 
-	assert.ElementsMatch(t, []string{"name", "email", "scopes", "token"}, keysOf(raw))
+	assert.ElementsMatch(t, []string{"name", "provider", "email", "scopes", "token"}, keysOf(raw))
+	assert.Equal(t, "google", raw["provider"])
 	token, ok := raw["token"].(map[string]any)
 	require.True(t, ok, "token must be an object")
 	assert.ElementsMatch(t,

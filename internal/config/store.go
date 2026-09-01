@@ -21,6 +21,13 @@ const dirPermPrivate fs.FileMode = 0o700
 
 // Store persists accounts and settings under the config directory on an
 // injectable afero filesystem.
+//
+// Accounts live nested per provider at accounts/<provider>/<name>.json.
+// The legacy pre-provider methods (List, Get, Remove, DefaultAccount,
+// SetDefaultAccount, AccountPath) delegate to the google provider so
+// existing callers compile and behave unchanged; legacy flat
+// accounts/<name>.json files load as google accounts and are rewritten to
+// the nested layout on the next Save.
 type Store struct {
 	fs   afero.Fs
 	root string
@@ -45,31 +52,79 @@ func (s *Store) CredentialsPath() string {
 	return filepath.Join(s.root, "credentials.json")
 }
 
-// AccountPath returns the file backing the named account.
+// AccountPath returns the file backing the named Google account — the
+// legacy spelling of AccountPathFor(ProviderGoogle, name).
 func (s *Store) AccountPath(name string) string {
-	return filepath.Join(s.root, "accounts", name+".json")
+	return s.AccountPathFor(ProviderGoogle, name)
+}
+
+// AccountPathFor returns the file backing the named provider account:
+// <configDir>/accounts/<provider>/<name>.json.
+func (s *Store) AccountPathFor(provider, name string) string {
+	return filepath.Join(s.providerDir(provider), name+".json")
+}
+
+// legacyAccountPath returns the pre-provider flat location of a Google
+// account file: <configDir>/accounts/<name>.json.
+func (s *Store) legacyAccountPath(name string) string {
+	return filepath.Join(s.accountsDir(), name+".json")
 }
 
 func (s *Store) accountsDir() string { return filepath.Join(s.root, "accounts") }
 
-func (s *Store) settingsPath() string { return filepath.Join(s.root, "config.json") }
+func (s *Store) providerDir(provider string) string {
+	return filepath.Join(s.accountsDir(), provider)
+}
 
-// List returns all persisted accounts sorted by name. A store with no
-// accounts yet lists nothing without error.
+// List returns all persisted Google accounts sorted by name — the legacy
+// spelling of ListProvider(ProviderGoogle).
 func (s *Store) List() ([]Account, error) {
-	entries, err := afero.ReadDir(s.fs, s.accountsDir())
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("listing accounts: %w", err)
+	return s.ListProvider(ProviderGoogle)
+}
+
+// ListProvider returns the provider's persisted accounts sorted by name. A
+// provider with no accounts yet lists nothing without error. Google
+// additionally picks up legacy flat accounts/<name>.json files not yet
+// rewritten to the nested layout; a name present in both resolves to the
+// nested file.
+func (s *Store) ListProvider(provider string) ([]Account, error) {
+	if err := validateProvider(provider); err != nil {
+		return nil, err
 	}
-	accounts := make([]Account, 0, len(entries))
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
-			continue
+	seen := map[string]bool{}
+	var names []string
+	collect := func(dir string) error {
+		entries, err := afero.ReadDir(s.fs, dir)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
+			return fmt.Errorf("listing accounts: %w", err)
 		}
-		a, err := s.Get(strings.TrimSuffix(e.Name(), ".json"))
+		for _, e := range entries {
+			if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+				continue
+			}
+			name := strings.TrimSuffix(e.Name(), ".json")
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			names = append(names, name)
+		}
+		return nil
+	}
+	if err := collect(s.providerDir(provider)); err != nil {
+		return nil, err
+	}
+	if provider == ProviderGoogle {
+		if err := collect(s.accountsDir()); err != nil {
+			return nil, err
+		}
+	}
+	accounts := make([]Account, 0, len(names))
+	for _, name := range names {
+		a, err := s.GetProvider(provider, name)
 		if err != nil {
 			return nil, err
 		}
@@ -79,12 +134,63 @@ func (s *Store) List() ([]Account, error) {
 	return accounts, nil
 }
 
-// Get returns the named account.
+// ListAll returns every account of every provider, sorted by provider then
+// name — the aggregate behind the read-only top-level account list.
+// A store with no accounts yet lists nothing without error.
+func (s *Store) ListAll() ([]Account, error) {
+	entries, err := afero.ReadDir(s.fs, s.accountsDir())
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("listing accounts: %w", err)
+	}
+	// Google is always probed: legacy flat files may exist without a
+	// google/ subdirectory.
+	providers := map[string]bool{ProviderGoogle: true}
+	for _, e := range entries {
+		if e.IsDir() && validProviderID(e.Name()) {
+			providers[e.Name()] = true
+		}
+	}
+	var all []Account
+	for provider := range providers {
+		accounts, err := s.ListProvider(provider)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, accounts...)
+	}
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].Provider != all[j].Provider {
+			return all[i].Provider < all[j].Provider
+		}
+		return all[i].Name < all[j].Name
+	})
+	return all, nil
+}
+
+// Get returns the named Google account — the legacy spelling of
+// GetProvider(ProviderGoogle, name).
 func (s *Store) Get(name string) (*Account, error) {
+	return s.GetProvider(ProviderGoogle, name)
+}
+
+// GetProvider returns the named provider account. For google, a missing
+// nested file falls back to the legacy flat accounts/<name>.json. Files
+// written before the provider field existed load as accounts of the
+// provider they were read under.
+func (s *Store) GetProvider(provider, name string) (*Account, error) {
+	if err := validateProvider(provider); err != nil {
+		return nil, err
+	}
 	if !validAccountName(name) {
 		return nil, fmt.Errorf("invalid account name %q", name)
 	}
-	data, err := afero.ReadFile(s.fs, s.AccountPath(name))
+	data, err := afero.ReadFile(s.fs, s.AccountPathFor(provider, name))
+	if err != nil && provider == ProviderGoogle && errors.Is(err, fs.ErrNotExist) {
+		data, err = afero.ReadFile(s.fs, s.legacyAccountPath(name))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("reading account %q: %w", name, err)
 	}
@@ -92,29 +198,46 @@ func (s *Store) Get(name string) (*Account, error) {
 	if err := json.Unmarshal(data, &a); err != nil {
 		return nil, fmt.Errorf("parsing account %q: %w", name, err)
 	}
+	if a.Provider == "" {
+		a.Provider = provider
+	}
 	return &a, nil
 }
 
-// Save persists acct as <configDir>/accounts/<name>.json with 0600
-// permissions, atomically replacing any existing file (and any symlink at
-// that path, which is replaced rather than followed).
+// Save persists acct as <configDir>/accounts/<provider>/<name>.json with
+// 0600 permissions, atomically replacing any existing file (and any symlink
+// at that path, which is replaced rather than followed). An empty
+// acct.Provider means google.
 //
-// Accounts are deduplicated by email: when an account with the same email
-// already exists under a different name, that record is updated under its
-// original name and acct.Name is rewritten to it, so no duplicate account is
-// created.
+// Accounts are deduplicated by email within their provider: when an account
+// with the same non-empty email already exists under a different name, that
+// record is updated under its original name and acct.Name is rewritten to
+// it, so no duplicate account is created.
+//
+// A google save also removes any legacy flat accounts/<name>.json for the
+// saved name(s), completing the migration to the nested layout. When the
+// provider has no default account yet, the saved account becomes it.
 func (s *Store) Save(acct *Account) error {
+	if acct.Provider == "" {
+		acct.Provider = ProviderGoogle
+	}
+	if err := validateProvider(acct.Provider); err != nil {
+		return err
+	}
 	if !validAccountName(acct.Name) {
 		return fmt.Errorf("invalid account name %q", acct.Name)
 	}
-	existing, err := s.findByEmail(acct.Email)
-	if err != nil {
-		return err
+	origName := acct.Name
+	if acct.Email != "" {
+		existing, err := s.findByEmail(acct.Provider, acct.Email)
+		if err != nil {
+			return err
+		}
+		if existing != "" && existing != acct.Name {
+			acct.Name = existing
+		}
 	}
-	if existing != "" && existing != acct.Name {
-		acct.Name = existing
-	}
-	if err := s.fs.MkdirAll(s.accountsDir(), dirPermPrivate); err != nil {
+	if err := s.fs.MkdirAll(s.providerDir(acct.Provider), dirPermPrivate); err != nil {
 		return fmt.Errorf("creating accounts dir: %w", err)
 	}
 	if err := s.hardenDir(s.root); err != nil {
@@ -123,13 +246,35 @@ func (s *Store) Save(acct *Account) error {
 	if err := s.hardenDir(s.accountsDir()); err != nil {
 		return fmt.Errorf("tightening accounts dir permissions: %w", err)
 	}
+	if err := s.hardenDir(s.providerDir(acct.Provider)); err != nil {
+		return fmt.Errorf("tightening provider dir permissions: %w", err)
+	}
 	data, err := json.MarshalIndent(acct, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encoding account %q: %w", acct.Name, err)
 	}
 	data = append(data, '\n')
-	if err := s.writePrivate(s.AccountPath(acct.Name), data); err != nil {
+	if err := s.writePrivate(s.AccountPathFor(acct.Provider, acct.Name), data); err != nil {
 		return fmt.Errorf("writing account %q: %w", acct.Name, err)
+	}
+	if acct.Provider == ProviderGoogle {
+		// Rewrite legacy flat files to the nested layout: Remove unlinks
+		// the flat file (or a symlink at that path — Remove never follows
+		// it) now that the nested file holds the account.
+		for _, name := range []string{origName, acct.Name} {
+			if err := s.fs.Remove(s.legacyAccountPath(name)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("removing legacy account file %q: %w", name, err)
+			}
+		}
+	}
+	def, err := s.DefaultAccountFor(acct.Provider)
+	if err != nil {
+		return err
+	}
+	if def == "" {
+		if err := s.writeDefault(acct.Provider, acct.Name); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -195,76 +340,69 @@ func (s *Store) hardenDir(path string) error {
 	return nil
 }
 
-// Remove deletes the named account, clearing it as the default if it was.
+// Remove deletes the named Google account, clearing it as the default if it
+// was. This legacy spelling keeps the pre-provider default policy — clear,
+// never promote — so existing callers behave unchanged; new code should use
+// RemoveProvider, which auto-manages the provider default.
 func (s *Store) Remove(name string) error {
+	return s.remove(ProviderGoogle, name, false)
+}
+
+// RemoveProvider deletes the named provider account, from the nested file
+// and — for google — any legacy flat file. When the removed account was the
+// provider's default, another account of that provider is promoted (the
+// first by name, deterministically); the default is cleared when none
+// remain.
+func (s *Store) RemoveProvider(provider, name string) error {
+	return s.remove(provider, name, true)
+}
+
+func (s *Store) remove(provider, name string, promote bool) error {
+	if err := validateProvider(provider); err != nil {
+		return err
+	}
 	if !validAccountName(name) {
 		return fmt.Errorf("invalid account name %q", name)
 	}
-	if err := s.fs.Remove(s.AccountPath(name)); err != nil {
+	removed := false
+	if err := s.fs.Remove(s.AccountPathFor(provider, name)); err == nil {
+		removed = true
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("removing account %q: %w", name, err)
 	}
-	if def, err := s.DefaultAccount(); err == nil && def == name {
-		if err := s.clearDefault(); err != nil {
-			return err
+	if provider == ProviderGoogle {
+		if err := s.fs.Remove(s.legacyAccountPath(name)); err == nil {
+			removed = true
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("removing account %q: %w", name, err)
 		}
 	}
-	return nil
-}
-
-// DefaultAccount returns the default account name, or "" when unset.
-func (s *Store) DefaultAccount() (string, error) {
-	data, err := afero.ReadFile(s.fs, s.settingsPath())
+	if !removed {
+		return fmt.Errorf("removing account %q: %w", name, fs.ErrNotExist)
+	}
+	def, err := s.DefaultAccountFor(provider)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			return "", nil
-		}
-		return "", fmt.Errorf("reading settings: %w", err)
-	}
-	var cfg settings
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return "", fmt.Errorf("parsing settings: %w", err)
-	}
-	return cfg.DefaultAccount, nil
-}
-
-// SetDefaultAccount persists name as the default account. The account must
-// exist, so no dangling default can be recorded.
-func (s *Store) SetDefaultAccount(name string) error {
-	if _, err := s.Get(name); err != nil {
 		return err
 	}
-	if err := s.fs.MkdirAll(s.root, dirPermPrivate); err != nil {
-		return fmt.Errorf("creating config dir: %w", err)
+	if def != name {
+		return nil
 	}
-	if err := s.hardenDir(s.root); err != nil {
-		return fmt.Errorf("tightening config dir permissions: %w", err)
+	if promote {
+		accounts, err := s.ListProvider(provider)
+		if err != nil {
+			return err
+		}
+		if len(accounts) > 0 {
+			return s.writeDefault(provider, accounts[0].Name)
+		}
 	}
-	data, err := json.MarshalIndent(settings{DefaultAccount: name}, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encoding settings: %w", err)
-	}
-	data = append(data, '\n')
-	if err := s.writePrivate(s.settingsPath(), data); err != nil {
-		return fmt.Errorf("writing settings: %w", err)
-	}
-	return nil
+	return s.clearDefault(provider)
 }
 
-// settings is the <configDir>/config.json document.
-type settings struct {
-	DefaultAccount string `json:"default_account"`
-}
-
-func (s *Store) clearDefault() error {
-	if err := s.fs.Remove(s.settingsPath()); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("clearing default account: %w", err)
-	}
-	return nil
-}
-
-// findByEmail returns the name of the account with the given email, or "".
-func (s *Store) findByEmail(email string) (string, error) {
-	accounts, err := s.List()
+// findByEmail returns the name of the provider's account with the given
+// email, or "".
+func (s *Store) findByEmail(provider, email string) (string, error) {
+	accounts, err := s.ListProvider(provider)
 	if err != nil {
 		return "", err
 	}
@@ -274,6 +412,21 @@ func (s *Store) findByEmail(email string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// validateProvider rejects provider IDs that would escape the accounts dir.
+func validateProvider(provider string) error {
+	if !validProviderID(provider) {
+		return fmt.Errorf("invalid provider %q", provider)
+	}
+	return nil
+}
+
+// validProviderID applies the account-name rules to provider IDs: a
+// provider ID becomes a path segment under the accounts dir, so the same
+// escapes and control bytes must be rejected.
+func validProviderID(provider string) bool {
+	return validAccountName(provider)
 }
 
 // validAccountName rejects names that would escape the accounts dir, names

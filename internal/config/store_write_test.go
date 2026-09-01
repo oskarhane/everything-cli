@@ -40,7 +40,7 @@ func TestStoreSaveTightensPreexisting0600(t *testing.T) {
 	store, realFs := newOsStore(t)
 
 	path := store.AccountPath("work")
-	require.NoError(t, realFs.MkdirAll(store.accountsDir(), 0o700))
+	require.NoError(t, realFs.MkdirAll(filepath.Dir(path), 0o700))
 	require.NoError(t, os.WriteFile(path, []byte(`{"name":"work"}`), 0o644))
 
 	require.NoError(t, store.Save(&Account{
@@ -110,7 +110,7 @@ func TestStoreSaveLeavesNoTmpResidue(t *testing.T) {
 		}))
 	}
 
-	entries, err := os.ReadDir(store.accountsDir())
+	entries, err := os.ReadDir(store.providerDir(ProviderGoogle))
 	require.NoError(t, err)
 	names := make([]string, 0, len(entries))
 	for _, e := range entries {
@@ -188,7 +188,7 @@ func TestStoreSaveFailureKeepsOldContent(t *testing.T) {
 }
 
 // TestStoreSaveReplacesSymlink: S8 — OsFs write paths follow symlinks, so a
-// symlinked accounts/<name>.json used to redirect the token write outside
+// symlinked accounts/google/<name>.json used to redirect the token write outside
 // the config dir. The temp+rename write replaces the symlink instead: the
 // outside file is untouched and the path becomes a regular file.
 func TestStoreSaveReplacesSymlink(t *testing.T) {
@@ -197,14 +197,14 @@ func TestStoreSaveReplacesSymlink(t *testing.T) {
 	require.NoError(t, os.MkdirAll(outside, 0o700))
 	outsidePath := filepath.Join(outside, "evil.json")
 	// Must be parseable account JSON: Save's findByEmail reads every
-	// accounts/*.json, following the symlink on read before writing.
+	// accounts/google/*.json, following the symlink on read before writing.
 	outsideJSON := `{"name":"work","email":"attacker@example.com"}` + "\n"
 	require.NoError(t, os.WriteFile(outsidePath, []byte(outsideJSON), 0o600))
 
 	realFs := afero.NewOsFs()
 	store, err := NewStore(realFs, filepath.Join(root, "config"))
 	require.NoError(t, err)
-	require.NoError(t, realFs.MkdirAll(store.accountsDir(), 0o700))
+	require.NoError(t, realFs.MkdirAll(filepath.Dir(store.AccountPath("work")), 0o700))
 	require.NoError(t, os.Symlink(outsidePath, store.AccountPath("work")))
 
 	require.NoError(t, store.Save(&Account{

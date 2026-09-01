@@ -43,5 +43,5 @@ func TestNewStoreUsesResolvedDir(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "/custom/root", store.Dir())
 	assert.Equal(t, "/custom/root/credentials.json", store.CredentialsPath())
-	assert.Equal(t, "/custom/root/accounts/work.json", store.AccountPath("work"))
+	assert.Equal(t, "/custom/root/accounts/google/work.json", store.AccountPath("work"))
 }
