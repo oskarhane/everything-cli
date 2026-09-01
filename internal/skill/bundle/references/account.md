@@ -30,6 +30,20 @@ grants. The default set is full Gmail + Calendar + Drive/Docs/Sheets/Slides +
 userinfo.email; with a narrowed grant, Drive/Docs/Sheets/Slides commands fail
 fast with the missing scope and a re-consent action instead of returning raw
 403s from Google.
+
+Minimal Drive profile: grant `drive.file` instead of the full `drive` scope to
+reach only files this app created or opened — safe against untrusted doc
+content turning a share command into account-wide exfiltration. Example:
+
+```sh
+google-cli account add work --scopes https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/drive.file,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/presentations
+```
+
+File read/write leaves (list, get, create, upload, download, trash, untrash,
+delete) work under `drive.file`; the sharing commands (`drive file share`,
+`drive file unshare`, `drive file permissions`) require the full
+`https://www.googleapis.com/auth/drive` scope and fail fast with a re-consent
+action on a drive.file-only account.
 ## account get <name>
 
 Show account metadata (name, email, scopes, default). Token values are never

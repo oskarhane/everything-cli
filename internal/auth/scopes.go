@@ -28,6 +28,16 @@ var ScopesDrive = []string{
 	"https://www.googleapis.com/auth/drive",
 }
 
+// ScopeDriveFile grants access only to files this app created or opened: the
+// minimal Drive profile. It cannot reach account-wide files, so sharing
+// leaves still demand the full ScopesDrive grant.
+const ScopeDriveFile = "https://www.googleapis.com/auth/drive.file"
+
+// ScopesDriveDial are the scope alternatives a drive service dial accepts:
+// the full drive grant, or the minimal drive.file profile for accounts that
+// opt out of account-wide sharing power.
+var ScopesDriveDial = []string{ScopesDrive[0], ScopeDriveFile}
+
 // ScopesDocs grants full Google Docs access.
 var ScopesDocs = []string{
 	"https://www.googleapis.com/auth/documents",
@@ -71,4 +81,27 @@ func RequireScopes(acct *config.Account, required []string) error {
 	}
 	return fmt.Errorf("account %q is missing %s %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
 		acct.Name, label, strings.Join(missing, ", "))
+}
+
+// RequireAnyScopes is the alternatives-set twin of RequireScopes: it passes
+// when the account holds ANY ONE of required, and fails only when it holds
+// none, before any service is built or API call made. It errors with the same
+// re-consent action, naming every acceptable alternative. Accounts added via
+// account add without --scopes always pass; the guard only trips for narrowed
+// grants.
+func RequireAnyScopes(acct *config.Account, required []string) error {
+	if acct == nil {
+		return fmt.Errorf("no account: run \"google-cli account add <name>\" first")
+	}
+	granted := make(map[string]bool, len(acct.Scopes))
+	for _, s := range acct.Scopes {
+		granted[s] = true
+	}
+	for _, s := range required {
+		if granted[s] {
+			return nil
+		}
+	}
+	return fmt.Errorf("account %q is missing scope %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
+		acct.Name, strings.Join(required, " or "))
 }

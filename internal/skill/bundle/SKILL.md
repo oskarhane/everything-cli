@@ -40,7 +40,13 @@ binary name; the command layout is `google-cli <resource> <action>`.
 2. `google-cli account add <name>` — runs the OAuth flow, verifies identity,
    and stores the token. `--scopes` overrides the default scope set
    (Gmail modify/send/compose + Calendar + Drive + Docs + Sheets + Slides +
-   userinfo.email).
+   userinfo.email). Minimal Drive profile: swap `Drive` for
+   `https://www.googleapis.com/auth/drive.file` to reach only app-created
+   files, e.g. `google-cli account add work --scopes
+   https://www.googleapis.com/auth/gmail.modify,...,https://www.googleapis.com/auth/drive.file`
+   (details in [references/account.md](references/account.md)); sharing
+   commands (`drive file share`/`unshare`/`permissions`) still require the
+   full drive scope.
 3. `google-cli account use <name>` — set the default account. Every command
    also accepts a global `--account <name>` override.
 

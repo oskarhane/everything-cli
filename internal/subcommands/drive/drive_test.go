@@ -1,12 +1,22 @@
 package drive
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/oskarhane/google-cli/internal/output"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
+
+// TestMain pins the output seams so the host's harness env can't flip
+// expectations (same pattern as the other subcommand packages).
+func TestMain(m *testing.M) {
+	output.IsAgent = func() bool { return false }
+	output.StdoutIsTerminal = func() bool { return false }
+	os.Exit(m.Run())
+}
 
 func TestNewCmdRegistersFile(t *testing.T) {
 	cmd := NewCmd(cmdtest.NewTestConfig("json"))

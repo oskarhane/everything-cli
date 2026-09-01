@@ -1,9 +1,12 @@
 package drive
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
+
+	drive "google.golang.org/api/drive/v3"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +16,8 @@ import (
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/auth"
 	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive/file"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
 
 // installedAppCredentials is a minimal valid installed-app credentials file;
@@ -86,6 +91,108 @@ func TestDialRequiresDriveScope(t *testing.T) {
 			assert.Contains(t, err.Error(), `account "work"`)
 			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
 			assert.Contains(t, err.Error(), auth.ScopesDrive[0], "error must name the missing scope")
+		})
+	}
+}
+
+// fakeFileSvc is a FileService stub for the wiring tests below: only the
+// methods the sharing leaves and list call are implemented; the rest of the
+// surfaces are embedded and never invoked.
+type fakeFileSvc struct {
+	service.FileService
+	service.PermissionService
+}
+
+func (fakeFileSvc) ListFiles(context.Context, string, int64) ([]*drive.File, error) {
+	return nil, nil
+}
+
+func (fakeFileSvc) ListPermissions(context.Context, string) ([]*drive.Permission, error) {
+	return nil, nil
+}
+
+func (fakeFileSvc) GrantPermission(_ context.Context, _ string, p *drive.Permission) (*drive.Permission, error) {
+	return p, nil
+}
+
+func (fakeFileSvc) DeletePermission(context.Context, string, string) error { return nil }
+
+// TestDialAcceptsDriveFileScope pins the alternatives guard: a minimal
+// drive.file-only account (app-created files only) constructs the service for
+// the read/write file leaves without re-consent.
+func TestDialAcceptsDriveFileScope(t *testing.T) {
+	svc, err := dial(context.Background(), newDialConfig(t, "work", []string{auth.ScopeUserEmail, auth.ScopeDriveFile}))
+	require.NoError(t, err)
+	require.NotNil(t, svc)
+}
+
+// TestFileSharingLeavesRequireFullDriveScope pins the sharing guard: the
+// read/write leaves run on a drive.file-only account, but the sharing leaves
+// (permissions, share, unshare) refuse it — naming the full drive scope and
+// the re-consent action — before the dialer is ever called. A full-drive
+// account still shares.
+func TestFileSharingLeavesRequireFullDriveScope(t *testing.T) {
+	driveFileOnly := []string{auth.ScopeUserEmail, auth.ScopeDriveFile}
+	fullDrive := []string{auth.ScopeUserEmail, auth.ScopesDrive[0]}
+
+	tests := []struct {
+		name       string
+		scopes     []string
+		args       []string
+		wantDialed bool
+	}{
+		{
+			name:       "list runs on a drive.file-only account",
+			scopes:     driveFileOnly,
+			args:       []string{"list"},
+			wantDialed: true,
+		},
+		{
+			name:   "permissions is refused on a drive.file-only account",
+			scopes: driveFileOnly,
+			args:   []string{"permissions", "file_1"},
+		},
+		{
+			name:   "share is refused on a drive.file-only account",
+			scopes: driveFileOnly,
+			args:   []string{"share", "file_1", "--role", "reader", "--anyone"},
+		},
+		{
+			name:   "unshare is refused on a drive.file-only account",
+			scopes: driveFileOnly,
+			args:   []string{"unshare", "file_1", "--permission", "p1"},
+		},
+		{
+			name:       "share runs on a full-drive account",
+			scopes:     fullDrive,
+			args:       []string{"share", "file_1", "--role", "reader", "--anyone"},
+			wantDialed: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := newDialConfig(t, "work", tc.scopes)
+			dialed := false
+			cmd := file.NewCmd(cfg, func(context.Context) (service.FileService, error) {
+				dialed = true
+				return fakeFileSvc{}, nil
+			})
+			var out bytes.Buffer
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs(tc.args)
+			err := cmd.Execute()
+			if tc.wantDialed {
+				require.NoError(t, err)
+				require.True(t, dialed, "leaf must reach the dialer")
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), `account "work"`)
+			assert.Contains(t, err.Error(), auth.ScopesDrive[0], "error must name the full drive scope")
+			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			assert.False(t, dialed, "guard must fail before the dialer is called")
 		})
 	}
 }

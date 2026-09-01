@@ -25,6 +25,13 @@ func TestScopes(t *testing.T) {
 		"https://www.googleapis.com/auth/drive",
 	}, ScopesDrive)
 
+	assert.Equal(t, "https://www.googleapis.com/auth/drive.file", ScopeDriveFile)
+
+	assert.Equal(t, []string{
+		"https://www.googleapis.com/auth/drive",
+		ScopeDriveFile,
+	}, ScopesDriveDial)
+
 	assert.Equal(t, []string{
 		"https://www.googleapis.com/auth/documents",
 	}, ScopesDocs)
@@ -88,6 +95,59 @@ func TestRequireScopes(t *testing.T) {
 			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
 			for _, s := range tc.required {
 				assert.Contains(t, err.Error(), s, "error must name missing scope %s", s)
+			}
+		})
+	}
+}
+
+// TestRequireAnyScopes pins the alternatives guard: an account holding any
+// one of the required scopes passes, an account holding none fails with the
+// re-consent action naming every acceptable alternative.
+func TestRequireAnyScopes(t *testing.T) {
+	tests := []struct {
+		name     string
+		acct     *config.Account
+		required []string
+		wantErr  string
+	}{
+		{
+			name:     "full drive grant passes the drive dial set",
+			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesDrive[0]}},
+			required: ScopesDriveDial,
+		},
+		{
+			name:     "minimal drive.file-only grant passes the drive dial set",
+			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopeDriveFile}},
+			required: ScopesDriveDial,
+		},
+		{
+			name:     "grant outside the set fails naming both alternatives",
+			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesGmail[0]}},
+			required: ScopesDriveDial,
+			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive or https://www.googleapis.com/auth/drive.file: re-run "google-cli account add <name>" to consent (accounts added before Drive support need this once)`,
+		},
+		{
+			name:     "no account errors before any alternative check",
+			acct:     nil,
+			required: ScopesDriveDial,
+			wantErr:  `no account: run "google-cli account add <name>" first`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := RequireAnyScopes(tc.acct, tc.required)
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, tc.wantErr)
+			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			if tc.acct == nil {
+				return
+			}
+			for _, s := range tc.required {
+				assert.Contains(t, err.Error(), s, "error must name alternative scope %s", s)
 			}
 		})
 	}
