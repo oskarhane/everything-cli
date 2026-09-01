@@ -189,6 +189,53 @@ func TestAppendDocTextEmptyBody(t *testing.T) {
 	}
 }
 
+// TestInsertDocTextForwardsIndex drives InsertDocText over a fake batchUpdate:
+// the request must be exactly one insertText whose location.index is the
+// caller's index, forwarded untouched.
+func TestInsertDocTextForwardsIndex(t *testing.T) {
+	var got *docs.BatchUpdateDocumentRequest
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/v1/documents/doc-1:batchUpdate" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		req := &docs.BatchUpdateDocumentRequest{}
+		decodeInto(t, r, req)
+		got = req
+		writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+	})
+
+	if err := svc.InsertDocText(t.Context(), "doc-1", "up front", 1); err != nil {
+		t.Fatalf("InsertDocText: %v", err)
+	}
+	if len(got.Requests) != 1 {
+		t.Fatalf("batchUpdate sent %d requests, want 1", len(got.Requests))
+	}
+	ins := got.Requests[0].InsertText
+	if ins == nil {
+		t.Fatalf("request kind = %+v, want a single insertText", got.Requests[0])
+	}
+	if ins.Location == nil || ins.Location.Index != 1 {
+		t.Fatalf("insert index = %+v, want 1 (the caller's index, forwarded as-is)", ins.Location)
+	}
+	if ins.Text != "up front" {
+		t.Errorf("insert text = %q, want %q", ins.Text, "up front")
+	}
+}
+
+// TestInsertDocTextPropagatesAPIError guards the error path: an API failure
+// must surface wrapped, naming the document.
+func TestInsertDocTextPropagatesAPIError(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"error": {"code": 403, "message": "no access"}}`, http.StatusForbidden)
+	})
+
+	if err := svc.InsertDocText(t.Context(), "doc-1", "x", 1); err == nil {
+		t.Fatal("InsertDocText: want error on API failure, got nil")
+	}
+}
+
 // TestReplaceDocText drives ReplaceDocText over a fake batchUpdate: the
 // request must carry containsText (text + matchCase) and replaceText, and the
 // reply's occurrencesChanged must come back as the count.

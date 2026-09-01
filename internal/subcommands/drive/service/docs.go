@@ -12,11 +12,13 @@ import (
 // DocService is the Docs API surface the docs leaves use: thin ctx-first
 // wrappers, so fakes model documents, not call objects. GetDocText returns
 // the document's plain-text export (text/plain); AppendDocText adds text at
-// the very end of the body; ReplaceDocText replaces every occurrence of find
+// the very end of the body; InsertDocText inserts text before the given
+// Docs-API content index; ReplaceDocText replaces every occurrence of find
 // (case-sensitive iff matchCase) and returns how many occurrences changed.
 type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	AppendDocText(ctx context.Context, docID, text string) (err error)
+	InsertDocText(ctx context.Context, docID, text string, index int64) (err error)
 	ReplaceDocText(ctx context.Context, docID, find, replaceWith string, matchCase bool) (int, error)
 }
 
@@ -60,6 +62,24 @@ func (s *realDriveService) AppendDocText(ctx context.Context, docID, text string
 		}},
 	}).Context(ctx).Do(); err != nil {
 		return fmt.Errorf("appending text to document %s: %w", docID, err)
+	}
+	return nil
+}
+
+// InsertDocText inserts text immediately before the given Docs-API content
+// index (zero-based UTF-16 code units, as the API defines them) in ONE
+// batchUpdate carrying a single InsertTextRequest. The index is the caller's:
+// the leaf validates it, the service only forwards it.
+func (s *realDriveService) InsertDocText(ctx context.Context, docID, text string, index int64) error {
+	if _, err := s.docs.Documents.BatchUpdate(docID, &docs.BatchUpdateDocumentRequest{
+		Requests: []*docs.Request{{
+			InsertText: &docs.InsertTextRequest{
+				Location: &docs.Location{Index: index},
+				Text:     text,
+			},
+		}},
+	}).Context(ctx).Do(); err != nil {
+		return fmt.Errorf("inserting text into document %s: %w", docID, err)
 	}
 	return nil
 }
