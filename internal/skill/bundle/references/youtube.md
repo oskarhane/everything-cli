@@ -33,7 +33,7 @@ the token cache.
   report. Fields: `video_id`, `title`, `lang`, `is_generated`, `segments`
   — each segment has `start_ms`, `duration_ms`, and `text` (JSON/TOON carry
   the full timed array; the table cell shows a compact
-  "N segments · MM:SS" summary).
+  "N segments · total duration" summary).
 
 ```sh
 google-cli youtube transcript https://www.youtube.com/watch?v=dQw4w9WgXcQ
