@@ -119,6 +119,7 @@ func TestTranscriptTTYStructuredTable(t *testing.T) {
 	}
 	require.Contains(t, out, videoID)
 	require.Contains(t, out, "Never Gonna Give You Up")
+	require.Contains(t, out, "2 segments · 00:02", "segments cell summarizes count + total duration instead of dumping structs")
 }
 
 func TestTranscriptJSON(t *testing.T) {
@@ -181,6 +182,35 @@ func TestTranscriptOutWritesFile(t *testing.T) {
 	data, err := afero.ReadFile(fs, "out/notes.txt")
 	require.NoError(t, err)
 	require.Equal(t, "We're no strangers to love\nYou know the rules and so do I\n", string(data))
+}
+
+func TestTranscriptOutWinsOnTTYAndOverFormat(t *testing.T) {
+	// --out must never be silently ignored: it routes the plain text to the
+	// file and silences stdout whether the terminal would auto-render a
+	// report (TTY) or an explicit --format was given.
+	tests := []struct {
+		name   string
+		format string
+		tty    bool
+	}{
+		{name: "on a TTY", format: "", tty: true},
+		{name: "with explicit --format", format: "json", tty: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := seedTranscriptFake()
+			stubTerminal(t, tt.tty)
+			fs := afero.NewMemMapFs()
+			cmd := newCmdWithFs(fake, tt.format, fs)
+
+			out := cmdtest.RunCmd(t, cmd, videoID, "--out", "notes.txt")
+
+			require.Empty(t, out, "--out sends the transcript to the file, not stdout")
+			data, err := afero.ReadFile(fs, "notes.txt")
+			require.NoError(t, err)
+			require.Equal(t, "We're no strangers to love\nYou know the rules and so do I\n", string(data))
+		})
+	}
 }
 
 func TestTranscriptLangENSelectsHumanTrack(t *testing.T) {

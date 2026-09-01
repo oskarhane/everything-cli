@@ -98,11 +98,15 @@ google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 				return nil
 			}
 
-			// Render priority: an explicit --format always renders the
-			// structured report; otherwise --raw, and any piped stdout,
-			// stream plain text; only an interactive terminal gets the
-			// auto-detected report.
+			// Render priority: --out always means "plain text to this file
+			// instead of stdout" (docs get's model), so it beats everything —
+			// a set --out is never silently ignored. Otherwise an explicit
+			// --format renders the structured report; --raw, and any piped
+			// stdout, stream plain text; only an interactive terminal gets
+			// the auto-detected report.
 			switch {
+			case out != "":
+				return streamRaw()
 			case cfg.Format != "":
 				printTranscript(cmd, cfg, player, track, segs)
 			case raw || !output.StdoutIsTerminal():
@@ -120,8 +124,9 @@ google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 }
 
 // printTranscript renders the structured report: an object in JSON/TOON, a
-// one-row table. The table row keeps the segments slice in one cell while
-// JSON and TOON carry the timed segments array.
+// one-row table. JSON and TOON carry the full timed segments array; the table
+// cell shows a compact count + total-duration summary instead of a raw struct
+// dump.
 func printTranscript(cmd *cobra.Command, cfg *app.Config, player *yt.Player, track yt.Track, segs []yt.Segment) {
 	segments := make([]segmentView, 0, len(segs))
 	for _, seg := range segs {
@@ -143,7 +148,23 @@ func printTranscript(cmd *cobra.Command, cfg *app.Config, player *yt.Player, tra
 		"title":        view.Title,
 		"lang":         view.Lang,
 		"is_generated": view.IsGenerated,
-		"segments":     view.Segments,
+		"segments":     segmentsSummary(segs),
 	}
 	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), transcriptFields, view, []map[string]any{row})
+}
+
+// segmentsSummary is the table cell for the segments column: a compact "N
+// segments · MM:SS" (or "H:MM:SS" past an hour) from the segments' total
+// duration. The full timed list lives in the JSON/TOON view instead.
+func segmentsSummary(segs []yt.Segment) string {
+	var ms int64
+	for _, s := range segs {
+		ms += s.DurationMS
+	}
+	secs := ms / 1000
+	h, m, s := secs/3600, secs%3600/60, secs%60
+	if h > 0 {
+		return fmt.Sprintf("%d segments · %d:%02d:%02d", len(segs), h, m, s)
+	}
+	return fmt.Sprintf("%d segments · %02d:%02d", len(segs), m, s)
 }
