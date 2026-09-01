@@ -13,6 +13,7 @@ import (
 	"github.com/oskarhane/google-cli/internal/subcommands/skill"
 	"github.com/oskarhane/google-cli/internal/subcommands/slides"
 	"github.com/oskarhane/google-cli/internal/subcommands/update"
+	"github.com/oskarhane/google-cli/internal/subcommands/youtube"
 )
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 		slides.NewCmd(cfg),
 		skill.NewCmd(cfg),
 		update.NewCmd(cfg),
+		youtube.NewCmd(cfg),
 	)
 	if err := root.Execute(); err != nil {
 		os.Exit(1)

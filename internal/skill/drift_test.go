@@ -19,6 +19,7 @@ import (
 	skillsub "github.com/oskarhane/google-cli/internal/subcommands/skill"
 	"github.com/oskarhane/google-cli/internal/subcommands/slides"
 	"github.com/oskarhane/google-cli/internal/subcommands/update"
+	"github.com/oskarhane/google-cli/internal/subcommands/youtube"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
@@ -70,6 +71,7 @@ func newMountedTree() *cobra.Command {
 		slides.NewCmd(cfg),
 		skillsub.NewCmd(cfg),
 		update.NewCmd(cfg),
+		youtube.NewCmd(cfg),
 	)
 	return root
 }
