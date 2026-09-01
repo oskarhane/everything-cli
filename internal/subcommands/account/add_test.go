@@ -19,7 +19,7 @@ func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 
 	var gotCredentials string
 	var gotScopes []string
-	stubRunFlow(t, func(_ afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
 		gotCredentials, gotScopes = credentialsPath, scopes
 		return testToken("work"), "user@example.com", nil
 	})
@@ -35,6 +35,7 @@ func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 
 	saved, err := newStore(t, cfg).Get("work")
 	require.NoError(t, err)
+	assert.Equal(t, "google", saved.Provider, "the account persists under the google provider")
 	assert.Equal(t, "user@example.com", saved.Email)
 	assert.Equal(t, defaultScopes(), saved.Scopes)
 	assert.Equal(t, "secret-access-work", saved.Token.AccessToken, "the token is cached on disk")
@@ -62,7 +63,7 @@ func TestAddScopesFlag(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
 
-	stubRunFlow(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
 		return testToken("work"), "user@example.com", nil
 	})
 
@@ -87,7 +88,7 @@ func TestAddCredentialsFlag(t *testing.T) {
 	writeCredentials(t, cfg, "/elsewhere/credentials.json")
 
 	var gotCredentials string
-	stubRunFlow(t, func(_ afero.Fs, credentialsPath string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, credentialsPath string, _ []string) (*oauth2.Token, string, error) {
 		gotCredentials = credentialsPath
 		return testToken("work"), "user@example.com", nil
 	})
@@ -103,7 +104,7 @@ func TestAddCredentialsFlag(t *testing.T) {
 func TestAddWithoutCredentialsErrors(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 
-	stubRunFlow(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
 		t.Fatal("the flow must not run without credentials")
 		return nil, "", nil
 	})
@@ -123,7 +124,7 @@ func TestAddFlowErrorPropagates(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
 
-	stubRunFlow(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
 		return nil, "", errors.New("flow blew up")
 	})
 
@@ -144,7 +145,7 @@ func TestAddDedupesByEmail(t *testing.T) {
 	writeCredentials(t, cfg, "/config/credentials.json")
 	seedAccount(t, cfg, "work", "user@example.com")
 
-	stubRunFlow(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
 		return testToken("alt"), "user@example.com", nil
 	})
 

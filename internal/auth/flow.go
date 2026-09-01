@@ -221,6 +221,9 @@ func RunFlowWith(fs afero.Fs, credentialsPath string, scopes []string, profile O
 	if err != nil {
 		return nil, "", fmt.Errorf("exchanging authorization code: %w", err)
 	}
+	// Mint point: register the fresh token's secrets for redaction before
+	// anything else can render them.
+	registerTokenSecrets(tok)
 	emailCtx, cancelEmail := context.WithTimeout(context.Background(), networkTimeout)
 	defer cancelEmail()
 	email, err := fetchEmail(emailCtx, profile.UserinfoURL, tok)

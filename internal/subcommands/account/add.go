@@ -8,12 +8,18 @@ import (
 	"github.com/oskarhane/google-cli/internal/auth"
 	"github.com/oskarhane/google-cli/internal/config"
 	"github.com/oskarhane/google-cli/internal/output"
+	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
+	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
-// runFlow is the OAuth flow seam. Production wires auth.RunFlow; tests stub
-// it so no test ever starts a real browser authorization.
-var runFlow = auth.RunFlow
+// newAddStrategy is the auth-strategy seam: the OAuth flow runs through the
+// provider's auth.Strategy, never directly. Production wires the google
+// provider's strategy; tests stub it so no test ever starts a real browser
+// authorization.
+var newAddStrategy = func(fs afero.Fs, store *config.Store, credentialsPath string) auth.Strategy {
+	return googleprovider.NewStrategy(fs, store, credentialsPath)
+}
 
 // addedAccount is the rendered shape of a successful account add.
 type addedAccount struct {
@@ -50,17 +56,17 @@ google-cli account add work --credentials ~/google/credentials.json --scopes htt
 			}
 
 			scopes := parseScopes(scopesFlag)
-			tok, email, err := runFlow(cfg.Fs, resolved, scopes)
+			strategy := newAddStrategy(cfg.Fs, store, resolved)
+			acct, err := strategy.Add(cmd.Context(), cfg.Fs, store, auth.AddOptions{
+				Name:            args[0],
+				CredentialsPath: resolved,
+				Scopes:          scopes,
+			})
 			if err != nil {
 				return fmt.Errorf("authorizing account %q: %w", args[0], err)
 			}
 
-			saved, err := auth.SaveAccount(store, args[0], email, scopes, tok)
-			if err != nil {
-				return err
-			}
-
-			view := addedAccount{Name: saved, Email: email}
+			view := addedAccount{Name: acct.Name, Email: acct.Email}
 			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format),
 				[]string{"name", "email"}, view,
 				[]map[string]any{{"name": view.Name, "email": view.Email}})

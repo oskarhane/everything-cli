@@ -11,6 +11,10 @@ import (
 // record is updated under its original name instead of creating a
 // duplicate; the returned name reflects that.
 func SaveAccount(store *config.Store, name, email string, scopes []string, tok *oauth2.Token) (string, error) {
+	// Register the token's secrets for redaction at the save point too, so
+	// callers that persist a token minted outside RunFlowWith (tests, other
+	// strategies) are covered.
+	registerTokenSecrets(tok)
 	acct := &config.Account{
 		Name:   name,
 		Email:  email,

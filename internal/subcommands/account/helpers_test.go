@@ -2,7 +2,10 @@ package account
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -82,14 +85,42 @@ func testToken(name string) *oauth2.Token {
 	}
 }
 
-// stubRunFlow replaces the runFlow seam for the test's lifetime so no test
-// starts a real browser authorization.
-func stubRunFlow(t *testing.T, fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)) {
+// stubAddStrategy replaces the newAddStrategy seam for the test's lifetime
+// with a fake strategy whose Add runs fn, so no test ever starts a real
+// browser authorization.
+func stubAddStrategy(t *testing.T, fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)) {
 	t.Helper()
-	saved := runFlow
-	runFlow = fn
-	t.Cleanup(func() { runFlow = saved })
+	saved := newAddStrategy
+	newAddStrategy = func(afero.Fs, *config.Store, string) auth.Strategy {
+		return fakeStrategy{fn: fn}
+	}
+	t.Cleanup(func() { newAddStrategy = saved })
 }
+
+// fakeStrategy is a test auth.Strategy whose Add runs the stubbed flow and
+// persists through the real provider-scoped store, mirroring the production
+// OAuth strategy without a browser.
+type fakeStrategy struct {
+	fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)
+}
+
+func (f fakeStrategy) Add(_ context.Context, fs afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
+	tok, email, err := f.fn(fs, opts.CredentialsPath, opts.Scopes)
+	if err != nil {
+		return nil, err
+	}
+	saved, err := auth.SaveAccount(store, opts.Name, email, opts.Scopes, tok)
+	if err != nil {
+		return nil, err
+	}
+	return store.Get(saved)
+}
+
+func (f fakeStrategy) Client(context.Context, *config.Account) (*http.Client, error) {
+	return nil, errors.New("fakeStrategy has no client")
+}
+
+func (f fakeStrategy) SecretFields() []string { return nil }
 
 // writeCredentials writes a credentials file on the in-memory FS.
 func writeCredentials(t *testing.T, cfg *app.Config, path string) {

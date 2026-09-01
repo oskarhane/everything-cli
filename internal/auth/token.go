@@ -55,6 +55,8 @@ func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name str
 			"account file %q contains name %q — refusing; the record may be corrupted or copied from another account",
 			name, acct.Name)
 	}
+	// Read point: register the stored token's secrets for redaction.
+	registerTokenSecrets(acct.Token)
 	data, err := afero.ReadFile(fs, credentialsPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
@@ -91,6 +93,8 @@ func (p *persistingSource) Token() (*oauth2.Token, error) {
 	if tok.RefreshToken == "" && p.last != nil {
 		tok.RefreshToken = p.last.RefreshToken
 	}
+	// Mint point: register the refreshed token's secrets for redaction.
+	registerTokenSecrets(tok)
 	if p.changed(tok) {
 		if err := p.persist(tok); err != nil {
 			return nil, err
