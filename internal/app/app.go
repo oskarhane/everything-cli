@@ -2,6 +2,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
@@ -59,10 +61,17 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	f.BoolVar(&cfg.Debug, "debug", false, "Enable debug output")
 	f.StringVar(&cfg.Credentials, "credentials", "", "Path to OAuth app credentials JSON (empty = auto-resolve)")
 
-	// The single place cfg.Debug is consumed: it gates output.Debug lines
-	// (stderr, control-stripped). Subcommands that define their own
-	// PersistentPreRun must call this one first if they override it.
-	root.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
+	// Fail closed on `--account ""`: an explicitly set but empty account would
+	// silently fall back to the default account, so e.g. `--account "$ACCT"`
+	// with an unset variable would act on the wrong account. Fires here —
+	// before any subcommand RunE — because the root's PersistentPreRunE runs
+	// on every invocation (no subcommand overrides it). cmd is the executing
+	// command; cobra has already merged the root's persistent flags into
+	// cmd.Flags(), so Changed("account") sees the flag wherever it was given.
+	root.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		if cmd.Flags().Changed("account") && cfg.Account == "" {
+			return fmt.Errorf("--account is empty: pass an account name or drop the flag")
+		}
 		output.SetDebug(cfg.Debug)
 		return nil
 	}
