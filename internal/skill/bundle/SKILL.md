@@ -1,24 +1,27 @@
 ---
 name: google-cli
 description: >
-  google-cli is a multi-account command-line tool for Gmail and Google Calendar
-  with OAuth and a per-account token cache. Use it when the user wants to send,
-  read, search, label, mark, trash, or untrash Gmail messages, threads, drafts,
-  labels, or attachments; list or search inbox; create, list, update, move,
-  delete, or RSVP (accept/decline/tentative) calendar events and invitations;
-  manage calendars, recurring event series and their instances, ACL sharing
-  rules, or free/busy time; or add, switch between, and inspect Google
-  accounts via OAuth. Skip for Google Drive, Docs, Sheets, Meet, Chrome, or
-  anything the gcloud CLI manages (projects, Cloud SDK services) — google-cli
-  covers only Gmail and Google Calendar.
+  google-cli is a multi-account command-line tool for Gmail, Google Calendar,
+  Google Drive, Docs, Sheets, and Slides with OAuth and a per-account token
+  cache. Use it when the user wants to send, read, search, label, mark, trash,
+  or untrash Gmail messages, threads, drafts, labels, or attachments; list or
+  search inbox; create, list, update, move, delete, or RSVP
+  (accept/decline/tentative) calendar events and invitations; manage
+  calendars, recurring event series and their instances, ACL sharing rules,
+  or free/busy time; or list, get, create, upload, download, trash, delete,
+  share, and unshare Drive files, and read or edit Google Docs (text),
+  Spreadsheets (values), and Presentations (text); or add, switch between,
+  and inspect Google accounts via OAuth. Skip for Meet, Chrome, or anything
+  the gcloud CLI manages (projects, Cloud SDK services) — google-cli covers
+  only Gmail, Google Calendar, Drive, Docs, Sheets, and Slides.
 version: dev
 ---
 
 # google-cli
 
-A command-line tool for managing Gmail and Google Calendar across multiple
-Google accounts. `google-cli` is the binary name; the command layout is
-`google-cli <resource> <action>`.
+A command-line tool for managing Gmail, Google Calendar, Drive, Docs,
+Sheets, and Slides across multiple Google accounts. `google-cli` is the
+binary name; the command layout is `google-cli <resource> <action>`.
 
 ## Overview
 
@@ -36,7 +39,8 @@ Google accounts. `google-cli` is the binary name; the command layout is
    `--credentials` on `account add`.
 2. `google-cli account add <name>` — runs the OAuth flow, verifies identity,
    and stores the token. `--scopes` overrides the default scope set
-   (Gmail modify/send/compose + Calendar + userinfo.email).
+   (Gmail modify/send/compose + Calendar + Drive + Docs + Sheets + Slides +
+   userinfo.email).
 3. `google-cli account use <name>` — set the default account. Every command
    also accepts a global `--account <name>` override.
 
@@ -60,6 +64,11 @@ harness detected (→ `toon`) > interactive TTY (→ `table`) > piped (→ `json
 | Accounts, auth, switching | [references/account.md](references/account.md) |
 | Gmail: messages, threads, drafts, labels, attachments | [references/gmail.md](references/gmail.md) |
 | Calendars, events, invitations, ACL, free/busy | [references/calendar.md](references/calendar.md) |
+| Drive files: list, get, create, upload, download, trash, delete | [references/drive.md](references/drive.md) |
+| Drive file sharing: permissions, share, unshare | [references/drive.md](references/drive.md) |
+| Docs: read and edit Google Doc text | [references/docs.md](references/docs.md) |
+| Sheets: spreadsheet metadata and cell values | [references/sheets.md](references/sheets.md) |
+| Slides: presentation text | [references/slides.md](references/slides.md) |
 
 ## Skill bundle management
 
@@ -110,16 +119,21 @@ hint to `export GITHUB_TOKEN` when the GitHub API rate limit is hit.
   pass `--format json` explicitly to get JSON instead.
 - Destructive verbs refuse to act without `--force`: `gmail message delete`,
   `gmail label delete`, `gmail draft delete`, `account remove`,
-  `calendar delete`, `calendar event delete`. Prefer `gmail message trash`
-  (recoverable) over `gmail message delete` (permanent).
+  `calendar delete`, `calendar event delete`, `drive file delete`,
+  `docs delete`, `sheets delete`, `slides delete`. Prefer the trash verbs
+  (`gmail message trash`, `drive file trash`) over the permanent deletes.
+- Accounts added before Drive/Docs/Sheets/Slides support lack the new
+  scopes: re-run `account add <name>` with the same name to grant them
+  (the flow always re-prompts with `prompt=consent`, and the account is
+  updated in place, keyed by email).
 - Recurring events default to ONE occurrence: an instance id ends in
   `_UTC-time` (e.g. `abc123_20260929T030000Z`) and acts on that occurrence
   only. Pass `--all` (respond) or omit `--this-only` (update/delete with an
   instance id) to act on the whole series.
 - Token files live at `<config>/accounts/<name>.json` with mode 0600 and are
   never printed — `account get` shows metadata only.
-- `--max` budgets API paging (default 25 on gmail list commands, 250 on
-  calendar event list/instances; `0` = no cap).
+- `--max` budgets API paging (default 25 on gmail list commands and
+  `drive file list`, 250 on calendar event list/instances; `0` = no cap).
 - `gmail message get --raw` prints the RFC 2822 message with control bytes
   stripped.
 - `$GOOGLE_CLI_CONFIG_DIR` relocates the whole token cache.
