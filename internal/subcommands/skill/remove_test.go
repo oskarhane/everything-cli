@@ -19,7 +19,7 @@ func TestRemovePrintsRemovedLinesAndHint(t *testing.T) {
 
 	stdout, stderr, err := execute(t, root, out, errOut, "skill", "remove")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "removed google-cli from "+installDst(t, "claude-code")+"\n")
+	assert.Contains(t, stdout, "removed everything-cli from "+installDst(t, "claude-code")+"\n")
 	assert.Contains(t, stderr, "run 'everything-cli skill install' to reinstall")
 
 	exists, ferr := afero.Exists(cfg.Fs, installDst(t, "claude-code")+"/SKILL.md")
@@ -36,8 +36,8 @@ func TestRemoveNoOpLines(t *testing.T) {
 	stdout, stderr, err := execute(t, root, out, errOut, "skill", "remove")
 	require.NoError(t, err)
 
-	assert.Contains(t, stdout, "no google-cli install in "+installDst(t, "claude-code")+"\n")
-	assert.NotContains(t, stdout, "removed google-cli")
+	assert.Contains(t, stdout, "no everything-cli install in "+installDst(t, "claude-code")+"\n")
+	assert.NotContains(t, stdout, "removed everything-cli")
 	assert.Empty(t, stderr, "no-op removal must not print the reinstall hint")
 }
 
@@ -92,11 +92,11 @@ func TestRemoveFilteredUndetectedAgent(t *testing.T) {
 
 	stdout, _, err := execute(t, root, out, nil, "skill", "remove", "--agent", "claude-code")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "no google-cli install in")
-	assert.NotContains(t, stdout, "removed google-cli from")
+	assert.Contains(t, stdout, "no everything-cli install in")
+	assert.NotContains(t, stdout, "removed everything-cli from")
 }
 
-// TestRemoveDeletesWholeBundleDir: remove takes the entire google-cli skill
+// TestRemoveDeletesWholeBundleDir: remove takes the entire everything-cli skill
 // dir (including references) with it.
 func TestRemoveDeletesWholeBundle(t *testing.T) {
 	cfg, root, out, _ := newSkillEnv(t)

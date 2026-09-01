@@ -149,7 +149,7 @@ func TestUpdateTable_CompactSkillPaths(t *testing.T) {
 	assert.NotContains(t, stdout, "SKILL_INSTALLED", "no path-list column in table view")
 	assert.Contains(t, stdout, "CURRENT_VERSION")
 	assert.Contains(t, stdout, "SKILL_VERSION")
-	assert.Contains(t, stdout, "installed google-cli -> /home/u/.claude/skills/google-cli")
+	assert.Contains(t, stdout, "installed everything-cli -> /home/u/.claude/skills/everything-cli")
 }
 
 // TestUpdatePrompt_NotReadWhenNonTTYOrAgent: when stdin is not a terminal,

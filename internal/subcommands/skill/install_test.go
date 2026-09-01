@@ -20,14 +20,14 @@ func TestInstallWritesBundleAndPrintsLines(t *testing.T) {
 	stdout, _, err := execute(t, root, out, nil, "skill", "install")
 	require.NoError(t, err)
 
-	assert.Contains(t, stdout, "installed google-cli -> "+installDst(t, "claude-code")+"\n")
-	assert.Contains(t, stdout, "installed google-cli -> "+installDst(t, "codex")+"\n")
+	assert.Contains(t, stdout, "installed everything-cli -> "+installDst(t, "claude-code")+"\n")
+	assert.Contains(t, stdout, "installed everything-cli -> "+installDst(t, "codex")+"\n")
 
 	exists, err := afero.Exists(cfg.Fs, installDst(t, "claude-code")+"/SKILL.md")
 	require.NoError(t, err)
 	assert.True(t, exists, "bundle SKILL.md must land on the in-memory FS")
 
-	exists, err = afero.Exists(cfg.Fs, installDst(t, "claude-code")+"/references/gmail.md")
+	exists, err = afero.Exists(cfg.Fs, installDst(t, "claude-code")+"/references/google.md")
 	require.NoError(t, err)
 	assert.True(t, exists, "references must be installed too")
 }

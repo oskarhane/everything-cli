@@ -123,7 +123,7 @@ func stubRun(t *testing.T) *[]updateapi.Options {
 			res.SkillHint = skipHint
 			return res, nil
 		}
-		res.SkillInstalled = []string{"/home/u/.claude/skills/google-cli"}
+		res.SkillInstalled = []string{"/home/u/.claude/skills/everything-cli"}
 		res.SkillVersion = "v1.2.3"
 		return res, nil
 	}
