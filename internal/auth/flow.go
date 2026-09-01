@@ -1,5 +1,7 @@
-// Package auth runs the installed-app Google OAuth flow and keeps the
-// per-account token cache fresh.
+// Package auth runs installed-app OAuth flows and keeps the per-account
+// token cache fresh. The flow machinery is provider-general (RunFlowWith,
+// TokenSourceWith): endpoints and the identity URL come from an OAuthProfile
+// supplied by the provider, never from user-supplied files.
 package auth
 
 import (
@@ -30,9 +32,6 @@ const flowTimeout = 5 * time.Minute
 // exchange and the userinfo fetch) so a hung endpoint cannot stall the CLI
 // indefinitely. Var so tests can shrink it.
 var networkTimeout = 60 * time.Second
-
-// userinfoURL resolves the account email after the flow.
-const userinfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 // flowOutput receives the authorization URL and flow status lines (stderr,
 // so stdout stays data-clean).
@@ -94,9 +93,10 @@ var exchangeCode = func(ctx context.Context, conf *oauth2.Config, code, verifier
 	return conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
 }
 
-// fetchEmail resolves the account email from the userinfo endpoint. Seam for tests.
-var fetchEmail = func(ctx context.Context, tok *oauth2.Token) (string, error) {
-	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(tok)).Get(userinfoURL)
+// fetchEmail resolves the account email from the provider's userinfo
+// endpoint. Seam for tests.
+var fetchEmail = func(ctx context.Context, url string, tok *oauth2.Token) (string, error) {
+	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(tok)).Get(url)
 	if err != nil {
 		return "", fmt.Errorf("calling userinfo endpoint: %w", err)
 	}
@@ -116,17 +116,24 @@ var fetchEmail = func(ctx context.Context, tok *oauth2.Token) (string, error) {
 	return out.Email, nil
 }
 
-// RunFlow performs the installed-app OAuth flow for the given scopes:
-// parses the credentials file, starts a localhost listener on a random port
-// as the redirect URI, prints the authorization URL (and tries to open a
-// browser), waits for the code callback, exchanges it, and resolves the
-// account email from the userinfo endpoint.
+// RunFlow performs the installed-app OAuth flow for Google: it is
+// RunFlowWith with the GoogleOAuth profile.
 func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
+	return RunFlowWith(fs, credentialsPath, scopes, GoogleOAuth)
+}
+
+// RunFlowWith performs the installed-app OAuth flow for any provider
+// described by profile: parses the credentials file (endpoints pinned to
+// profile's, never the file's), starts a localhost listener on a random
+// port as the redirect URI, prints the authorization URL (and tries to open
+// a browser), waits for the code callback, exchanges it, and resolves the
+// account email from the profile's userinfo endpoint.
+func RunFlowWith(fs afero.Fs, credentialsPath string, scopes []string, profile OAuthProfile) (*oauth2.Token, string, error) {
 	data, err := afero.ReadFile(fs, credentialsPath)
 	if err != nil {
 		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}
-	conf, err := credentialsConfig(data, withEmailScope(scopes)...)
+	conf, err := credentialsConfigFor(profile, data, ensureScope(scopes, profile.EmailScope)...)
 	if err != nil {
 		return nil, "", fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
 	}
@@ -158,7 +165,7 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
 
-	emit("Authorize google-cli by opening:\n\n%s\n\n", authURL)
+	emit("Authorize %s by opening:\n\n%s\n\n", profile.Name, authURL)
 	if err := openBrowser(authURL); err != nil {
 		emit("Could not open a browser; open the URL above manually.\n")
 	}
@@ -216,7 +223,7 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	}
 	emailCtx, cancelEmail := context.WithTimeout(context.Background(), networkTimeout)
 	defer cancelEmail()
-	email, err := fetchEmail(emailCtx, tok)
+	email, err := fetchEmail(emailCtx, profile.UserinfoURL, tok)
 	if err != nil {
 		return nil, "", err
 	}
@@ -259,15 +266,21 @@ func callbackCode(r *http.Request, state string) (string, error) {
 	return code, nil
 }
 
-// withEmailScope appends the userinfo.email scope unless already granted,
-// so RunFlow can always resolve the account email.
-func withEmailScope(scopes []string) []string {
+// ensureScope appends scope to scopes unless already granted, so a flow can
+// always guarantee the scope its identity resolution depends on.
+func ensureScope(scopes []string, scope string) []string {
 	out := make([]string, 0, len(scopes)+1)
 	out = append(out, scopes...)
 	for _, s := range out {
-		if s == ScopeUserEmail {
+		if s == scope {
 			return out
 		}
 	}
-	return append(out, ScopeUserEmail)
+	return append(out, scope)
+}
+
+// withEmailScope appends the Google userinfo.email scope unless already
+// granted, so RunFlow can always resolve the account email.
+func withEmailScope(scopes []string) []string {
+	return ensureScope(scopes, ScopeUserEmail)
 }

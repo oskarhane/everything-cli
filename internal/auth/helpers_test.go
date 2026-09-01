@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/url"
 	"regexp"
 	"sync"
 	"testing"
@@ -104,7 +105,7 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 			Expiry:       time.Now().Add(time.Hour),
 		}, nil
 	}
-	fetchEmail = func(_ context.Context, tok *oauth2.Token) (string, error) {
+	fetchEmail = func(_ context.Context, _ string, tok *oauth2.Token) (string, error) {
 		if h.emailFn != nil {
 			return h.emailFn(tok)
 		}
@@ -120,4 +121,14 @@ func waitAuthURL(t *testing.T, out *syncBuffer) string {
 		return authURLPattern.FindString(out.String()) != ""
 	}, 5*time.Second, 10*time.Millisecond, "RunFlow should print an authorization URL")
 	return authURLPattern.FindString(out.String())
+}
+
+// redirectCallback builds the loopback callback URL for a printed
+// authorization URL, carrying the given state.
+func redirectCallback(t *testing.T, authURL, state string) string {
+	t.Helper()
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	return u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {state}}.Encode()
 }

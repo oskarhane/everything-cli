@@ -21,10 +21,28 @@ var refreshTimeout = 60 * time.Second
 // Google's regardless of what the credentials file claims.
 var credentialsConfig = parseGoogleCredentials
 
+// credentialsConfigFor parses credentials for a profile. The Google profile
+// routes through the credentialsConfig seam so the existing dialing path
+// behaves exactly as before; any other profile is parsed with its own
+// pinned endpoint, never with endpoints from the credentials file.
+func credentialsConfigFor(profile OAuthProfile, data []byte, scopes ...string) (*oauth2.Config, error) {
+	if profile.Endpoint == GoogleOAuth.Endpoint {
+		return credentialsConfig(data, scopes...)
+	}
+	return parseCredentials(data, profile.Endpoint, scopes...)
+}
+
 // TokenSource returns an oauth2.TokenSource for the named stored account.
 // Valid tokens are reused; expired tokens are refreshed against Google, and
 // a refreshed token is persisted back to the account file (0600).
 func TokenSource(fs afero.Fs, store *config.Store, credentialsPath, name string) (oauth2.TokenSource, error) {
+	return TokenSourceWith(fs, store, credentialsPath, name, GoogleOAuth)
+}
+
+// TokenSourceWith is TokenSource generalized to any OAuth profile: the
+// refresh targets the profile's pinned token endpoint, taken from the
+// profile rather than from the credentials file.
+func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
 	acct, err := store.Get(name)
 	if err != nil {
 		return nil, err
@@ -41,7 +59,7 @@ func TokenSource(fs afero.Fs, store *config.Store, credentialsPath, name string)
 	if err != nil {
 		return nil, fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
 	}
-	conf, err := credentialsConfig(data, acct.Scopes...)
+	conf, err := credentialsConfigFor(profile, data, acct.Scopes...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
 	}

@@ -50,16 +50,23 @@ func ResolveCredentials(fs afero.Fs, flagValue, configDir string) (string, error
 	return "", fmt.Errorf("no OAuth credentials file found; tried: %s", strings.Join(tried, ", "))
 }
 
-// parseGoogleCredentials parses installed-app credentials JSON into an OAuth
-// config with the endpoints pinned to Google's. The file therefore supplies
-// only client_id/client_secret: auth_uri and token_uri from a credentials
-// file are ignored, so a tampered or planted file can never redirect
-// authorization or token (refresh) requests to another server.
-func parseGoogleCredentials(data []byte, scopes ...string) (*oauth2.Config, error) {
+// parseCredentials parses installed-app credentials JSON into an OAuth
+// config with the endpoints pinned to the given profile endpoint. The file
+// therefore supplies only client_id/client_secret: auth_uri and token_uri
+// from a credentials file are ignored, so a tampered or planted file can
+// never redirect authorization or token (refresh) requests to another
+// server.
+func parseCredentials(data []byte, endpoint oauth2.Endpoint, scopes ...string) (*oauth2.Config, error) {
 	conf, err := google.ConfigFromJSON(data, scopes...)
 	if err != nil {
 		return nil, err
 	}
-	conf.Endpoint = google.Endpoint
+	conf.Endpoint = endpoint
 	return conf, nil
+}
+
+// parseGoogleCredentials is parseCredentials with the endpoint pinned to
+// Google's: the credentials file supplies only client_id/client_secret.
+func parseGoogleCredentials(data []byte, scopes ...string) (*oauth2.Config, error) {
+	return parseCredentials(data, google.Endpoint, scopes...)
 }

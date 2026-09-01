@@ -283,7 +283,7 @@ func TestRunFlowAppliesDeadlines(t *testing.T) {
 		mu.Unlock()
 		return &oauth2.Token{AccessToken: "access-1", Expiry: time.Now().Add(time.Hour)}, nil
 	}
-	fetchEmail = func(ctx context.Context, _ *oauth2.Token) (string, error) {
+	fetchEmail = func(ctx context.Context, _ string, _ *oauth2.Token) (string, error) {
 		d, ok := ctx.Deadline()
 		mu.Lock()
 		emDeadline = ok && d.After(time.Now())
@@ -377,7 +377,7 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 	flowOutput = out
 	openBrowser = func(string) error { return nil }
 	newState = func() (string, error) { return "wire-state", nil }
-	fetchEmail = func(_ context.Context, _ *oauth2.Token) (string, error) { return "user@example.com", nil }
+	fetchEmail = func(_ context.Context, _ string, _ *oauth2.Token) (string, error) { return "user@example.com", nil }
 
 	fs, credentialsPath := writeCredentialsFile(t)
 	res := startFlow(fs, credentialsPath, nil)
