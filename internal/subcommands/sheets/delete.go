@@ -1,0 +1,40 @@
+package sheets
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+)
+
+// newDeleteCmd returns `sheets delete`: permanently remove the spreadsheet's
+// underlying Drive file, bypassing the trash. Permanent deletion cannot be
+// undone, so it refuses to run without --force; trash is the recoverable
+// alternative.
+func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cobra.Command {
+	var force bool
+	cmd := &cobra.Command{
+		Use:   "delete <spreadsheet-id>",
+		Short: "Permanently delete a spreadsheet (destructive)",
+		Example: `# See the refusal without --force
+google-cli sheets delete 1AbCdEfGh
+
+# Actually delete the spreadsheet permanently
+google-cli sheets delete 1AbCdEfGh --force`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !force {
+				return fmt.Errorf("refusing to permanently delete spreadsheet %q without --force (this cannot be undone; use drive file trash instead)", args[0])
+			}
+			svc, err := newSvc(cmd.Context())
+			if err != nil {
+				return err
+			}
+			return svc.DeleteFile(cmd.Context(), args[0])
+		},
+	}
+	cmd.Flags().BoolVar(&force, "force", false, "Permanently delete the spreadsheet instead of refusing")
+	return cmd
+}
