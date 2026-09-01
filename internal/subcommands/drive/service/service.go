@@ -16,8 +16,11 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
+	docs "google.golang.org/api/docs/v1"
 	drive "google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
+	sheets "google.golang.org/api/sheets/v4"
+	slides "google.golang.org/api/slides/v1"
 )
 
 // DriveService is the full Drive API surface this package wraps. It is the
@@ -32,13 +35,29 @@ type DriveService interface {
 // command indefinitely.
 const apiTimeout = 120 * time.Second
 
-// New returns a DriveService bound to ts.
+// New returns a DriveService bound to ts. Besides the drive client it also
+// builds the docs, sheets, and slides clients on the same authenticated HTTP
+// client, so the whole Google Workspace surface shares one transport (one
+// token source, one timeout).
 func New(ctx context.Context, ts oauth2.TokenSource) (DriveService, error) {
-	svc, err := drive.NewService(ctx, option.WithHTTPClient(authenticatedClient(ts, apiTimeout)))
+	client := authenticatedClient(ts, apiTimeout)
+	svc, err := drive.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, fmt.Errorf("creating drive service: %w", err)
 	}
-	return &realDriveService{drive: svc}, nil
+	docSvc, err := docs.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, fmt.Errorf("creating docs service: %w", err)
+	}
+	sheetSvc, err := sheets.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, fmt.Errorf("creating sheets service: %w", err)
+	}
+	slideSvc, err := slides.NewService(ctx, option.WithHTTPClient(client))
+	if err != nil {
+		return nil, fmt.Errorf("creating slides service: %w", err)
+	}
+	return &realDriveService{drive: svc, docs: docSvc, sheets: sheetSvc, slides: slideSvc}, nil
 }
 
 // authenticatedClient builds the HTTP client every Drive call rides on.
@@ -53,7 +72,12 @@ func authenticatedClient(ts oauth2.TokenSource, timeout time.Duration) *http.Cli
 	}
 }
 
-// realDriveService adapts *drive.Service to DriveService.
+// realDriveService adapts the Drive, Docs, Sheets, and Slides API clients to
+// DriveService (plus the per-concern interfaces each subtree's file defines).
+// All four clients share the one authenticated HTTP client.
 type realDriveService struct {
-	drive *drive.Service
+	drive  *drive.Service
+	docs   *docs.Service
+	sheets *sheets.Service
+	slides *slides.Service
 }
