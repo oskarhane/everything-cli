@@ -28,9 +28,9 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 		return "", err
 	}
 	if len(accounts) == 0 {
-		return "", fmt.Errorf("no Google accounts configured; run `google-cli account add`")
+		return "", fmt.Errorf("no Google accounts configured; run `google-cli google account add`")
 	}
-	return "", fmt.Errorf("no default account set; run `google-cli account use <name>` or pass --account")
+	return "", fmt.Errorf("no default account set; run `google-cli google account use <name>` or pass --account")
 }
 
 // DialAccount is Dial plus the resolved account record: trees that enforce

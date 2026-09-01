@@ -16,8 +16,8 @@ import (
 // error texts; client packages assert against them, so they are pinned here
 // verbatim.
 const (
-	noAccountsErr = "no Google accounts configured; run `google-cli account add`"
-	noDefaultErr  = "no default account set; run `google-cli account use <name>` or pass --account"
+	noAccountsErr = "no Google accounts configured; run `google-cli google account add`"
+	noDefaultErr  = "no default account set; run `google-cli google account use <name>` or pass --account"
 )
 
 // newDialStore returns a store on fs rooted at the default config dir,

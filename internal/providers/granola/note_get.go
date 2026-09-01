@@ -31,8 +31,7 @@ everything-cli granola note get not_abc123def456 --include-transcript`,
 			if err != nil {
 				return err
 			}
-			printNoteView(cmd, cfg, note)
-			return nil
+			return printNoteView(cmd, cfg, note)
 		},
 	}
 	cmd.Flags().BoolVar(&includeTranscript, "include-transcript", false,

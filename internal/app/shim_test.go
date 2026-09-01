@@ -60,9 +60,38 @@ func TestRewriteLegacyArgs(t *testing.T) {
 			want: []string{"skill", "print"},
 		},
 		{
-			name: "flags first untouched",
-			args: []string{"--format", "json", "gmail", "list"},
-			want: []string{"--format", "json", "gmail", "list"},
+			name:     "flag-first rewrite with warning",
+			args:     []string{"--format", "json", "gmail", "list"},
+			want:     []string{"--format", "json", "google", "gmail", "list"},
+			wantWarn: true,
+		},
+		{
+			name:     "equals-form flag-first rewrite",
+			args:     []string{"--format=json", "gmail", "list"},
+			want:     []string{"--format=json", "google", "gmail", "list"},
+			wantWarn: true,
+		},
+		{
+			name:     "account flag value skipped",
+			args:     []string{"--account", "work", "--debug", "drive", "list"},
+			want:     []string{"--account", "work", "--debug", "google", "drive", "list"},
+			wantWarn: true,
+		},
+		{
+			name:     "credentials flag-first account verb",
+			args:     []string{"--credentials=creds.json", "account", "add", "work"},
+			want:     []string{"--credentials=creds.json", "google", "account", "add", "work"},
+			wantWarn: true,
+		},
+		{
+			name: "flag-first account list stays top-level",
+			args: []string{"--format", "json", "account", "list"},
+			want: []string{"--format", "json", "account", "list"},
+		},
+		{
+			name: "unknown flag passes through untouched",
+			args: []string{"--bogus", "gmail", "list"},
+			want: []string{"--bogus", "gmail", "list"},
 		},
 		{
 			name: "help untouched",
@@ -77,7 +106,8 @@ func TestRewriteLegacyArgs(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 			if tt.wantWarn {
 				assert.Contains(t, errBuf.String(), "deprecated")
-				assert.Contains(t, errBuf.String(), "google-cli google "+joinArgs(tt.args))
+				assert.Contains(t, errBuf.String(), "google-cli "+joinArgs(tt.args))
+				assert.Contains(t, errBuf.String(), "google-cli "+joinArgs(tt.want))
 			} else {
 				assert.Empty(t, errBuf.String(), "no warning without a rewrite")
 			}

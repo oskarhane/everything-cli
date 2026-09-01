@@ -44,17 +44,17 @@ func printNoteList(cmd *cobra.Command, cfg *app.Config, notes []NoteSummary) {
 
 // printNoteView renders a single note: the full note (every field, snake_case
 // keys) in JSON/TOON, a one-row summary table otherwise. The API's id key is
-// renamed to note_id for output.
-func printNoteView(cmd *cobra.Command, cfg *app.Config, n *Note) {
-	// Marshal of this struct cannot fail; unmarshal of its own output
-	// cannot fail either. Both errors would be programmer errors.
+// renamed to note_id for output. Marshal/unmarshal of this struct cannot
+// realistically fail, but data-driven marshal failures must return an error,
+// never panic.
+func printNoteView(cmd *cobra.Command, cfg *app.Config, n *Note) error {
 	data, err := json.Marshal(n)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	var view map[string]any
 	if err := json.Unmarshal(data, &view); err != nil {
-		panic(err)
+		return err
 	}
 	view["note_id"] = view["id"]
 	delete(view, "id")
@@ -68,6 +68,7 @@ func printNoteView(cmd *cobra.Command, cfg *app.Config, n *Note) {
 		"web_url":    n.WebURL,
 	}
 	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), noteViewFields, view, []map[string]any{tableRow})
+	return nil
 }
 
 // deref renders a nullable string field as its value or "".
