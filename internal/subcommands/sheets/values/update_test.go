@@ -48,19 +48,20 @@ func TestUpdateRejectsInvalidInputOption(t *testing.T) {
 func TestUpdateRejectsBothValueSources(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newUpdateCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/cells.json", `[[1]]`)
+		writeTestFile(t, fs, "/tmp/cells.json", `[[1]]`)
 	})
 	_, err := cmdtest.RunCmdErr(t, cmd, seedSpreadsheetID,
 		"--range", "Sheet1!A1:B2", "--values", `[[1]]`, "--values-file", "/tmp/cells.json")
 
 	require.Contains(t, err.Error(), "one source only")
+	require.Contains(t, err.Error(), "not both")
 	require.Empty(t, svc.updateID)
 }
 
 func TestUpdateValuesFileJSON(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newUpdateCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/cells.json", `[[true,"x"]]`)
+		writeTestFile(t, fs, "/tmp/cells.json", `[[true,"x"]]`)
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:B2", "--values-file", "/tmp/cells.json")
 
@@ -71,7 +72,7 @@ func TestUpdateValuesFileJSON(t *testing.T) {
 func TestUpdateValuesFileCSV(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newUpdateCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/cells.csv", "1,a\n")
+		writeTestFile(t, fs, "/tmp/cells.csv", "1,a\n")
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:B2", "--values-file", "/tmp/cells.csv")
 
@@ -81,7 +82,7 @@ func TestUpdateValuesFileCSV(t *testing.T) {
 func TestUpdateValuesFileTSV(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newUpdateCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/cells.tsv", "1\ta\n")
+		writeTestFile(t, fs, "/tmp/cells.tsv", "1\ta\n")
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:B2", "--values-file", "/tmp/cells.tsv")
 

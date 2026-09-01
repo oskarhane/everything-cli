@@ -60,20 +60,20 @@ func TestAppendRejectsInvalidInputOption(t *testing.T) {
 func TestAppendRejectsBothValueSources(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newAppendCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/rows.json", `[[1]]`)
+		writeTestFile(t, fs, "/tmp/rows.json", `[[1]]`)
 	})
 	_, err := cmdtest.RunCmdErr(t, cmd, seedSpreadsheetID,
 		"--range", "Sheet1!A1:D", "--values", `[[1]]`, "--values-file", "/tmp/rows.json")
 
 	require.Contains(t, err.Error(), "one source only")
-	require.Contains(t, err.Error(), "--values-file")
+	require.Contains(t, err.Error(), "not both")
 	require.Empty(t, svc.appendID)
 }
 
 func TestAppendValuesFileJSON(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newAppendCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/rows.json", `[[1,"a"],[2,"b"]]`)
+		writeTestFile(t, fs, "/tmp/rows.json", `[[1,"a"],[2,"b"]]`)
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:D", "--values-file", "/tmp/rows.json")
 
@@ -83,7 +83,7 @@ func TestAppendValuesFileJSON(t *testing.T) {
 func TestAppendValuesFileCSVCellsAreStrings(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newAppendCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/rows.csv", "1,a\n2,b\n")
+		writeTestFile(t, fs, "/tmp/rows.csv", "1,a\n2,b\n")
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:D", "--values-file", "/tmp/rows.csv")
 
@@ -93,7 +93,7 @@ func TestAppendValuesFileCSVCellsAreStrings(t *testing.T) {
 func TestAppendValuesFileTSV(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newAppendCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/rows.tsv", "1\ta\n2\tb\n")
+		writeTestFile(t, fs, "/tmp/rows.tsv", "1\ta\n2\tb\n")
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:D", "--values-file", "/tmp/rows.tsv")
 
@@ -103,7 +103,7 @@ func TestAppendValuesFileTSV(t *testing.T) {
 func TestAppendValuesFileUnsupportedExtension(t *testing.T) {
 	svc := &fakeValuesService{}
 	cmd := newLeafCmdWithFs(newAppendCmd, svc, "json", func(fs afero.Fs) {
-		writeFile(t, fs, "/tmp/rows.txt", "1,a\n")
+		writeTestFile(t, fs, "/tmp/rows.txt", "1,a\n")
 	})
 	_, err := cmdtest.RunCmdErr(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:D", "--values-file", "/tmp/rows.txt")
 
