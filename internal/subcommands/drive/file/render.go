@@ -95,7 +95,8 @@ func sizeString(n int64) any {
 }
 
 // escapeQ escapes s for a quoted Drive q literal using backslash escaping:
-// backslashes first, then single quotes, so 'O'Brien\'s' stays one term
+// backslashes first, then single quotes: a name with apostrophes like
+// O'Brien's is emitted as the q literal 'O\'Brien\'s', which stays one term
 // ("Escape single quotes in queries with \'"). Drive q does NOT use the
 // quote-doubling grammar — that belongs to A1-quoted sheet titles, which
 // service.DoubleSingleQuotes covers.

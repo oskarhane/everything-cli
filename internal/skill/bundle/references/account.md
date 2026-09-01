@@ -44,6 +44,7 @@ delete) work under `drive.file`; the sharing commands (`drive file share`,
 `drive file unshare`, `drive file permissions`) require the full
 `https://www.googleapis.com/auth/drive` scope and fail fast with a re-consent
 action on a drive.file-only account.
+
 ## account get <name>
 
 Show account metadata (name, email, scopes, default). Token values are never
