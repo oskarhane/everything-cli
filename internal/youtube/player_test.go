@@ -13,8 +13,8 @@ import (
 
 // okPlayerBody is a realistic InnerTube player response: playabilityStatus
 // OK, videoDetails, microformat dates, and three caption tracks (human en,
-// asr en, and an is_generated es track). Track base URLs point at an inert
-// host; the player test never fetches them.
+// asr en, and asr es). Track base URLs point at an inert host; the player
+// test never fetches them.
 const okPlayerBody = `{
   "playabilityStatus": {"status": "OK", "reason": ""},
   "videoDetails": {
@@ -38,7 +38,7 @@ const okPlayerBody = `{
       "captionTracks": [
         {"languageCode": "en", "kind": "", "baseUrl": "https://example.com/tt?lang=en"},
         {"languageCode": "en", "kind": "asr", "baseUrl": "https://example.com/tt?lang=en&kind=asr"},
-        {"languageCode": "es", "kind": "", "is_generated": true, "baseUrl": "https://example.com/tt?lang=es"}
+        {"languageCode": "es", "kind": "asr", "baseUrl": "https://example.com/tt?lang=es&kind=asr"}
       ]
     }
   }
@@ -95,7 +95,7 @@ func TestPlayer(t *testing.T) {
 		assert.Equal(t, "en", got.Tracks[1].Lang)
 		assert.True(t, got.Tracks[1].Generated, "kind asr is a generated track")
 		assert.Equal(t, "es", got.Tracks[2].Lang)
-		assert.True(t, got.Tracks[2].Generated, "is_generated flag marks the track generated")
+		assert.True(t, got.Tracks[2].Generated, "kind asr is a generated track")
 	})
 
 	t.Run("unplayable status wraps the reason", func(t *testing.T) {

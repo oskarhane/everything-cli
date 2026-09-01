@@ -191,7 +191,7 @@ func (c *HTTPClient) Player(ctx context.Context, videoID string) (*Player, error
 	for _, t := range pr.Captions.PlayerCaptionsTracklistRenderer.CaptionTracks {
 		p.Tracks = append(p.Tracks, Track{
 			Lang:      t.LanguageCode,
-			Generated: t.Kind == "asr" || t.IsGenerated,
+			Generated: t.Kind == "asr",
 			BaseURL:   t.BaseURL,
 		})
 	}
@@ -283,7 +283,6 @@ type playerResponse struct {
 				LanguageCode string `json:"languageCode"`
 				Kind         string `json:"kind"`
 				BaseURL      string `json:"baseUrl"`
-				IsGenerated  bool   `json:"is_generated"`
 			} `json:"captionTracks"`
 		} `json:"playerCaptionsTracklistRenderer"`
 	} `json:"captions"`
