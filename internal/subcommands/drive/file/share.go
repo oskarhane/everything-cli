@@ -77,10 +77,22 @@ google-cli drive file share 1AbCdEfGh --role writer --domain example.com`,
 			if err != nil {
 				return err
 			}
-			if _, err := permSvc.GrantPermission(cmd.Context(), args[0], perm); err != nil {
+			granted, err := permSvc.GrantPermission(cmd.Context(), args[0], perm)
+			if err != nil {
 				return err
 			}
-			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Granted %s on %s to %s\n", role, args[0], shareTarget(email, domain)); err != nil {
+			if granted == nil {
+				return fmt.Errorf("granting permission on file %s: API returned no permission", args[0])
+			}
+			// Echo what the API GRANTED, not what was requested: Google may
+			// coerce the role or expiry, so the confirmation is the audit
+			// trail for an agent-driven CLI.
+			details := fmt.Sprintf("permission %s, type %s", granted.Id, granted.Type)
+			if granted.ExpirationTime != "" {
+				details += ", expires " + granted.ExpirationTime
+			}
+			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Granted %s on %s to %s (%s)\n",
+				granted.Role, args[0], shareTarget(email, domain), details); err != nil {
 				return err
 			}
 			return nil

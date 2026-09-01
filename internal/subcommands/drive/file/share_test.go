@@ -1,12 +1,72 @@
 package file
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	drive "google.golang.org/api/drive/v3"
+
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
+
+// coercedGrantFake wraps fakeService and overrides GrantPermission to return
+// a GRANTED permission that differs from what the flags requested (different
+// id, role, type, and expiry) — modeling Google coercing the grant. Kept
+// share_test.go-local so the shared fake stays untouched.
+type coercedGrantFake struct {
+	*fakeService
+	granted *drive.Permission
+}
+
+func (f *coercedGrantFake) GrantPermission(_ context.Context, fileID string, perm *drive.Permission) (*drive.Permission, error) {
+	f.grantedFileID, f.grantedPerm = fileID, perm
+	return f.granted, nil
+}
+
+func runShareCmd(t *testing.T, svc *coercedGrantFake, args ...string) string {
+	t.Helper()
+	dialer := func(context.Context) (service.FileService, error) { return svc, nil }
+	return cmdtest.RunCmd(t, newShareCmd(cmdtest.NewTestConfig("json"), dialer), args...)
+}
+
+// TestShareEchoesGrantedNotRequested asserts the confirmation reflects the
+// API RESPONSE (role/type/id/expiry), not the flags: Google may coerce the
+// grant, so the echoed line is the only audit trail.
+func TestShareEchoesGrantedNotRequested(t *testing.T) {
+	svc := &coercedGrantFake{
+		fakeService: &fakeService{},
+		granted: &drive.Permission{
+			Id:             "perm_coerced",
+			Type:           "anyone",
+			Role:           "writer",
+			ExpirationTime: "2026-12-31T00:00:00Z",
+		},
+	}
+	out := runShareCmd(t, svc, "file_1", "--role", "reader", "--email", "alice@example.com")
+
+	require.Equal(t, "file_1", svc.grantedFileID)
+	require.Equal(t, "reader", svc.grantedPerm.Role, "request still carries the flag role")
+	require.Contains(t, out, "Granted writer on file_1 to alice@example.com",
+		"echo must show the granted role, not the requested role")
+	require.NotContains(t, out, "Granted reader")
+	require.Contains(t, out, "permission perm_coerced, type anyone, expires 2026-12-31T00:00:00Z")
+}
+
+// TestShareEchoOmitsExpiresWhenNoneGranted: the expiry clause appears only
+// when the response carries one.
+func TestShareEchoOmitsExpiresWhenNoneGranted(t *testing.T) {
+	svc := &coercedGrantFake{
+		fakeService: &fakeService{},
+		granted:     &drive.Permission{Id: "perm_coerced", Type: "user", Role: "reader", EmailAddress: "alice@example.com"},
+	}
+	out := runShareCmd(t, svc, "file_1", "--role", "reader", "--email", "alice@example.com", "--expires", "2027-01-01T00:00:00Z")
+
+	require.Contains(t, out, "Granted reader on file_1 to alice@example.com (permission perm_coerced, type user)")
+	require.NotContains(t, out, "expires")
+}
 
 func TestShareUserGrant(t *testing.T) {
 	svc := &fakeService{}
@@ -17,7 +77,7 @@ func TestShareUserGrant(t *testing.T) {
 	require.Equal(t, "user", svc.grantedPerm.Type)
 	require.Equal(t, "alice@example.com", svc.grantedPerm.EmailAddress)
 	require.Equal(t, "reader", svc.grantedPerm.Role)
-	require.Contains(t, out, "Granted reader on file_1 to alice@example.com")
+	require.Contains(t, out, "Granted reader on file_1 to alice@example.com (permission perm_new, type user)")
 }
 
 func TestShareAnyoneGrant(t *testing.T) {
@@ -28,7 +88,7 @@ func TestShareAnyoneGrant(t *testing.T) {
 	require.Equal(t, "anyone", svc.grantedPerm.Type)
 	require.Equal(t, false, svc.grantedPerm.AllowFileDiscovery, "link grant, not discoverable")
 	require.Empty(t, svc.grantedPerm.EmailAddress)
-	require.Contains(t, out, "Granted commenter on file_1 to anyone")
+	require.Contains(t, out, "Granted commenter on file_1 to anyone (permission perm_new, type anyone)")
 }
 
 func TestShareDomainGrant(t *testing.T) {
@@ -38,7 +98,7 @@ func TestShareDomainGrant(t *testing.T) {
 
 	require.Equal(t, "domain", svc.grantedPerm.Type)
 	require.Equal(t, "example.com", svc.grantedPerm.Domain)
-	require.Contains(t, out, "Granted writer on file_1 to domain example.com")
+	require.Contains(t, out, "Granted writer on file_1 to domain example.com (permission perm_new, type domain)")
 }
 
 func TestShareExpiresPassthrough(t *testing.T) {
