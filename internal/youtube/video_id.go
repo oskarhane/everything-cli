@@ -31,9 +31,11 @@ func ParseVideoID(s string) (string, error) {
 		case host == "youtube.com" || strings.HasSuffix(host, ".youtube.com"):
 			if strings.TrimRight(u.Path, "/") == "/watch" {
 				id = u.Query().Get("v")
-			} else {
+			} else if seg := pathSegment(u.Path, 0); seg == "shorts" || seg == "embed" || seg == "live" {
 				id = pathSegment(u.Path, 1)
 			}
+			// Any other path (e.g. /videos/<id>) is not a recognized link
+			// shape — leave id empty so it falls through as ErrBadVideoID.
 		default:
 			return "", ErrBadVideoID
 		}
@@ -71,7 +73,7 @@ func isVideoID(s string) bool {
 	}
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && (c < '0' || c > '9') && c != '-' && c != '_' {
 			return false
 		}
 	}

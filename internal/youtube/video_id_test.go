@@ -58,6 +58,9 @@ func TestParseVideoIDRejects(t *testing.T) {
 		{name: "youtu.be without id", in: "https://youtu.be/"},
 		{name: "shorts without id", in: ytURL("/shorts/")},
 		{name: "shorts with long id", in: ytURL("/shorts/dQw4w9WgXcQextra")},
+		{name: "unknown path segment", in: ytURL("/videos/dQw4w9WgXcQ")},
+		{name: "watch as path segment", in: ytURL("/watch/dQw4w9WgXcQ")},
+		{name: "arbitrary foo path", in: ytURL("/foo/dQw4w9WgXcQ")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
