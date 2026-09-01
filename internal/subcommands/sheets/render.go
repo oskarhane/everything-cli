@@ -1,15 +1,13 @@
 package sheets
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/spf13/cobra"
 
 	sheets "google.golang.org/api/sheets/v4"
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/subcommands/sheets/values"
 )
 
 // sheetFields is the sheet-tab row field order for `sheets get` output; the
@@ -63,28 +61,16 @@ func printSheets(cmd *cobra.Command, cfg *app.Config, rows []map[string]any) {
 }
 
 // compactHeader copies row with header joined to a single string; JSON and
-// TOON keep the array.
+// TOON keep the array. The header renders empty when it is not a []any row.
 func compactHeader(row map[string]any) map[string]any {
 	out := make(map[string]any, len(row))
 	for k, v := range row {
 		if k == "header" {
-			v = joinCells(v)
+			if cells, ok := v.([]any); ok {
+				v = values.JoinCells(cells)
+			}
 		}
 		out[k] = v
 	}
 	return out
-}
-
-// joinCells renders a cell row for a table cell: scalars as text, joined
-// with tabs. Non-strings keep their default formatting.
-func joinCells(v any) string {
-	row, ok := v.([]any)
-	if !ok {
-		return ""
-	}
-	cells := make([]string, 0, len(row))
-	for _, cell := range row {
-		cells = append(cells, fmt.Sprintf("%v", cell))
-	}
-	return strings.Join(cells, "\t")
 }

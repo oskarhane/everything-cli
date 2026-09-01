@@ -30,7 +30,7 @@ func printValuesGet(cmd *cobra.Command, cfg *app.Config, a1Range string, vals []
 	}
 	rows := make([]map[string]any, 0, len(vals))
 	for i, row := range vals {
-		rows = append(rows, map[string]any{"row": i + 1, "values": joinCells(row)})
+		rows = append(rows, map[string]any{"row": i + 1, "values": JoinCells(row)})
 	}
 	detail := map[string]any{"range": a1Range, "values": vals}
 	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), valuesGetFields, detail, rows)
@@ -65,9 +65,11 @@ func printOne(cmd *cobra.Command, cfg *app.Config, fields []string, row map[stri
 	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), fields, row, []map[string]any{row})
 }
 
-// joinCells renders one spreadsheet row for a table cell: scalars as text,
-// joined with tabs. Non-strings keep their default formatting.
-func joinCells(row []any) string {
+// JoinCells renders one spreadsheet row for a table cell: scalars as text,
+// joined with tabs. Non-strings keep their default formatting. Exported so
+// the sheets tree's table renderer can compact a header row without growing
+// a second copy (sheets imports values, not the reverse).
+func JoinCells(row []any) string {
 	cells := make([]string, 0, len(row))
 	for _, cell := range row {
 		cells = append(cells, fmt.Sprintf("%v", cell))

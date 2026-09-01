@@ -9,6 +9,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
 
 // fileListFields is the file list row field order for table output; the same
@@ -97,7 +98,7 @@ func sizeString(n int64) any {
 // escapeQ doubles embedded single quotes so a name containing a quote stays
 // one Drive q term.
 func escapeQ(s string) string {
-	return strings.ReplaceAll(s, "'", "''")
+	return service.DoubleSingleQuotes(s)
 }
 
 // composeQuery builds the API's q parameter from the raw --query passthrough

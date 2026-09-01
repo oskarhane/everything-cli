@@ -3,7 +3,6 @@ package sheets
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -59,7 +58,7 @@ func headerRow(ctx context.Context, svc sheetMetaService, id string, props *shee
 	if cols <= 0 {
 		return nil
 	}
-	rangeA1 := fmt.Sprintf("'%s'!A1:%s", escapeA1Title(props.Title), colLetter(cols))
+	rangeA1 := fmt.Sprintf("'%s'!A1:%s", service.DoubleSingleQuotes(props.Title), colLetter(cols))
 	vals, err := svc.GetValues(ctx, id, rangeA1)
 	if err != nil || len(vals) == 0 {
 		return nil
@@ -74,12 +73,6 @@ func gridCols(props *sheets.SheetProperties) int64 {
 		return 0
 	}
 	return props.GridProperties.ColumnCount
-}
-
-// escapeA1Title doubles embedded single quotes so a title containing a quote stays
-// one A1-quoted sheet reference.
-func escapeA1Title(title string) string {
-	return strings.ReplaceAll(title, "'", "''")
 }
 
 // colLetter converts a 1-based column number to A1 letters (1 → "A", 28 → "AB").
