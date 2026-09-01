@@ -126,3 +126,33 @@ func TestDial(t *testing.T) {
 		require.Equal(t, "work", account)
 	})
 }
+
+func TestDialAccount(t *testing.T) {
+	t.Run("returns the resolved account record with its scopes", func(t *testing.T) {
+		fs, credentialsPath := writeCredentialsFile(t)
+		store := newDialStore(t, fs)
+		seedDialAccount(t, store, "work", true)
+		require.NoError(t, store.SetDefaultAccount("work"))
+
+		acct, ts, err := DialAccount(&app.Config{Fs: fs, Credentials: credentialsPath})
+		require.NoError(t, err)
+		require.NotNil(t, ts)
+		require.Equal(t, "work", acct.Name)
+	})
+
+	t.Run("propagates account resolution failure", func(t *testing.T) {
+		_, _, err := DialAccount(&app.Config{Fs: afero.NewMemMapFs()})
+		require.EqualError(t, err, noAccountsErr)
+	})
+
+	t.Run("Dial returns the name DialAccount resolved", func(t *testing.T) {
+		fs, credentialsPath := writeCredentialsFile(t)
+		store := newDialStore(t, fs)
+		seedDialAccount(t, store, "work", true)
+		require.NoError(t, store.SetDefaultAccount("work"))
+
+		_, account, err := Dial(&app.Config{Fs: fs, Credentials: credentialsPath})
+		require.NoError(t, err)
+		require.Equal(t, "work", account)
+	})
+}

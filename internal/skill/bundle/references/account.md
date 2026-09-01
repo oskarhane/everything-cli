@@ -25,6 +25,11 @@ google-cli account add work --credentials ~/google/credentials.json \
   --scopes https://www.googleapis.com/auth/gmail.send
 ```
 
+Scope minimization: `--scopes` accepts a comma-separated list for narrower
+grants. The default set is full Gmail + Calendar + Drive/Docs/Sheets/Slides +
+userinfo.email; with a narrowed grant, Drive/Docs/Sheets/Slides commands fail
+fast with the missing scope and a re-consent action instead of returning raw
+403s from Google.
 ## account get <name>
 
 Show account metadata (name, email, scopes, default). Token values are never

@@ -33,6 +33,33 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 	return "", fmt.Errorf("no default account set; run `google-cli account use <name>` or pass --account")
 }
 
+// DialAccount is Dial plus the resolved account record: trees that enforce
+// a scope guardrail need the account's granted scopes, which the name alone
+// does not carry. Same chain, one extra store read.
+func DialAccount(cfg *app.Config) (*config.Account, oauth2.TokenSource, error) {
+	store, err := config.NewStore(cfg.Fs, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	account, err := ResolveAccount(cfg, store)
+	if err != nil {
+		return nil, nil, err
+	}
+	credentials, err := ResolveCredentials(cfg.Fs, cfg.Credentials, store.Dir())
+	if err != nil {
+		return nil, nil, err
+	}
+	acct, err := store.Get(account)
+	if err != nil {
+		return nil, nil, err
+	}
+	ts, err := TokenSource(cfg.Fs, store, credentials, account)
+	if err != nil {
+		return nil, nil, fmt.Errorf("account %q: %w", account, err)
+	}
+	return acct, ts, nil
+}
+
 // Dial owns the whole auth chain every API-backed command shares: it opens
 // the account store, resolves the acting account (cfg.Account first, then
 // the store default), locates the OAuth credentials file, and returns a
@@ -40,21 +67,9 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 // wrap the result in their service constructor; no account-selection policy
 // remains in command packages.
 func Dial(cfg *app.Config) (oauth2.TokenSource, string, error) {
-	store, err := config.NewStore(cfg.Fs, "")
+	acct, ts, err := DialAccount(cfg)
 	if err != nil {
 		return nil, "", err
 	}
-	account, err := ResolveAccount(cfg, store)
-	if err != nil {
-		return nil, "", err
-	}
-	credentials, err := ResolveCredentials(cfg.Fs, cfg.Credentials, store.Dir())
-	if err != nil {
-		return nil, "", err
-	}
-	ts, err := TokenSource(cfg.Fs, store, credentials, account)
-	if err != nil {
-		return nil, "", fmt.Errorf("account %q: %w", account, err)
-	}
-	return ts, account, nil
+	return ts, acct.Name, nil
 }
