@@ -45,7 +45,9 @@ binary name; the command layout is `google-cli <resource> <action>`.
 
 1. Have a Google Cloud OAuth client's `credentials.json` (Desktop app type).
    Place it at the default location or pass `--credentials <path>` /
-   `--credentials` on `account add`.
+   `--credentials` on `account add`. Provisioning the app (consent-screen
+   user type, External vs Internal, publishing status, the full scope list)
+   is covered in the README's *Getting started* section.
 2. `google-cli account add <name>` — runs the OAuth flow, verifies identity,
    and stores the token. `--scopes` overrides the default scope set
    (Gmail modify/send/compose + Calendar + Drive + Docs + Sheets + Slides +

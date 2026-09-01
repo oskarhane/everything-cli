@@ -41,7 +41,57 @@ Conventions for contributing: see [CLAUDE.md](CLAUDE.md).
 
 ## Getting started
 
-1. **OAuth app credentials.** Create an OAuth *Desktop app* client in Google Cloud Console and download the client JSON. Put it at `~/.config/google-cli/credentials.json` (or pass `--credentials <path>`). Only this one file is read from the working directory's perspective — the CLI never picks up a `./credentials.json` from the CWD, and it always talks to Google's OAuth endpoints regardless of what the file claims.
+1. **OAuth app credentials.** google-cli needs an OAuth *Desktop app* client from a Google Cloud project you control. One app can serve both personal and Workspace accounts.
+
+   a. **Project + APIs (scriptable).** Create the project and enable the APIs from the shell:
+
+   ```sh
+   gcloud projects create <project-id>
+   gcloud services enable gmail.googleapis.com calendar-json.googleapis.com \
+       drive.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com \
+       --project <project-id>
+   ```
+
+   b. **Consent screen (console only).** *APIs & Services → OAuth consent screen*. There is no public API or `gcloud` command for this step (the old `gcloud iap oauth-brands` path is deprecated and forces Internal). Choose the **user type**:
+
+   - **External** — any Google account. Required for personal (gmail.com) accounts, and the right choice when one app should serve both a personal and a work account. Caveat: if the work org's admin restricts untrusted third-party apps (Admin console → *Security → API controls → App access control*), consent for the work account fails with an admin-policy error — the admin must trust your client ID, or you keep a separate org-internal app for the work account and pass `--credentials <path>` on its commands.
+   - **Internal** — only accounts inside the same Workspace org (only offered for projects created inside an org).
+
+   **Publish the app** (Production status). In "Testing" status you must list each email as a test user *and refresh tokens expire after 7 days* — weekly re-auth via `account add`. Self-use doesn't need Google's verification: click through the "unverified app" warning once per account.
+
+   c. **Scopes (permissions).** Add these on the consent screen — the default `account add` grant requests them all. Copy-paste block (one per line):
+
+   ```
+   https://www.googleapis.com/auth/gmail.modify
+   https://www.googleapis.com/auth/gmail.send
+   https://www.googleapis.com/auth/gmail.compose
+   https://www.googleapis.com/auth/calendar
+   https://www.googleapis.com/auth/drive
+   https://www.googleapis.com/auth/documents
+   https://www.googleapis.com/auth/spreadsheets
+   https://www.googleapis.com/auth/presentations
+   https://www.googleapis.com/auth/userinfo.email
+   ```
+
+   | Scope | Grants |
+   |---|---|
+   | `https://www.googleapis.com/auth/gmail.modify` | read, label, mark, trash messages |
+   | `https://www.googleapis.com/auth/gmail.send` | send mail |
+   | `https://www.googleapis.com/auth/gmail.compose` | create/send drafts |
+   | `https://www.googleapis.com/auth/calendar` | full Google Calendar (events, ACLs, free/busy) |
+   | `https://www.googleapis.com/auth/drive` | full Drive: files and sharing |
+   | `https://www.googleapis.com/auth/documents` | edit Google Docs content |
+   | `https://www.googleapis.com/auth/spreadsheets` | read/write Google Sheets values |
+   | `https://www.googleapis.com/auth/presentations` | edit Google Slides content |
+   | `https://www.googleapis.com/auth/userinfo.email` | resolve the account's email after auth |
+
+   Minimal Drive profile: swap `https://www.googleapis.com/auth/drive` for `https://www.googleapis.com/auth/drive.file` (only files this app created or opened) — file read/write commands still work, but the sharing commands (`drive file share`/`unshare`/`permissions`) require the full `drive` scope. A narrower `account add --scopes <csv>` grant is possible too; commands that need a missing scope fail fast with a re-consent action. Ready-to-paste minimal profile:
+
+   ```
+   google-cli account add personal --scopes https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/gmail.compose,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/drive.file,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/presentations
+   ```
+
+   d. **Client credentials (console only).** *APIs & Services → Credentials → Create Credentials → OAuth client ID → Desktop app* — no API exists for creating client IDs. Download the JSON and put it at `~/.config/google-cli/credentials.json` (or pass `--credentials <path>`). Only this one file is read from the working directory's perspective — the CLI never picks up a `./credentials.json` from the CWD, and it always talks to Google's OAuth endpoints regardless of what the file claims.
 
 2. **Add an account** (opens a browser; loopback redirect, PKCE, CSRF state):
 
