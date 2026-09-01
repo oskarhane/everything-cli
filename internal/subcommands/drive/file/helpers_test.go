@@ -51,6 +51,7 @@ type fakeService struct {
 	listedFileID  string              // last ListPermissions file id
 	grantedFileID string              // last GrantPermission file id
 	grantedPerm   *drive.Permission   // last GrantPermission request
+	CoercedGrant  *drive.Permission   // when set, GrantPermission returns it instead of echoing the request
 	deletedFileID string
 	deletedPermID string
 	downloaded    string // last DownloadTo file id
@@ -150,8 +151,9 @@ func (f *fakeService) ExportTo(_ context.Context, id, exportMime string, w io.Wr
 }
 
 // Permission fakes: ListPermissions serves perms, GrantPermission records
-// the request and echoes an id, DeletePermission records the revoke. err,
-// when set, fails every call like the file surfaces above.
+// the request and echoes an id (or CoercedGrant when seeded, modeling Google
+// coercing the grant), DeletePermission records the revoke. err, when set,
+// fails every call like the file surfaces above.
 
 func (f *fakeService) ListPermissions(_ context.Context, fileID string) ([]*drive.Permission, error) {
 	if f.err != nil {
@@ -166,6 +168,9 @@ func (f *fakeService) GrantPermission(_ context.Context, fileID string, perm *dr
 		return nil, f.err
 	}
 	f.grantedFileID, f.grantedPerm = fileID, perm
+	if f.CoercedGrant != nil {
+		return f.CoercedGrant, nil
+	}
 	granted := *perm
 	granted.Id = "perm_new"
 	return &granted, nil
