@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	skillapi "github.com/oskarhane/google-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	skillapi "github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"

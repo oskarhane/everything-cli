@@ -1,4 +1,4 @@
-// Package app builds the google-cli command tree.
+// Package app builds the everything-cli command tree.
 package app
 
 import (
@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // Version is stamped at build time via ldflags (-X); "dev" is the fallback.
@@ -41,14 +41,14 @@ func NewConfig() *Config {
 	}
 }
 
-// NewRootCommand builds the google-cli root command with persistent flags bound to cfg.
+// NewRootCommand builds the everything-cli root command with persistent flags bound to cfg.
 // Subcommands are attached by callers and receive cfg.
 func NewRootCommand(cfg *Config) *cobra.Command {
 	root := &cobra.Command{
-		Use:   "google-cli",
+		Use:   "everything-cli",
 		Short: "Interact with Google services from the command line",
 		// Version enables the built-in --version flag; cobra prints it as
-		// "google-cli version <Version>" via its default template.
+		// "everything-cli version <Version>" via its default template.
 		Version: Version,
 		// Run prints help so the root's flags and usage stay visible
 		// until subcommands are attached.
@@ -58,7 +58,7 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	}
 
 	f := root.PersistentFlags()
-	f.StringVar(&cfg.Account, "account", "", "Google account to act as (empty = default account)")
+	f.StringVar(&cfg.Account, "account", "", "Account to act as (empty = default account)")
 	f.StringVar(&cfg.Format, "format", "", "Output format: json, table, or toon (empty = auto-detect)")
 	f.BoolVar(&cfg.Debug, "debug", false, "Enable debug output")
 

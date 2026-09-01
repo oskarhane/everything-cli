@@ -8,8 +8,8 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newUnshareCmd returns `drive file unshare`: revoke one permission from a
@@ -24,10 +24,10 @@ func newUnshareCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *c
 		Use:   "unshare <file-id>",
 		Short: "Revoke a permission from a Drive file",
 		Example: `# Revoke a user's access by email
-google-cli drive file unshare 1AbCdEfGh --email alice@example.com
+everything-cli drive file unshare 1AbCdEfGh --email alice@example.com
 
 # Revoke one permission by id (see "drive file permissions" to find it)
-google-cli drive file unshare 1AbCdEfGh --permission 8zK`,
+everything-cli drive file unshare 1AbCdEfGh --permission 8zK`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if (permissionID == "") == (email == "") {
@@ -77,7 +77,7 @@ func permissionForEmail(perms []*drive.Permission, email, fileID string) (*drive
 	}
 	switch len(matches) {
 	case 0:
-		return nil, fmt.Errorf("no permission for %s on file %s: run \"google-cli drive file permissions %s\" to find the permission id", email, fileID, fileID)
+		return nil, fmt.Errorf("no permission for %s on file %s: run \"everything-cli drive file permissions %s\" to find the permission id", email, fileID, fileID)
 	case 1:
 		return matches[0], nil
 	default:

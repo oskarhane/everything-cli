@@ -40,14 +40,14 @@ func TestInputViolations_AllowOk(t *testing.T) {
 // and an indented example is reported with its command path.
 func TestExampleViolations_NamesOffender(t *testing.T) {
 	bad := &cobra.Command{Use: "get", RunE: func(*cobra.Command, []string) error { return nil }}
-	bad.Example = "  google-cli demo get\n  google-cli demo get --format json"
+	bad.Example = "  everything-cli demo get\n  everything-cli demo get --format json"
 	assert.Contains(t, exampleViolations(bad)[0], "get: Example must start flush-left")
 
 	single := &cobra.Command{Use: "get", RunE: func(*cobra.Command, []string) error { return nil }}
-	single.Example = "# one\n" + "google-cli app get"
+	single.Example = "# one\n" + "everything-cli app get"
 	vs := exampleViolations(single)
 	assert.Len(t, vs, 1)
-	assert.Contains(t, vs[0], "1 google-cli invocation(s), want >= 2")
+	assert.Contains(t, vs[0], "1 everything-cli invocation(s), want >= 2")
 
 	empty := &cobra.Command{Use: "get", RunE: func(*cobra.Command, []string) error { return nil }}
 	assert.Contains(t, exampleViolations(empty)[0], "no Example")

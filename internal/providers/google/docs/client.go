@@ -3,9 +3,9 @@ package docs
 import (
 	"context"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // dial is the service seam handed to every docs leaf: auth.DialAccount

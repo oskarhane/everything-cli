@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // newTestStore returns a hermetic accounts store on an in-memory FS: tests

@@ -4,8 +4,8 @@ package team
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // NewCmd returns the `linear team` parent command with its leaves attached.

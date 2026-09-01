@@ -31,7 +31,7 @@ type OAuthProfile struct {
 // the userinfo v2 identity endpoint, and the CLI's full default scope set
 // (Gmail, Calendar, Drive, Docs, Sheets, Slides, plus userinfo.email).
 var GoogleOAuth = OAuthProfile{
-	Name:        "google-cli",
+	Name:        "everything-cli",
 	Endpoint:    google.Endpoint,
 	UserinfoURL: "https://www.googleapis.com/oauth2/v2/userinfo",
 	EmailScope:  ScopeUserEmail,

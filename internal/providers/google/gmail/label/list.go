@@ -3,8 +3,8 @@ package label
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newListCmd returns `gmail label list`: every label on the account.
@@ -13,10 +13,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) *c
 		Use:   "list",
 		Short: "List Gmail labels",
 		Example: `# List labels as JSON
-google-cli gmail label list --format json
+everything-cli gmail label list --format json
 
 # List labels as a table
-google-cli gmail label list --format table`,
+everything-cli gmail label list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

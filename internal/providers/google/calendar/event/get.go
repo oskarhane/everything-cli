@@ -3,8 +3,8 @@ package event
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newGetCmd returns `calendar event get`: one event by id. The id may be a
@@ -15,13 +15,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *co
 		Use:   "get <event-id>",
 		Short: "Show an event by id (master or instance)",
 		Example: `# Show a single event as JSON
-google-cli calendar event get abc123 --format json
+everything-cli calendar event get abc123 --format json
 
 # Show one occurrence of a recurring series (instance ids end in _<UTC time>)
-google-cli calendar event get kq3abc123_20260929T030000Z --format json
+everything-cli calendar event get kq3abc123_20260929T030000Z --format json
 
 # Show the recurring master with its RRULE lines on another calendar
-google-cli calendar event get kq3abc123 --calendar work@example.com --format table`,
+everything-cli calendar event get kq3abc123 --calendar work@example.com --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

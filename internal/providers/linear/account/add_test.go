@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
 // addNeverPrintsKey asserts the captured key appears in no output format.

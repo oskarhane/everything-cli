@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
-	skillapi "github.com/oskarhane/google-cli/internal/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	skillsub "github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/update"
+	"github.com/oskarhane/everything-cli/internal/app"
+	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
+	skillapi "github.com/oskarhane/everything-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/subcommands/account"
+	skillsub "github.com/oskarhane/everything-cli/internal/subcommands/skill"
+	"github.com/oskarhane/everything-cli/internal/subcommands/update"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
@@ -37,7 +37,7 @@ func TestTreeDrift(t *testing.T) {
 		// to match as written; single-word leaves ("update") match
 		// incidentally in prose, so they must appear with the binary prefix
 		// ("google-cli update") for the guard to bite.
-		leafPath := strings.TrimPrefix(cmd.CommandPath(), "google-cli ")
+		leafPath := strings.TrimPrefix(cmd.CommandPath(), "everything-cli ")
 		// The bundle still documents the pre-provider command surface; the
 		// provider segment ("google gmail list" -> "gmail list") is stripped
 		// until the skill-sync node rewrites the bundle provider-first.

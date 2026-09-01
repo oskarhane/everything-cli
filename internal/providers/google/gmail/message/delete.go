@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newDeleteCmd returns `gmail message delete`: permanently remove a message.
@@ -18,10 +18,10 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.MessageService]) 
 		Use:   "delete <id>",
 		Short: "Permanently delete a Gmail message (destructive)",
 		Example: `# See the refusal without --force
-google-cli gmail message delete 19c2a4b7
+everything-cli gmail message delete 19c2a4b7
 
 # Actually delete the message permanently
-google-cli gmail message delete 19c2a4b7 --force`,
+everything-cli gmail message delete 19c2a4b7 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

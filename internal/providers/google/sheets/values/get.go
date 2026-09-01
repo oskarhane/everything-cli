@@ -3,8 +3,8 @@ package values
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newGetCmd returns `sheets values get`: read an A1 range and render one row
@@ -15,10 +15,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.SheetValuesService
 		Use:   "get <spreadsheet-id>",
 		Short: "Read cell values from an A1 range",
 		Example: `# Read a range as JSON
-google-cli sheets values get 1AbCdEfGh --range "Sheet1!A1:D10" --format json
+everything-cli sheets values get 1AbCdEfGh --range "Sheet1!A1:D10" --format json
 
 # Show the same range as a table
-google-cli sheets values get 1AbCdEfGh --range "Budget!A1:C20" --format table`,
+everything-cli sheets values get 1AbCdEfGh --range "Budget!A1:C20" --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

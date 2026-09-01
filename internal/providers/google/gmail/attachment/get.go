@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newGetCmd returns `gmail attachment get`: one attachment by id, fetched by
@@ -25,10 +25,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.AttachmentService]
 		Use:   "get <attachment-id>",
 		Short: "Download a Gmail attachment",
 		Example: `# Write the attachment's decoded bytes to a file
-google-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 --out report.pdf
+everything-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 --out report.pdf
 
 # Stream the decoded bytes to stdout for piping
-google-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 > report.pdf`,
+everything-cli gmail attachment get ANG1xQ8q --message-id 19c2a4b7 > report.pdf`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if messageID == "" {

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // TestScopes pins the exact scope sets granted per service.
@@ -87,13 +87,13 @@ func TestRequireScopes(t *testing.T) {
 			name:     "narrowed grant names the missing scope and the re-consent action",
 			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesGmail[0]}},
 			required: ScopesDrive,
-			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive: re-run "google-cli account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
 		},
 		{
 			name:     "every missing scope is listed",
 			acct:     &config.Account{Name: "legacy", Scopes: nil},
 			required: []string{ScopesDocs[0], ScopesSheets[0]},
-			wantErr:  `account "legacy" is missing scopes https://www.googleapis.com/auth/documents, https://www.googleapis.com/auth/spreadsheets: re-run "google-cli account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "legacy" is missing scopes https://www.googleapis.com/auth/documents, https://www.googleapis.com/auth/spreadsheets: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
 		},
 	}
 
@@ -137,13 +137,13 @@ func TestRequireAnyScopes(t *testing.T) {
 			name:     "grant outside the set fails naming both alternatives",
 			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesGmail[0]}},
 			required: ScopesDriveDial,
-			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive or https://www.googleapis.com/auth/drive.file: re-run "google-cli account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive or https://www.googleapis.com/auth/drive.file: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
 		},
 		{
 			name:     "no account errors before any alternative check",
 			acct:     nil,
 			required: ScopesDriveDial,
-			wantErr:  `no account: run "google-cli account add <name>" first`,
+			wantErr:  `no account: run "everything-cli google account add <name>" first`,
 		},
 	}
 

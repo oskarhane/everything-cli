@@ -5,10 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // addedAccount is the rendered shape of a successful account add. The API
@@ -29,13 +29,13 @@ func newAddCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) 
 		Use:   "add <name>",
 		Short: "Add a Linear account with a personal API key",
 		Example: `# Add the account "work", entering the key at a hidden prompt
-google-cli linear account add work
+everything-cli linear account add work
 
 # Add "work" with the key from the environment
-LINEAR_API_KEY=lin_api_... google-cli linear account add work
+LINEAR_API_KEY=lin_api_... everything-cli linear account add work
 
 # Add "work" passing the key explicitly (prefer the env var in scripts)
-google-cli linear account add work --api-key lin_api_...`,
+everything-cli linear account add work --api-key lin_api_...`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

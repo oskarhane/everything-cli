@@ -3,8 +3,8 @@ package draft
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newListCmd returns `gmail draft list`: the stored drafts, newest first.
@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *c
 		Use:   "list",
 		Short: "List Gmail drafts",
 		Example: `# List the 25 most recent drafts as JSON
-google-cli gmail draft list --format json
+everything-cli gmail draft list --format json
 
 # List at most 10 drafts as a table
-google-cli gmail draft list --max 10 --format table`,
+everything-cli gmail draft list --max 10 --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

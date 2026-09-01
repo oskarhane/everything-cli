@@ -8,8 +8,8 @@ import (
 
 	sheets "google.golang.org/api/sheets/v4"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newGetCmd returns `sheets get`: one row per sheet tab, with the tab's grid
@@ -21,13 +21,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[sheetMetaService]) *cobra.
 		Use:   "get <spreadsheet-id>",
 		Short: "Show a spreadsheet's sheet tabs with their grid sizes",
 		Example: `# List the sheet tabs as JSON
-google-cli sheets get 1AbCdEfGh --format json
+everything-cli sheets get 1AbCdEfGh --format json
 
 # Show the same tabs as a table
-google-cli sheets get 1AbCdEfGh --format table
+everything-cli sheets get 1AbCdEfGh --format table
 
 # Get a tab by exact title for scripting
-google-cli sheets get 1AbCdEfGh --format json | jq '.sheets[] | select(.title=="Budget")'`,
+everything-cli sheets get 1AbCdEfGh --format json | jq '.sheets[] | select(.title=="Budget")'`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id := args[0]

@@ -1,5 +1,5 @@
 // Package gates holds repo-wide WHOLE-TREE gate tests. They mount the full
-// google-cli command tree exactly the way main.go does (main itself cannot be
+// everything-cli command tree exactly the way main.go does (main itself cannot be
 // imported) and walk it with cobra, so every current and future subtree is
 // covered automatically without executing anything — hermetic by design.
 package gates
@@ -14,11 +14,11 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/update"
+	"github.com/oskarhane/everything-cli/internal/app"
+	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
+	"github.com/oskarhane/everything-cli/internal/subcommands/account"
+	"github.com/oskarhane/everything-cli/internal/subcommands/skill"
+	"github.com/oskarhane/everything-cli/internal/subcommands/update"
 )
 
 // newWholeTree mounts the complete command tree the same way main.go does —
@@ -96,11 +96,11 @@ func useFirstWord(use string) string {
 	return first
 }
 
-// countInvocations counts flush-left example lines invoking google-cli.
+// countInvocations counts flush-left example lines invoking everything-cli.
 func countInvocations(example string) int {
 	n := 0
 	for _, line := range strings.Split(example, "\n") {
-		if strings.HasPrefix(line, "google-cli ") {
+		if strings.HasPrefix(line, "everything-cli ") {
 			n++
 		}
 	}

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

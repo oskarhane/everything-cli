@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	skillapi "github.com/oskarhane/google-cli/internal/skill"
+	skillapi "github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

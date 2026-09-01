@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newDownloadCmd returns `drive file download`: stream a file's bytes to
@@ -27,10 +27,10 @@ func newDownloadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService])
 		Use:   "download <file-id>",
 		Short: "Download a Drive file's content, exporting Google-native types",
 		Example: `# Download a binary file to a local path
-google-cli drive file download 1AbCdEfGh --out report.pdf
+everything-cli drive file download 1AbCdEfGh --out report.pdf
 
 # Export a Google Sheet as CSV (first sheet only) to stdout for piping
-google-cli drive file download 1AbCdEfGh --export text/csv > data.csv`,
+everything-cli drive file download 1AbCdEfGh --export text/csv > data.csv`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -4,8 +4,8 @@ package values
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // NewCmd returns the `sheets values` parent with every values leaf attached.

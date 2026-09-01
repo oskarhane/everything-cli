@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // resolveAccount resolves the linear account a command acts as: the

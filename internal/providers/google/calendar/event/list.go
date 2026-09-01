@@ -8,8 +8,8 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // nowFunc is the clock seam: tests pin it so the default window
@@ -34,16 +34,16 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *c
 		Use:   "list",
 		Short: "List events, expanding or hiding recurring series",
 		Example: `# This week's events as JSON, recurring series expanded into occurrences
-google-cli calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
+everything-cli calendar event list --from 2026-09-01T00:00:00Z --to 2026-09-08T00:00:00Z --format json
 
 # Change-detection pull: only events modified since yesterday
-google-cli calendar event list --updated-since -1d --format json
+everything-cli calendar event list --updated-since -1d --format json
 
 # Show the underlying recurring masters and one-off events instead
-google-cli calendar event list --recurring masters --format table
+everything-cli calendar event list --recurring masters --format table
 
 # Search events by keyword on another calendar
-google-cli calendar event list --calendar work@example.com --query "design review" --max 10`,
+everything-cli calendar event list --calendar work@example.com --query "design review" --max 10`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			f := cmd.Flags()

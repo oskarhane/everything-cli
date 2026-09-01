@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newGetCmd returns `docs get`: the document's exported text, streamed RAW to
@@ -20,10 +20,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.DocService]) *cobr
 		Use:   "get <doc-id>",
 		Short: "Read a Google Doc's text content",
 		Example: `# Write the document's text to a file
-google-cli docs get 1AbCdEfGh --out notes.txt
+everything-cli docs get 1AbCdEfGh --out notes.txt
 
 # Stream the document's text to stdout for piping
-google-cli docs get 1AbCdEfGh | head -20`,
+everything-cli docs get 1AbCdEfGh | head -20`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

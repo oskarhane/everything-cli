@@ -7,8 +7,8 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newModifyCmd returns `gmail message modify`: add or remove labels on a
@@ -22,13 +22,13 @@ func newModifyCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]
 		Use:   "modify <id>",
 		Short: "Add or remove labels on a Gmail message",
 		Example: `# Add two labels and remove one
-google-cli gmail message modify 19c2a4b7 --add-label-ids Label_7,Label_9 --remove-label-ids INBOX
+everything-cli gmail message modify 19c2a4b7 --add-label-ids Label_7,Label_9 --remove-label-ids INBOX
 
 # Remove a single label
-google-cli gmail message modify 19c2a4b7 --remove-label-ids UNREAD
+everything-cli gmail message modify 19c2a4b7 --remove-label-ids UNREAD
 
 # See the resulting label set as JSON
-google-cli gmail message modify 19c2a4b7 --add-label-ids STARRED --format json`,
+everything-cli gmail message modify 19c2a4b7 --add-label-ids STARRED --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			req := &gmail.ModifyMessageRequest{

@@ -3,7 +3,7 @@ package skill
 import (
 	"testing"
 
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

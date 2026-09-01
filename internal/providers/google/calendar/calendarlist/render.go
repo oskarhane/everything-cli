@@ -5,8 +5,8 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // calendarFields is the single-calendar field order for table output; the

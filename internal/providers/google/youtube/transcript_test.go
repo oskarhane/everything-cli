@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	yt "github.com/oskarhane/google-cli/internal/youtube"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
+	yt "github.com/oskarhane/everything-cli/internal/youtube"
 )
 
 // stubTerminal overrides stdout terminal detection for the duration of a

@@ -1,4 +1,4 @@
-module github.com/oskarhane/google-cli
+module github.com/oskarhane/everything-cli
 
 go 1.26.2
 

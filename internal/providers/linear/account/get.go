@@ -3,9 +3,9 @@ package account
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // getAccount is the rendered shape of account get: account metadata only.
@@ -23,10 +23,10 @@ func newGetCmd(cfg *app.Config, providerID string) *cobra.Command {
 		Use:   "get <name>",
 		Short: "Show a Linear account's metadata",
 		Example: `# Show the "work" account
-google-cli linear account get work
+everything-cli linear account get work
 
 # Show the "work" account as JSON (the API key is never printed)
-google-cli linear account get work --format json`,
+everything-cli linear account get work --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

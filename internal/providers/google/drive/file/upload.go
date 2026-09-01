@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newUploadCmd returns `drive file upload`: create a Drive file with content
@@ -25,10 +25,10 @@ func newUploadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *
 		Use:   "upload <local-path>",
 		Short: "Upload a local file to Drive",
 		Example: `# Upload a file, naming it after the local base name
-google-cli drive file upload ./report.pdf --format json
+everything-cli drive file upload ./report.pdf --format json
 
 # Upload a file into a Drive folder under a new name
-google-cli drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh`,
+everything-cli drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			localPath := args[0]

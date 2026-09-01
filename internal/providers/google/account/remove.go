@@ -3,8 +3,8 @@ package account
 import (
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -17,8 +17,8 @@ func newRemoveCmd(cfg *app.Config) *cobra.Command {
 		Use:   "remove <name>",
 		Short: "Remove a Google account and its cached token",
 		Example: `# Inspect what would be removed, then remove the "old" account
-google-cli account get old
-google-cli account remove old --force`,
+everything-cli account get old
+everything-cli account remove old --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

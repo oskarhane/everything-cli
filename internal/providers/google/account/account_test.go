@@ -34,7 +34,7 @@ func TestParentMountsLeaves(t *testing.T) {
 }
 
 // TestLeafExamplesHaveInvocations: every leaf documents itself with a
-// flush-left example block holding at least two google-cli invocations, and
+// flush-left example block holding at least two everything-cli invocations, and
 // the read leaves show --format json.
 func TestLeafExamplesHaveInvocations(t *testing.T) {
 	_, root, _ := newAccountEnv(t)
@@ -46,17 +46,17 @@ func TestLeafExamplesHaveInvocations(t *testing.T) {
 		require.NotNil(t, sub, "leaf %s should be mounted", leaf)
 		require.NotEmpty(t, sub.Example, "%s should document examples", leaf)
 		assert.True(t,
-			strings.HasPrefix(sub.Example, "#") || strings.HasPrefix(sub.Example, "google-cli"),
+			strings.HasPrefix(sub.Example, "#") || strings.HasPrefix(sub.Example, "everything-cli"),
 			"%s example should be flush-left", leaf)
 
 		invocations := 0
 		for _, line := range strings.Split(sub.Example, "\n") {
-			if strings.HasPrefix(line, "google-cli ") {
+			if strings.HasPrefix(line, "everything-cli ") {
 				invocations++
 			}
 		}
 		assert.GreaterOrEqual(t, invocations, 2,
-			"%s example should show at least two google-cli invocations", leaf)
+			"%s example should show at least two everything-cli invocations", leaf)
 	}
 
 	for _, leaf := range []string{"list", "get"} {

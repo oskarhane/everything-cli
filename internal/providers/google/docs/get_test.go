@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestGetStreamsTextToStdoutVerbatim(t *testing.T) {

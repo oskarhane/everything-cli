@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
@@ -36,10 +36,10 @@ func newAddCmd(cfg *app.Config) *cobra.Command {
 		Use:   "add <name>",
 		Short: "Authorize a Google account via the OAuth flow",
 		Example: `# Authorize a new account named "work" with the default scopes
-google-cli account add work
+everything-cli account add work
 
 # Authorize "work" with an explicit credentials file and scope set
-google-cli account add work --credentials ~/google/credentials.json --scopes https://www.googleapis.com/auth/gmail.send`,
+everything-cli account add work --credentials ~/google/credentials.json --scopes https://www.googleapis.com/auth/gmail.send`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

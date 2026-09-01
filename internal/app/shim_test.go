@@ -102,12 +102,12 @@ func TestRewriteLegacyArgs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var errBuf bytes.Buffer
-			got := RewriteLegacyArgs("google-cli", tt.args, &errBuf)
+			got := RewriteLegacyArgs("everything-cli", tt.args, &errBuf)
 			assert.Equal(t, tt.want, got)
 			if tt.wantWarn {
 				assert.Contains(t, errBuf.String(), "deprecated")
-				assert.Contains(t, errBuf.String(), "google-cli "+joinArgs(tt.args))
-				assert.Contains(t, errBuf.String(), "google-cli "+joinArgs(tt.want))
+				assert.Contains(t, errBuf.String(), "everything-cli "+joinArgs(tt.args))
+				assert.Contains(t, errBuf.String(), "everything-cli "+joinArgs(tt.want))
 			} else {
 				assert.Empty(t, errBuf.String(), "no warning without a rewrite")
 			}
@@ -120,7 +120,7 @@ func TestRewriteLegacyArgs(t *testing.T) {
 func TestRewriteLegacyArgsDoesNotMutateInput(t *testing.T) {
 	args := []string{"gmail", "list"}
 	var errBuf bytes.Buffer
-	got := RewriteLegacyArgs("google-cli", args, &errBuf)
+	got := RewriteLegacyArgs("everything-cli", args, &errBuf)
 	got[1] = "mutated"
 	assert.Equal(t, "gmail", args[0])
 	assert.Equal(t, "list", args[1])

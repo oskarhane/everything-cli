@@ -5,9 +5,9 @@ import (
 
 	sheets "google.golang.org/api/sheets/v4"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/google/sheets/values"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/google/sheets/values"
 )
 
 // sheetFields is the sheet-tab row field order for `sheets get` output; the

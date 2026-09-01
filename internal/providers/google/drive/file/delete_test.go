@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestDeleteRefusesWithoutForce(t *testing.T) {
@@ -17,7 +17,7 @@ func TestDeleteRefusesWithoutForce(t *testing.T) {
 	// remedy, and the recoverable alternative, and no service call may have
 	// happened.
 	require.ErrorContains(t, err, `refusing to permanently delete file "file_1" without --force`)
-	require.ErrorContains(t, err, `use "google-cli drive file trash <id>" instead`)
+	require.ErrorContains(t, err, `use "everything-cli drive file trash <id>" instead`)
 	require.False(t, svc.deleted)
 }
 

@@ -1,9 +1,9 @@
-// Package account implements the google-cli account subcommands: managing
+// Package account implements the everything-cli account subcommands: managing
 // the per-account OAuth token cache and the default account.
 package account
 
 import (
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/spf13/cobra"
 )
 

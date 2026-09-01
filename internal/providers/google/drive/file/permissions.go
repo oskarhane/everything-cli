@@ -5,9 +5,9 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // permissionFields is the permission row field order for table output; the
@@ -45,10 +45,10 @@ func newPermissionsCmd(cfg *app.Config, newSvc service.Dialer[service.FileServic
 		Use:   "permissions <file-id>",
 		Short: "List the permissions on a Drive file",
 		Example: `# List who a file is shared with, as a table
-google-cli drive file permissions 1AbCdEfGh --format table
+everything-cli drive file permissions 1AbCdEfGh --format table
 
 # List the same permissions as JSON
-google-cli drive file permissions 1AbCdEfGh --format json`,
+everything-cli drive file permissions 1AbCdEfGh --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			permSvc, err := service.As[service.PermissionService](newSvc(cmd.Context()))

@@ -10,10 +10,10 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/dates"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/dates"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // nowFunc is the clock seam: tests pin it so the default window
@@ -32,13 +32,13 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.FreeBusyService]) *co
 		Use:   "freebusy",
 		Short: "List busy time intervals for one or all calendars",
 		Example: `# Free/busy for every listed calendar over the next day, as JSON
-google-cli calendar freebusy --format json
+everything-cli calendar freebusy --format json
 
 # Free/busy for two named calendars during a fixed window
-google-cli calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09-01T17:00:00Z --calendar work@example.com --calendar personal@example.com --format table
+everything-cli calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09-01T17:00:00Z --calendar work@example.com --calendar personal@example.com --format table
 
 # This afternoon's busy slots on one calendar, relative window
-google-cli calendar freebusy --from now --to +8h --calendar primary --format json`,
+everything-cli calendar freebusy --from now --to +8h --calendar primary --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

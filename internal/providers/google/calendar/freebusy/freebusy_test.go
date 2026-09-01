@@ -9,7 +9,7 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // seedCalendars returns two calendar-list entries for the fallback path.
@@ -189,7 +189,7 @@ func TestFreeBusyInvalidWindow(t *testing.T) {
 }
 
 // TestExamplesGate enforces the example contract: flush-left comment-led
-// example with at least two google-cli invocations and --format json.
+// example with at least two everything-cli invocations and --format json.
 func TestExamplesGate(t *testing.T) {
 	cmd := newCmd(&fakeFreeBusyService{}, "json")
 	leaf := cmd
@@ -198,8 +198,8 @@ func TestExamplesGate(t *testing.T) {
 	example := leaf.Example
 	require.NotEmpty(t, example, "the leaf needs an Example")
 	require.True(t, strings.HasPrefix(example, "# "), "Example must be flush-left, starting with a # comment")
-	require.GreaterOrEqual(t, strings.Count(example, "google-cli calendar freebusy"), 2,
-		"Example needs at least two google-cli invocations")
+	require.GreaterOrEqual(t, strings.Count(example, "everything-cli calendar freebusy"), 2,
+		"Example needs at least two everything-cli invocations")
 	require.Contains(t, example, "# ", "Example needs # comments")
 	require.Contains(t, example, "--format json", "Example needs a --format json call")
 }

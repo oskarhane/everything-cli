@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/attachment"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/draft"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/label"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/message"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/thread"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/attachment"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/draft"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/label"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/message"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/thread"
 )
 
 // NewCmd returns the `gmail` parent command with its subtrees attached.

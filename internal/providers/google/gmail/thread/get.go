@@ -3,8 +3,8 @@ package thread
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newGetCmd returns `gmail thread get`: one thread by id, showing its
@@ -14,10 +14,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.ThreadService]) *c
 		Use:   "get <id>",
 		Short: "Show a Gmail thread by id",
 		Example: `# Show a thread's messages with their headers as JSON
-google-cli gmail thread get thread_19c2a4b7 --format json
+everything-cli gmail thread get thread_19c2a4b7 --format json
 
 # Show the same thread as a table
-google-cli gmail thread get thread_19c2a4b7 --format table`,
+everything-cli gmail thread get thread_19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

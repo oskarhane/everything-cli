@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newDeleteCmd returns `calendar event delete`. Deleting an instance id
@@ -20,13 +20,13 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.EventService]) *c
 		Use:   "delete <event-id>",
 		Short: "Delete an event: one occurrence or a whole series",
 		Example: `# See the refusal naming what would be deleted
-google-cli calendar event delete kq3abc123_20260929T030000Z
+everything-cli calendar event delete kq3abc123_20260929T030000Z
 
 # Cancel a single occurrence of a recurring series
-google-cli calendar event delete kq3abc123_20260929T030000Z --force
+everything-cli calendar event delete kq3abc123_20260929T030000Z --force
 
 # Delete the entire recurring series
-google-cli calendar event delete kq3abc123 --force`,
+everything-cli calendar event delete kq3abc123 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

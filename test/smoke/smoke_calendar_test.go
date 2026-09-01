@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // TestSmokeCalendarList runs `calendar list` against the real account and

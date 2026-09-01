@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/youtube"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/youtube"
 )
 
 // metadataFields is the metadata leaf's output field order: table column
@@ -37,13 +37,13 @@ func newMetadataCmd(cfg *app.Config, client youtube.Client) *cobra.Command {
 		Use:   "metadata <url-or-id>",
 		Short: "Show video metadata and available caption languages",
 		Example: `# Show metadata for a watch URL as JSON
-google-cli youtube metadata "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --format json
+everything-cli youtube metadata "https://www.youtube.com/watch?v=dQw4w9WgXcQ" --format json
 
 # Show metadata for a bare video ID as a table
-google-cli youtube metadata dQw4w9WgXcQ --format table
+everything-cli youtube metadata dQw4w9WgXcQ --format table
 
 # Show metadata in TOON for an agent harness
-google-cli youtube metadata "https://youtu.be/dQw4w9WgXcQ" --format toon`,
+everything-cli youtube metadata "https://youtu.be/dQw4w9WgXcQ" --format toon`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := youtube.ParseVideoID(args[0])

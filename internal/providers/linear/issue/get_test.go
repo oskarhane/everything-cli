@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestGetJSON(t *testing.T) {

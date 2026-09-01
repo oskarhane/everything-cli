@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestUpdateRequiresAChange(t *testing.T) {

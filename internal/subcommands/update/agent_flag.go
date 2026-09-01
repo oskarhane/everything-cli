@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/oskarhane/google-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/spf13/cobra"
 )
 

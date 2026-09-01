@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
-	"github.com/oskarhane/google-cli/internal/providers/google/sheets/values"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/sheets/values"
 )
 
 // sheetMetaService is the surface `sheets get` needs: spreadsheet metadata

@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // newUseCmd builds account use: set the default Linear account other
@@ -16,10 +16,10 @@ func newUseCmd(cfg *app.Config, providerID string) *cobra.Command {
 		Use:   "use <name>",
 		Short: "Set the default Linear account",
 		Example: `# Make the "work" account the default
-google-cli linear account use work
+everything-cli linear account use work
 
 # Switch back to the "personal" account
-google-cli linear account use personal`,
+everything-cli linear account use personal`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

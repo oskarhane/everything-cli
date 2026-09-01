@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/acl"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/calendarlist"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/event"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/freebusy"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/acl"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/calendarlist"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/event"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/freebusy"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // NewCmd returns the `calendar` parent command with its subtrees attached.

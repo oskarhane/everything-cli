@@ -3,16 +3,16 @@ package main
 import (
 	"os"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/provider"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/update"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/provider"
+	"github.com/oskarhane/everything-cli/internal/subcommands/account"
+	"github.com/oskarhane/everything-cli/internal/subcommands/skill"
+	"github.com/oskarhane/everything-cli/internal/subcommands/update"
 
 	// Providers self-register via init(); adding a provider is one import.
-	_ "github.com/oskarhane/google-cli/internal/providers/google"
-	_ "github.com/oskarhane/google-cli/internal/providers/granola"
-	_ "github.com/oskarhane/google-cli/internal/providers/linear"
+	_ "github.com/oskarhane/everything-cli/internal/providers/google"
+	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
+	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
 )
 
 func main() {

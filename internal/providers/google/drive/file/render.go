@@ -7,8 +7,8 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // fileListFields is the file list row field order for table output; the same

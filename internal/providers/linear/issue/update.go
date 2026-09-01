@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // newUpdateCmd returns `linear issue update`: change an issue's title,
@@ -23,10 +23,10 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) 
 		Use:   "update <id>",
 		Short: "Update a Linear issue",
 		Example: `# Move issue BLA-123 to another workflow state
-google-cli linear issue update BLA-123 --state 8b9c0d1e-...
+everything-cli linear issue update BLA-123 --state 8b9c0d1e-...
 
 # Retitle and reassign in one call
-google-cli linear issue update BLA-123 --title "Fix login redirect (regression)" --assignee 4d5e6f7a-...`,
+everything-cli linear issue update BLA-123 --title "Fix login redirect (regression)" --assignee 4d5e6f7a-...`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

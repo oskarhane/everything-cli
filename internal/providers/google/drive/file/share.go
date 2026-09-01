@@ -10,8 +10,8 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newShareCmd returns `drive file share`: grant a permission on a file to a
@@ -30,16 +30,16 @@ func newShareCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cob
 		Use:   "share <file-id>",
 		Short: "Share a Drive file with a user, anyone with the link, or a domain",
 		Example: `# Give one user reader access
-google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com
+everything-cli drive file share 1AbCdEfGh --role reader --email alice@example.com
 
 # Give one user read access for a year (--expires: user and group permissions only)
-google-cli drive file share 1AbCdEfGh --role reader --email alice@example.com --expires 2027-09-01T00:00:00Z
+everything-cli drive file share 1AbCdEfGh --role reader --email alice@example.com --expires 2027-09-01T00:00:00Z
 
 # Let anyone with the link comment
-google-cli drive file share 1AbCdEfGh --role commenter --anyone
+everything-cli drive file share 1AbCdEfGh --role commenter --anyone
 
 # Give a whole domain write access
-google-cli drive file share 1AbCdEfGh --role writer --domain example.com`,
+everything-cli drive file share 1AbCdEfGh --role writer --domain example.com`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !validRole(role) {

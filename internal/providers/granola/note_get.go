@@ -3,7 +3,7 @@ package granola
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 )
 
 // newNoteGetCmd returns `granola note get`: one note by id, with its AI

@@ -3,8 +3,8 @@ package calendarlist
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newListCmd returns `calendar list`: every calendar on the account's
@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "list",
 		Short: "List calendars",
 		Example: `# List calendars as JSON
-google-cli calendar list --format json
+everything-cli calendar list --format json
 
 # List calendars as a table
-google-cli calendar list --format table`,
+everything-cli calendar list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

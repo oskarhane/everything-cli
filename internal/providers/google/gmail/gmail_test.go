@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 )
 
 func TestNewCmdRegistersSubtrees(t *testing.T) {

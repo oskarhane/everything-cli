@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newAppendCmd returns `docs append`: add text at the very end of the
@@ -21,10 +21,10 @@ func newAppendCmd(cfg *app.Config, newSvc service.Dialer[service.DocService]) *c
 		Use:   "append <doc-id>",
 		Short: "Append text to the end of a Google Doc",
 		Example: `# Append a line to the end of a document
-google-cli docs append 1AbCdEfGh --text "Reviewed by Oskar"
+everything-cli docs append 1AbCdEfGh --text "Reviewed by Oskar"
 
 # Append the contents of a file
-google-cli docs append 1AbCdEfGh --text-file notes.txt`,
+everything-cli docs append 1AbCdEfGh --text-file notes.txt`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			body, err := resolveText(cfg.Fs, text, textFile, "append")

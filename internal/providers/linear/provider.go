@@ -7,10 +7,10 @@ package linear
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/auth/apikey"
-	"github.com/oskarhane/google-cli/internal/provider"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/auth/apikey"
+	"github.com/oskarhane/everything-cli/internal/provider"
 )
 
 // ID is the provider's registry key and command path segment.

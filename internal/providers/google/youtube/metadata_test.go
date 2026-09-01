@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	"github.com/oskarhane/google-cli/internal/youtube"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/youtube"
 )
 
 // headerCells extracts the upper-cased header row of a table render, in

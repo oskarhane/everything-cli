@@ -4,8 +4,8 @@ package youtube
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	yt "github.com/oskarhane/google-cli/internal/youtube"
+	"github.com/oskarhane/everything-cli/internal/app"
+	yt "github.com/oskarhane/everything-cli/internal/youtube"
 )
 
 // NewCmd returns the `youtube` parent command with its leaves attached:

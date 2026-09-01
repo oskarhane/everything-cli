@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 	"golang.org/x/oauth2"
 )
 

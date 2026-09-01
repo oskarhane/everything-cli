@@ -20,7 +20,7 @@ func TestRemovePrintsRemovedLinesAndHint(t *testing.T) {
 	stdout, stderr, err := execute(t, root, out, errOut, "skill", "remove")
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "removed google-cli from "+installDst(t, "claude-code")+"\n")
-	assert.Contains(t, stderr, "run 'google-cli skill install' to reinstall")
+	assert.Contains(t, stderr, "run 'everything-cli skill install' to reinstall")
 
 	exists, ferr := afero.Exists(cfg.Fs, installDst(t, "claude-code")+"/SKILL.md")
 	require.NoError(t, ferr)
@@ -65,7 +65,7 @@ func TestRemoveAgentFilterCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, installDst(t, "codex"))
 	assert.NotContains(t, stdout, installDst(t, "claude-code"))
-	assert.Contains(t, stderr, "google-cli skill install")
+	assert.Contains(t, stderr, "everything-cli skill install")
 
 	exists, err := afero.Exists(cfg.Fs, installDst(t, "codex")+"/SKILL.md")
 	require.NoError(t, err)

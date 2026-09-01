@@ -12,7 +12,7 @@ import (
 func TestNewRootCommand(t *testing.T) {
 	root := NewRootCommand(NewConfig())
 
-	assert.Equal(t, "google-cli", root.Use)
+	assert.Equal(t, "everything-cli", root.Use)
 	assert.NotEmpty(t, root.Short, "root command should have a short description")
 }
 
@@ -64,7 +64,7 @@ func TestRootCommandVersionFlag(t *testing.T) {
 	root.SetArgs([]string{"--version"})
 	require.NoError(t, root.Execute(), "--version must exit without error")
 
-	assert.Equal(t, "google-cli version v9.9.9-test\n", out.String())
+	assert.Equal(t, "everything-cli version v9.9.9-test\n", out.String())
 }
 
 func TestNewConfigDefaults(t *testing.T) {

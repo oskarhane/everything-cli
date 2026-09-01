@@ -3,9 +3,9 @@ package calendar
 import (
 	"context"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // dial is the service seam handed to every calendar subtree: auth.Dial

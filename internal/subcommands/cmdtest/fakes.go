@@ -3,7 +3,7 @@ package cmdtest
 import (
 	"context"
 
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // DeleteRecorder is the hermetic service.FileService double for the delete

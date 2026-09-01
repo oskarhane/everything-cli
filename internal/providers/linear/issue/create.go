@@ -3,8 +3,8 @@ package issue
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // newCreateCmd returns `linear issue create`: create an issue in a team.
@@ -22,10 +22,10 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) 
 		Use:   "create",
 		Short: "Create a Linear issue",
 		Example: `# Create an issue in a team
-google-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect"
+everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect"
 
 # Create with a description, assignee, and workflow state
-google-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
+everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
   --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-...`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

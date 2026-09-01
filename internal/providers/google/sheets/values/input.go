@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/pflag"
 
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 )
 
 // valuesInputFlags holds the input flags shared by the value-writing leaves

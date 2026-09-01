@@ -3,8 +3,8 @@ package issue
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // newGetCmd returns `linear issue get`: one issue by UUID or human
@@ -14,10 +14,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) *co
 		Use:   "get <id>",
 		Short: "Show a Linear issue",
 		Example: `# Show issue BLA-123 as JSON
-google-cli linear issue get BLA-123 --format json
+everything-cli linear issue get BLA-123 --format json
 
 # Show the same issue as a table
-google-cli linear issue get BLA-123 --format table`,
+everything-cli linear issue get BLA-123 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

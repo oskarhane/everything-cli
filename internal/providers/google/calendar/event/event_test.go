@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
@@ -25,7 +25,7 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 }
 
 // TestLeafExamples enforces the example contract on every leaf: flush-left
-// comment-led examples with at least two google-cli invocations, a recurring
+// comment-led examples with at least two everything-cli invocations, a recurring
 // example, and --format json on the read leaves.
 func TestLeafExamples(t *testing.T) {
 	cmd := NewCmd(cmdtest.NewTestConfig("json"), fakeNewSvc(&fakeEventService{}))
@@ -39,8 +39,8 @@ func TestLeafExamples(t *testing.T) {
 			require.True(t, strings.HasPrefix(example, "# "), "Example must be flush-left, starting with a # comment")
 
 			require.GreaterOrEqual(t,
-				strings.Count(example, "google-cli calendar event "+leaf.Name()),
-				2, "Example needs at least two google-cli invocations")
+				strings.Count(example, "everything-cli calendar event "+leaf.Name()),
+				2, "Example needs at least two everything-cli invocations")
 			require.Contains(t, example, "# ", "Example needs # comments")
 
 			// At least one recurring example per leaf.

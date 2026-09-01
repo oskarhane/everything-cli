@@ -7,7 +7,7 @@
 package account
 
 import (
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +19,7 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 		Short: "List accounts across all providers",
 		Long: "Account discovery across every configured provider. Account " +
 			"management is provider-scoped: run `<provider> account add|use|get|remove` " +
-			"(e.g. `google-cli google account add work`).",
+			"(e.g. `everything-cli google account add work`).",
 	}
 
 	cmd.AddCommand(newListCmd(cfg))

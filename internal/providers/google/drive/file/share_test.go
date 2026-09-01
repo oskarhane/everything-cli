@@ -7,7 +7,7 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // TestShareEchoesGrantedNotRequested asserts the confirmation reflects the

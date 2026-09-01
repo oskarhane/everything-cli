@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newUntrashCmd returns `drive file untrash`: restore a trashed file.
@@ -15,10 +15,10 @@ func newUntrashCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *c
 		Use:   "untrash <file-id>",
 		Short: "Restore a Drive file from trash",
 		Example: `# Restore a trashed file
-google-cli drive file untrash 1AbCdEfGh
+everything-cli drive file untrash 1AbCdEfGh
 
 # Restore a trashed file on another account
-google-cli drive file untrash 1AbCdEfGh --account work`,
+everything-cli drive file untrash 1AbCdEfGh --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

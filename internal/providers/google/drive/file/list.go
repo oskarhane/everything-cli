@@ -3,8 +3,8 @@ package file
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newListCmd returns `drive file list`: files matching a Drive q, composed
@@ -23,13 +23,13 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *co
 		Use:   "list",
 		Short: "List files in Drive",
 		Example: `# List the 25 most recent non-trashed files as JSON
-google-cli drive file list --format json
+everything-cli drive file list --format json
 
 # List folders inside a parent folder, as a table
-google-cli drive file list --parent 1AbC --mime folder --format table
+everything-cli drive file list --parent 1AbC --mime folder --format table
 
 # Search by name substring with a raw query ANDed in
-google-cli drive file list --name "invoice" --query "owner = 'me'" --max 100`,
+everything-cli drive file list --name "invoice" --query "owner = 'me'" --max 100`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

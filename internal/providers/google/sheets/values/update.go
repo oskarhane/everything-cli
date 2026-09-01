@@ -3,8 +3,8 @@ package values
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newUpdateCmd returns `sheets values update`: write rows starting at the
@@ -16,13 +16,13 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.SheetValuesServ
 		Use:   "update <spreadsheet-id>",
 		Short: "Write cell values starting at the top-left of a range",
 		Example: `# Overwrite a range from an inline JSON array of arrays
-google-cli sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" --values '[[1,"a"],[2,"b"]]' --format json
+everything-cli sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" --values '[[1,"a"],[2,"b"]]' --format json
 
 # Write cells from a TSV file
-google-cli sheets values update 1AbCdEfGh --range "Sheet1!A1:B" --values-file ./cells.tsv
+everything-cli sheets values update 1AbCdEfGh --range "Sheet1!A1:B" --values-file ./cells.tsv
 
 # Write literal text where the value looks like a formula
-google-cli sheets values update 1AbCdEfGh --range "Sheet1!C1" --values '[[=SUM(A1:A2)]]' --input-option RAW`,
+everything-cli sheets values update 1AbCdEfGh --range "Sheet1!C1" --values '[[=SUM(A1:A2)]]' --input-option RAW`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := in.validateInputOption(); err != nil {

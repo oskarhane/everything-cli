@@ -3,7 +3,7 @@ package granola
 import (
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/auth/apikey"
+	"github.com/oskarhane/everything-cli/internal/auth/apikey"
 )
 
 // strategy is Granola's auth strategy: a grn_ API key sent as

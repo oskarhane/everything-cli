@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newReplaceCmd returns `slides replace`: replace every occurrence of --find
@@ -23,10 +23,10 @@ func newReplaceCmd(_ *app.Config, newSvc service.Dialer[service.SlideService]) *
 		Use:   "replace <presentation-id>",
 		Short: "Replace text across every slide of a presentation",
 		Example: `# Rename a client everywhere it appears
-google-cli slides replace 1AbCpresentationID --find Acme --replace-with Zenith
+everything-cli slides replace 1AbCpresentationID --find Acme --replace-with Zenith
 
 # Replace an exact-case literal only
-google-cli slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case`,
+everything-cli slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if find == "" {

@@ -1,6 +1,6 @@
 # Smoke suite
 
-Build-tagged end-to-end tests that run the real `google-cli` command tree
+Build-tagged end-to-end tests that run the real `everything-cli` command tree
 against a real Google account. This is the only suite allowed to touch a real
 account, and it is strictly read-only: it invokes just the three read
 commands (`account list`, `gmail label list`, `calendar list`). Write
@@ -27,7 +27,7 @@ fails, every test skips (`t.Skip`) — those are environment problems, not test
 failures.
 
 To run against a scratch config instead of your real one, populate a
-directory with `credentials.json` and `accounts/` (via `google-cli account
+directory with `credentials.json` and `accounts/` (via `everything-cli google account
 add` with `GOOGLE_CLI_CONFIG_DIR` pointing at it), then:
 
 ```sh

@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newTrashCmd returns `drive file trash`: move a file to Drive's trash.
@@ -16,10 +16,10 @@ func newTrashCmd(_ *app.Config, newSvc service.Dialer[service.FileService]) *cob
 		Use:   "trash <file-id>",
 		Short: "Move a Drive file to trash",
 		Example: `# Trash a file
-google-cli drive file trash 1AbCdEfGh
+everything-cli drive file trash 1AbCdEfGh
 
 # Trash a file on another account
-google-cli drive file trash 1AbCdEfGh --account work`,
+everything-cli drive file trash 1AbCdEfGh --account work`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // newRemoveCmd builds account remove: delete a Linear account and its
@@ -18,8 +18,8 @@ func newRemoveCmd(cfg *app.Config, providerID string) *cobra.Command {
 		Use:   "remove <name>",
 		Short: "Remove a Linear account and its stored API key",
 		Example: `# Inspect what would be removed, then remove the "old" account
-google-cli linear account get old
-google-cli linear account remove old --force`,
+everything-cli linear account get old
+everything-cli linear account remove old --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

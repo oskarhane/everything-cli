@@ -7,7 +7,7 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestCreateMinimal(t *testing.T) {

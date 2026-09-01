@@ -3,9 +3,9 @@ package team
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // newListCmd returns `linear team list`: every team in the workspace.
@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.TeamService]) *co
 		Use:   "list",
 		Short: "List Linear teams",
 		Example: `# List teams as JSON
-google-cli linear team list --format json
+everything-cli linear team list --format json
 
 # List teams as a table; key is the issue-identifier prefix
-google-cli linear team list --format table`,
+everything-cli linear team list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

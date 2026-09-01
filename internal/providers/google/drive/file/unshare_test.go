@@ -8,7 +8,7 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // TestUnshareByEmail pins the email path: exactly the one matching permission
@@ -47,7 +47,7 @@ func TestUnshareNoMatch(t *testing.T) {
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUnshareCmd, svc, "json"), "file_1", "--email", "ghost@example.com")
 
 	require.Contains(t, err.Error(),
-		`no permission for ghost@example.com on file file_1: run "google-cli drive file permissions file_1" to find the permission id`)
+		`no permission for ghost@example.com on file file_1: run "everything-cli drive file permissions file_1" to find the permission id`)
 	require.Empty(t, svc.deletedPermID, "no revoke may happen on a zero match")
 }
 

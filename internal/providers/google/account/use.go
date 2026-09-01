@@ -3,8 +3,8 @@ package account
 import (
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -15,10 +15,10 @@ func newUseCmd(cfg *app.Config) *cobra.Command {
 		Use:   "use <name>",
 		Short: "Set the default Google account",
 		Example: `# Make the "work" account the default
-google-cli account use work
+everything-cli account use work
 
 # Switch back to the "personal" account
-google-cli account use personal`,
+everything-cli account use personal`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

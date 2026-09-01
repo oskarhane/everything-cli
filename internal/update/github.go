@@ -13,7 +13,7 @@ import (
 
 const (
 	defaultGitHubBase = "https://api.github.com"
-	defaultRepo       = "oskarhane/google-cli"
+	defaultRepo       = "oskarhane/everything-cli"
 	acceptHeader      = "application/vnd.github+json"
 
 	// maxBodyBytes caps how many bytes are read from any single response
@@ -59,7 +59,7 @@ func (r *Release) Asset(name string) (*Asset, error) {
 
 // AssetName is the single source of truth for release asset naming.
 func AssetName(os, arch string) string {
-	return fmt.Sprintf("google-cli_%s_%s.tar.gz", os, arch)
+	return fmt.Sprintf("everything-cli_%s_%s.tar.gz", os, arch)
 }
 
 // HTTPClient is the Client implementation backed by the GitHub REST API.
@@ -70,7 +70,7 @@ type HTTPClient struct {
 }
 
 // NewClient builds a GitHub releases Client. Empty baseURL or repo fall
-// back to https://api.github.com and oskarhane/google-cli.
+// back to https://api.github.com and oskarhane/everything-cli.
 func NewClient(baseURL, repo string) *HTTPClient {
 	if baseURL == "" {
 		baseURL = defaultGitHubBase

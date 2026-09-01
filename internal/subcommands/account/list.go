@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -47,10 +47,10 @@ func newListCmd(cfg *app.Config) *cobra.Command {
 		Use:   "list",
 		Short: "List configured accounts across all providers",
 		Example: `# List every configured account, across all providers
-google-cli account list
+everything-cli account list
 
 # List accounts as JSON; each provider's default carries "is_default": true
-google-cli account list --format json`,
+everything-cli account list --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

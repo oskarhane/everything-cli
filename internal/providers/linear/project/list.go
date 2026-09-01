@@ -3,9 +3,9 @@ package project
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // newListCmd returns `linear project list`: every project in the workspace.
@@ -14,10 +14,10 @@ func newListCmd(cfg *app.Config, newSvc service.Dialer[service.ProjectService]) 
 		Use:   "list",
 		Short: "List Linear projects",
 		Example: `# List projects as JSON
-google-cli linear project list --format json
+everything-cli linear project list --format json
 
 # List projects as a table
-google-cli linear project list --format table`,
+everything-cli linear project list --format table`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())

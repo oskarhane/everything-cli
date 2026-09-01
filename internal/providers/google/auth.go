@@ -6,8 +6,8 @@ package google
 import (
 	"github.com/spf13/afero"
 
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // secretFieldNames are the account JSON fields holding Google's OAuth secrets:

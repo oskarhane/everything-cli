@@ -7,8 +7,8 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // listFields is the field order for message list output (and the summary echo

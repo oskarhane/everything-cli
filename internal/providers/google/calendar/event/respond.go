@@ -7,8 +7,8 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // respondVerbs maps each response leaf to its attendees[].responseStatus
@@ -31,13 +31,13 @@ func newRespondCmd(cfg *app.Config, newSvc service.Dialer[service.EventService],
 		Use:   verb + " <event-id>",
 		Short: respondShort(verb) + " an event invitation",
 		Example: fmt.Sprintf(`# %s a single event
-google-cli calendar event %s abc123
+everything-cli calendar event %s abc123
 
 # Respond to only one occurrence of a recurring series (instance ids end in _<UTC time>)
-google-cli calendar event %s kq3abc123_20260929T030000Z
+everything-cli calendar event %s kq3abc123_20260929T030000Z
 
 # Respond for the entire recurring series from any of its occurrences
-google-cli calendar event %s kq3abc123_20260929T030000Z --all`, respondShort(verb), verb, verb, verb),
+everything-cli calendar event %s kq3abc123_20260929T030000Z --all`, respondShort(verb), verb, verb, verb),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newRemoveCmd returns `calendar acl remove`: revoke one sharing rule.
@@ -15,10 +15,10 @@ func newRemoveCmd(_ *app.Config, newSvc service.Dialer[service.CalendarService])
 		Use:   "remove <calendar-id>",
 		Short: "Revoke a calendar sharing rule",
 		Example: `# Find the rule id to revoke
-google-cli calendar acl list primary --format json
+everything-cli calendar acl list primary --format json
 
 # Revoke a sharing rule
-google-cli calendar acl remove primary --rule-id user:colleague@example.com`,
+everything-cli calendar acl remove primary --rule-id user:colleague@example.com`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ruleID, _ := cmd.Flags().GetString("rule-id")

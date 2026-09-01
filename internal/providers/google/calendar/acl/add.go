@@ -7,8 +7,8 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newAddCmd returns `calendar acl add`: share a calendar with one user. The
@@ -18,10 +18,10 @@ func newAddCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) 
 		Use:   "add <calendar-id>",
 		Short: "Share a calendar with a user",
 		Example: `# Share the primary calendar as read-only
-google-cli calendar acl add primary --scope-user colleague@example.com --role reader
+everything-cli calendar acl add primary --scope-user colleague@example.com --role reader
 
 # Share a calendar with write access
-google-cli calendar acl add primary --scope-user teammate@example.com --role writer`,
+everything-cli calendar acl add primary --scope-user teammate@example.com --role writer`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

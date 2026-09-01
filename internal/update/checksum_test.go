@@ -28,18 +28,18 @@ func TestParseChecksums(t *testing.T) {
 	}{
 		{
 			name: "two-space text format",
-			data: aaaa + "  google-cli_darwin_arm64.tar.gz\n" + bbbb + "  google-cli_linux_amd64.tar.gz\n",
+			data: aaaa + "  everything-cli_darwin_arm64.tar.gz\n" + bbbb + "  everything-cli_linux_amd64.tar.gz\n",
 			want: map[string]string{
-				"google-cli_darwin_arm64.tar.gz": aaaa,
-				"google-cli_linux_amd64.tar.gz":  bbbb,
+				"everything-cli_darwin_arm64.tar.gz": aaaa,
+				"everything-cli_linux_amd64.tar.gz":  bbbb,
 			},
 		},
 		{
 			name: "binary-marker format",
-			data: aaaa + " *google-cli_darwin_arm64.tar.gz\n" + bbbb + "*google-cli_linux_amd64.tar.gz\n",
+			data: aaaa + " *everything-cli_darwin_arm64.tar.gz\n" + bbbb + "*everything-cli_linux_amd64.tar.gz\n",
 			want: map[string]string{
-				"google-cli_darwin_arm64.tar.gz": aaaa,
-				"google-cli_linux_amd64.tar.gz":  bbbb,
+				"everything-cli_darwin_arm64.tar.gz": aaaa,
+				"everything-cli_linux_amd64.tar.gz":  bbbb,
 			},
 		},
 		{

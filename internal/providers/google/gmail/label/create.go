@@ -5,8 +5,8 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newCreateCmd returns `gmail label create`: a new label.
@@ -15,10 +15,10 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) 
 		Use:   "create <name>",
 		Short: "Create a Gmail label",
 		Example: `# Create a label
-google-cli gmail label create Travel
+everything-cli gmail label create Travel
 
 # Create a colored label, hidden from the label list
-google-cli gmail label create Travel --color-text "#ffffff" --color-bg "#039be5" --label-list-visibility labelHide`,
+everything-cli gmail label create Travel --color-text "#ffffff" --color-bg "#039be5" --label-list-visibility labelHide`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			label := &gmail.Label{}

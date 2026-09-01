@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newReplaceCmd returns `docs replace`: replace every occurrence of --find
@@ -22,10 +22,10 @@ func newReplaceCmd(_ *app.Config, newSvc service.Dialer[service.DocService]) *co
 		Use:   "replace <doc-id>",
 		Short: "Replace text throughout a Google Doc",
 		Example: `# Replace every occurrence of a name
-google-cli docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
+everything-cli docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
 
 # Replace case-insensitively (the default) and check the count
-google-cli docs replace 1AbCdEfGh --find TODO --replace-with "TBD"`,
+everything-cli docs replace 1AbCdEfGh --find TODO --replace-with "TBD"`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if find == "" {

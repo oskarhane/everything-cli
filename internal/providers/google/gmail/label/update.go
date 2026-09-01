@@ -7,8 +7,8 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newUpdateCmd returns `gmail label update`: modify an existing label. Only
@@ -19,10 +19,10 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.GmailService]) 
 		Use:   "update <id>",
 		Short: "Update a Gmail label",
 		Example: `# Rename a label
-google-cli gmail label update Label_42 --name "Travel 2026"
+everything-cli gmail label update Label_42 --name "Travel 2026"
 
 # Recolor a label and hide its messages from the message list
-google-cli gmail label update Label_42 --color-text "#ffffff" --color-bg "#039be5" --message-list-visibility hide`,
+everything-cli gmail label update Label_42 --color-text "#ffffff" --color-bg "#039be5" --message-list-visibility hide`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !anyLabelFlagChanged(cmd.Flags()) {

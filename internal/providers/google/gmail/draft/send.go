@@ -5,8 +5,8 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newSendCmd returns `gmail draft send`: send a stored draft by id and echo
@@ -16,10 +16,10 @@ func newSendCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) *c
 		Use:   "send <id>",
 		Short: "Send an existing Gmail draft",
 		Example: `# Send the stored draft, echoing the sent message as JSON
-google-cli gmail draft send draft_19c2a4b7 --format json
+everything-cli gmail draft send draft_19c2a4b7 --format json
 
 # Send the same draft, echoing it as a table
-google-cli gmail draft send draft_19c2a4b7 --format table`,
+everything-cli gmail draft send draft_19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

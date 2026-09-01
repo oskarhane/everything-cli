@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -27,10 +27,10 @@ func newGetCmd(cfg *app.Config) *cobra.Command {
 		Use:   "get <name>",
 		Short: "Show a Google account's email, scopes and token expiry",
 		Example: `# Show the "work" account
-google-cli account get work
+everything-cli account get work
 
 # Show the "work" account as JSON (token values are never printed)
-google-cli account get work --format json`,
+everything-cli account get work --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

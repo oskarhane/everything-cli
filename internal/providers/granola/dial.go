@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // resolveAccount picks the acting granola account: the --account flag value

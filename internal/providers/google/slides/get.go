@@ -3,9 +3,9 @@ package slides
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // getFields is the field order for slide text output; the same names are the
@@ -22,13 +22,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.SlideService]) *co
 		Use:   "get <presentation-id>",
 		Short: "Show the text on every slide of a presentation",
 		Example: `# List every text-bearing shape as JSON
-google-cli slides get 1AbCpresentationID --format json
+everything-cli slides get 1AbCpresentationID --format json
 
 # Only the shapes on slide 3
-google-cli slides get 1AbCpresentationID --slide 3
+everything-cli slides get 1AbCpresentationID --slide 3
 
 # Same view as a table
-google-cli slides get 1AbCpresentationID --format table`,
+everything-cli slides get 1AbCpresentationID --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

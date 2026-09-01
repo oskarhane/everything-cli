@@ -8,16 +8,16 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // noAccountsErr / noDefaultErr are the exact actionable account-selection
 // error texts; client packages assert against them, so they are pinned here
 // verbatim.
 const (
-	noAccountsErr = "no Google accounts configured; run `google-cli google account add`"
-	noDefaultErr  = "no default account set; run `google-cli google account use <name>` or pass --account"
+	noAccountsErr = "no Google accounts configured; run `everything-cli google account add`"
+	noDefaultErr  = "no default account set; run `everything-cli google account use <name>` or pass --account"
 )
 
 // newDialStore returns a store on fs rooted at the default config dir,

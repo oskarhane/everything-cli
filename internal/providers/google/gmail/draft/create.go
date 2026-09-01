@@ -8,9 +8,9 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/message"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/message"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newCreateCmd returns `gmail draft create`: compose a message and store it
@@ -28,10 +28,10 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.DraftService]) 
 		Use:   "create",
 		Short: "Create a Gmail draft without sending it",
 		Example: `# Create a draft from inline text
-google-cli gmail draft create --to alice@example.com --subject "Lunch" --body "Noon works"
+everything-cli gmail draft create --to alice@example.com --subject "Lunch" --body "Noon works"
 
 # Create a draft reading the body from a file
-google-cli gmail draft create --to a@example.com,b@example.com --subject "Report" \
+everything-cli gmail draft create --to a@example.com,b@example.com --subject "Report" \
   --body-file report.txt --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {

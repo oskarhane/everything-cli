@@ -12,12 +12,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
-	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
+	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
+	"github.com/oskarhane/everything-cli/internal/subcommands/account"
 )
 
 // The smoke suite is read-only: it only ever invokes the three read commands
@@ -63,7 +63,7 @@ func runCommand(t *testing.T, args ...string) string {
 		if isAuthError(err) {
 			t.Skipf("auth not usable in this environment (environment problem, not a test failure): %v", err)
 		}
-		t.Fatalf("google-cli %s: %v", strings.Join(args, " "), err)
+		t.Fatalf("everything-cli %s: %v", strings.Join(args, " "), err)
 	}
 	return out.String()
 }
@@ -79,7 +79,7 @@ func requireAccount(t *testing.T) string {
 	accounts, err := store.List()
 	require.NoError(t, err, "listing accounts in %s", store.Dir())
 	if len(accounts) == 0 {
-		t.Skip("no account configured — run google-cli google account add first")
+		t.Skip("no account configured — run everything-cli google account add first")
 	}
 	def, err := store.DefaultAccount()
 	require.NoError(t, err, "reading default account")

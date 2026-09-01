@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/file"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/file"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // TestDialRequiresDriveScope pins the scope guard: an account narrowed to

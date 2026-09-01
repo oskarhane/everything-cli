@@ -3,8 +3,8 @@ package calendarlist
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newGetCmd returns `calendar get`: one calendar by id. The Calendar
@@ -15,10 +15,10 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService]) 
 		Use:   "get <calendar-id>",
 		Short: "Show a calendar by id",
 		Example: `# Show the primary calendar as JSON
-google-cli calendar get primary --format json
+everything-cli calendar get primary --format json
 
 # Show a secondary calendar as a table
-google-cli calendar get abc123.group.calendar.google.com --format table`,
+everything-cli calendar get abc123.group.calendar.google.com --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

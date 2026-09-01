@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newDeleteCmd returns `gmail label delete`: remove a label. Deleting is
@@ -18,10 +18,10 @@ func newDeleteCmd(_ *app.Config, newSvc service.Dialer[service.GmailService]) *c
 		Use:   "delete <id>",
 		Short: "Delete a Gmail label (destructive)",
 		Example: `# See the refusal without --force
-google-cli gmail label delete Label_42
+everything-cli gmail label delete Label_42
 
 # Actually delete the label
-google-cli gmail label delete Label_42 --force`,
+everything-cli gmail label delete Label_42 --force`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if !force {

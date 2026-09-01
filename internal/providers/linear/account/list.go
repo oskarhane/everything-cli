@@ -3,9 +3,9 @@ package account
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // listAccount is one rendered row of account list. The default account is
@@ -22,10 +22,10 @@ func newListCmd(cfg *app.Config, providerID string) *cobra.Command {
 		Use:   "list",
 		Short: "List configured Linear accounts",
 		Example: `# List all configured Linear accounts
-google-cli linear account list
+everything-cli linear account list
 
 # List accounts as JSON; the default account carries "default": true
-google-cli linear account list --format json`,
+everything-cli linear account list --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			store, err := config.NewStore(cfg.Fs, "")

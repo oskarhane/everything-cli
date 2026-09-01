@@ -5,13 +5,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/providers/linear/account"
-	"github.com/oskarhane/google-cli/internal/providers/linear/issue"
-	"github.com/oskarhane/google-cli/internal/providers/linear/project"
-	"github.com/oskarhane/google-cli/internal/providers/linear/service"
-	"github.com/oskarhane/google-cli/internal/providers/linear/team"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/account"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/issue"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/project"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/team"
 )
 
 // newLinearCmd returns the `linear` parent command with its subtrees

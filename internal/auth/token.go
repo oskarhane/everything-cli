@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
 )

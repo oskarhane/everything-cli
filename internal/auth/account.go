@@ -3,8 +3,8 @@ package auth
 import (
 	"fmt"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"golang.org/x/oauth2"
 )
 
@@ -28,9 +28,9 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 		return "", err
 	}
 	if len(accounts) == 0 {
-		return "", fmt.Errorf("no Google accounts configured; run `google-cli google account add`")
+		return "", fmt.Errorf("no Google accounts configured; run `everything-cli google account add`")
 	}
-	return "", fmt.Errorf("no default account set; run `google-cli google account use <name>` or pass --account")
+	return "", fmt.Errorf("no default account set; run `everything-cli google account use <name>` or pass --account")
 }
 
 // DialAccount is Dial plus the resolved account record: trees that enforce

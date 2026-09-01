@@ -3,8 +3,8 @@ package event
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newInstancesCmd returns `calendar event instances`: expand one recurring
@@ -16,16 +16,16 @@ func newInstancesCmd(cfg *app.Config, newSvc service.Dialer[service.EventService
 		Use:   "instances <master-id>",
 		Short: "List the occurrences of a recurring event",
 		Example: `# Expand the next week of a series (default window: now to +7d) as JSON
-google-cli calendar event instances kq3abc123 --format json
+everything-cli calendar event instances kq3abc123 --format json
 
 # Pull a year of occurrences instead of the default week
-google-cli calendar event instances kq3abc123 --from 2026-01-01 --to 2026-12-31 --format table
+everything-cli calendar event instances kq3abc123 --from 2026-01-01 --to 2026-12-31 --format table
 
 # Hide cancelled occurrences
-google-cli calendar event instances kq3abc123 --show-deleted=false --format json
+everything-cli calendar event instances kq3abc123 --show-deleted=false --format json
 
 # Cap the expansion at 50 occurrences on another calendar
-google-cli calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
+everything-cli calendar event instances kq3abc123 --calendar work@example.com --max 50 --format json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

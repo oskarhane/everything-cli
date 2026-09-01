@@ -30,13 +30,13 @@ func TestLatestRelease(t *testing.T) {
 
 	t.Run("parses json", func(t *testing.T) {
 		srv, _ := testServer(t, http.StatusOK,
-			`{"tag_name":"v1.2.3","assets":[{"name":"google-cli_darwin_arm64.tar.gz","browser_download_url":"http://dl/darwin.tar.gz"}]}`)
+			`{"tag_name":"v1.2.3","assets":[{"name":"everything-cli_darwin_arm64.tar.gz","browser_download_url":"http://dl/darwin.tar.gz"}]}`)
 		c := NewClient(srv.URL, "owner/repo")
 		rel, err := c.LatestRelease(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, "v1.2.3", rel.Tag)
 		require.Len(t, rel.Assets, 1)
-		assert.Equal(t, "google-cli_darwin_arm64.tar.gz", rel.Assets[0].Name)
+		assert.Equal(t, "everything-cli_darwin_arm64.tar.gz", rel.Assets[0].Name)
 		assert.Equal(t, "http://dl/darwin.tar.gz", rel.Assets[0].URL)
 	})
 
@@ -112,7 +112,7 @@ func TestDownload(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	c := NewClient(srv.URL, "owner/repo")
-	got, err := c.Download(ctx, srv.URL+"/download/google-cli_darwin_arm64.tar.gz")
+	got, err := c.Download(ctx, srv.URL+"/download/everything-cli_darwin_arm64.tar.gz")
 	require.NoError(t, err)
 	assert.Equal(t, payload, got)
 }
@@ -162,8 +162,8 @@ func TestReleaseAssetLookup(t *testing.T) {
 	rel := &Release{
 		Tag: "v1.2.3",
 		Assets: []Asset{
-			{Name: "google-cli_darwin_arm64.tar.gz", URL: "http://dl/darwin.tar.gz"},
-			{Name: "google-cli_linux_amd64.tar.gz", URL: "http://dl/linux.tar.gz"},
+			{Name: "everything-cli_darwin_arm64.tar.gz", URL: "http://dl/darwin.tar.gz"},
+			{Name: "everything-cli_linux_amd64.tar.gz", URL: "http://dl/linux.tar.gz"},
 		},
 	}
 
@@ -172,8 +172,8 @@ func TestReleaseAssetLookup(t *testing.T) {
 		in      string
 		wantErr error
 	}{
-		{name: "hit", in: "google-cli_linux_amd64.tar.gz"},
-		{name: "miss", in: "google-cli_windows_386.tar.gz", wantErr: ErrAssetNotFound},
+		{name: "hit", in: "everything-cli_linux_amd64.tar.gz"},
+		{name: "miss", in: "everything-cli_windows_386.tar.gz", wantErr: ErrAssetNotFound},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -190,6 +190,6 @@ func TestReleaseAssetLookup(t *testing.T) {
 }
 
 func TestAssetName(t *testing.T) {
-	assert.Equal(t, "google-cli_darwin_arm64.tar.gz", AssetName("darwin", "arm64"))
-	assert.Equal(t, "google-cli_linux_amd64.tar.gz", AssetName("linux", "amd64"))
+	assert.Equal(t, "everything-cli_darwin_arm64.tar.gz", AssetName("darwin", "arm64"))
+	assert.Equal(t, "everything-cli_linux_amd64.tar.gz", AssetName("linux", "amd64"))
 }

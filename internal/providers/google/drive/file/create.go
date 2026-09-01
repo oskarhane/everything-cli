@@ -7,8 +7,8 @@ import (
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
 // newCreateCmd returns `drive file create`: a metadata-only file — a folder,
@@ -26,13 +26,13 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *
 		Use:   "create <name>",
 		Short: "Create a Drive file (folder, doc, sheet, slide, or raw MIME type)",
 		Example: `# Create a folder
-google-cli drive file create "Reports" --format json
+everything-cli drive file create "Reports" --format json
 
 # Create an empty Google Sheet inside a parent folder
-google-cli drive file create "Q3 budget" --type sheet --parent 1AbCdEfGh
+everything-cli drive file create "Q3 budget" --type sheet --parent 1AbCdEfGh
 
 # Create a file with a raw MIME type
-google-cli drive file create "notes.md" --mime-type text/markdown`,
+everything-cli drive file create "notes.md" --mime-type text/markdown`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

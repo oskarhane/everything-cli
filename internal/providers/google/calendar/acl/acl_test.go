@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/app"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
@@ -23,12 +23,12 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 }
 
 func TestLeafExamples(t *testing.T) {
-	// Every leaf must carry an Example with at least two google-cli
+	// Every leaf must carry an Example with at least two everything-cli
 	// invocations; list must show a --format json call.
 	cmd := NewCmd(&app.Config{Fs: afero.NewMemMapFs()}, fakeNewSvc(&fakeService{}))
 	for _, leaf := range cmd.Commands() {
 		require.NotEmpty(t, leaf.Example, "%s needs an Example", leaf.Name())
-		require.GreaterOrEqual(t, strings.Count(leaf.Example, "google-cli "), 2,
+		require.GreaterOrEqual(t, strings.Count(leaf.Example, "everything-cli "), 2,
 			"%s Example needs at least 2 invocations", leaf.Name())
 		require.Contains(t, leaf.Example, "# ", "%s Example needs comments", leaf.Name())
 	}

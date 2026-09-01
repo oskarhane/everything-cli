@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestDeleteWithoutForceRefuses(t *testing.T) {
@@ -16,7 +16,7 @@ func TestDeleteWithoutForceRefuses(t *testing.T) {
 
 	require.Contains(t, err.Error(), "without --force")
 	require.Contains(t, err.Error(), "cannot be undone")
-	require.Contains(t, err.Error(), `use "google-cli drive file trash <id>" instead`)
+	require.Contains(t, err.Error(), `use "everything-cli drive file trash <id>" instead`)
 	require.Empty(t, svc.DeletedIDs)
 }
 

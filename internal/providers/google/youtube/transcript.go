@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	yt "github.com/oskarhane/google-cli/internal/youtube"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	yt "github.com/oskarhane/everything-cli/internal/youtube"
 )
 
 // transcriptFields is the transcript view field order for table output; the
@@ -44,13 +44,13 @@ func newTranscriptCmd(cfg *app.Config, client yt.Client) *cobra.Command {
 		Use:   "transcript <url-or-id>",
 		Short: "Print a video's timed transcript",
 		Example: `# Stream a video's captions as plain text
-google-cli youtube transcript https://www.youtube.com/watch?v=dQw4w9WgXcQ
+everything-cli youtube transcript https://www.youtube.com/watch?v=dQw4w9WgXcQ
 
 # Render the transcript with timings as JSON
-google-cli youtube transcript dQw4w9WgXcQ --format json
+everything-cli youtube transcript dQw4w9WgXcQ --format json
 
 # Save a German caption track to a file
-google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
+everything-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := yt.ParseVideoID(args[0])

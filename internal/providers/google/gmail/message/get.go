@@ -7,9 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
 )
 
 // newGetCmd returns `gmail message get`: one message by id. The default view
@@ -23,13 +23,13 @@ func newGetCmd(cfg *app.Config, newSvc service.Dialer[service.MessageService]) *
 		Use:   "get <id>",
 		Short: "Show a Gmail message by id",
 		Example: `# Show a message with its From/Subject/Date headers as JSON
-google-cli gmail message get 19c2a4b7 --format json
+everything-cli gmail message get 19c2a4b7 --format json
 
 # Print the raw RFC 2822 message as plain text
-google-cli gmail message get 19c2a4b7 --raw
+everything-cli gmail message get 19c2a4b7 --raw
 
 # Show the same message as a table
-google-cli gmail message get 19c2a4b7 --format table`,
+everything-cli gmail message get 19c2a4b7 --format table`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			svc, err := newSvc(cmd.Context())

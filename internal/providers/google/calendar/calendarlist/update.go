@@ -7,8 +7,8 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
 // newUpdateCmd returns `calendar update`: modify an existing calendar. Only
@@ -20,10 +20,10 @@ func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.CalendarService
 		Use:   "update <calendar-id>",
 		Short: "Update a calendar",
 		Example: `# Rename a calendar
-google-cli calendar update abc123.group.calendar.google.com --summary "Team PTO 2026"
+everything-cli calendar update abc123.group.calendar.google.com --summary "Team PTO 2026"
 
 # Change the timezone and color
-google-cli calendar update abc123.group.calendar.google.com --timezone Europe/Stockholm --color-id tomato`,
+everything-cli calendar update abc123.group.calendar.google.com --timezone Europe/Stockholm --color-id tomato`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()

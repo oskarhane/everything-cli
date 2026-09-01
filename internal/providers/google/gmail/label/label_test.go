@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/gmail/service"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {
@@ -23,7 +23,7 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 }
 
 func TestLeavesHaveExamples(t *testing.T) {
-	// Every leaf needs a flush-left Example with at least two google-cli
+	// Every leaf needs a flush-left Example with at least two everything-cli
 	// invocations, and reads need a --format json one.
 	tests := []struct {
 		name  string
@@ -49,11 +49,11 @@ func TestLeavesHaveExamples(t *testing.T) {
 	}
 }
 
-// countInvocations counts example lines invoking google-cli.
+// countInvocations counts example lines invoking everything-cli.
 func countInvocations(example string) int {
 	n := 0
 	for _, line := range splitLines(example) {
-		if len(line) >= len("google-cli") && line[:len("google-cli")] == "google-cli" {
+		if len(line) >= len("everything-cli") && line[:len("everything-cli")] == "everything-cli" {
 			n++
 		}
 	}
