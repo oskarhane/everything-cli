@@ -34,9 +34,22 @@ const secXML = `<?xml version="1.0" encoding="utf-8" ?>
 line two</text>
 </transcript>`
 
+// allowLoopbackTranscriptHost extends the transcript host allowlist seam
+// with the httptest loopback host for the duration of the test, keeping
+// the production rules for every other host.
+func allowLoopbackTranscriptHost(t *testing.T) {
+	t.Helper()
+	orig := transcriptHostAllowed
+	transcriptHostAllowed = func(host string) bool {
+		return isAllowedTranscriptHost(host) || host == "127.0.0.1"
+	}
+	t.Cleanup(func() { transcriptHostAllowed = orig })
+}
+
 // fetchTranscript serves body over httptest and runs Transcript against it.
 func fetchTranscript(t *testing.T, body string) ([]Segment, error) {
 	t.Helper()
+	allowLoopbackTranscriptHost(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(body))
 	}))
@@ -75,6 +88,7 @@ func TestTranscript(t *testing.T) {
 	})
 
 	t.Run("non-200 names the status code", func(t *testing.T) {
+		allowLoopbackTranscriptHost(t)
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			http.Error(w, "nope", http.StatusNotFound)
 		}))

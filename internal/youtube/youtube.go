@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -65,6 +67,24 @@ const (
 // httptest.Server's URL.
 var playerEndpoint = "https://www.youtube.com/youtubei/v1/player?key=" + playerAPIKey
 
+// transcriptHostAllowed decides whether a transcript track URL host may be
+// fetched. It is a package-level seam so tests can point Transcript at an
+// httptest.Server's loopback host.
+var transcriptHostAllowed = isAllowedTranscriptHost
+
+// isAllowedTranscriptHost reports whether host is a YouTube host a caption
+// track URL may legitimately point at: youtube.com or any of its
+// subdomains, or googlevideo.com (where timedtext sometimes lives) or any
+// of its subdomains. Everything else is rejected so a manipulated player
+// response cannot send the transcript fetch to an attacker-chosen host.
+func isAllowedTranscriptHost(host string) bool {
+	host = strings.ToLower(host)
+	if host == "youtube.com" || host == "googlevideo.com" {
+		return true
+	}
+	return strings.HasSuffix(host, ".youtube.com") || strings.HasSuffix(host, ".googlevideo.com")
+}
+
 // Client fetches video metadata and transcripts from YouTube's unofficial
 // InnerTube endpoints.
 type Client interface {
@@ -115,8 +135,18 @@ type HTTPClient struct {
 // NewClient returns a Client with sane default timeouts.
 func NewClient() *HTTPClient {
 	return &HTTPClient{
-		httpClient: &http.Client{Timeout: requestTimeout},
-		userAgent:  mobileUserAgent,
+		httpClient: &http.Client{
+			Timeout: requestTimeout,
+			// Re-validate every redirect hop against the transcript host
+			// allowlist so a redirect cannot lead the client off YouTube.
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				if host := req.URL.Hostname(); !transcriptHostAllowed(host) {
+					return fmt.Errorf("redirect target host %q is not an allowed YouTube host", host)
+				}
+				return nil
+			},
+		},
+		userAgent: mobileUserAgent,
 	}
 }
 
@@ -201,6 +231,13 @@ func (c *HTTPClient) Player(ctx context.Context, videoID string) (*Player, error
 // Transcript fetches and parses the timed caption segments behind a caption
 // track URL.
 func (c *HTTPClient) Transcript(ctx context.Context, trackURL string) ([]Segment, error) {
+	u, err := url.Parse(trackURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing transcript track URL: %w", err)
+	}
+	if host := u.Hostname(); !transcriptHostAllowed(host) {
+		return nil, fmt.Errorf("transcript track URL host %q is not an allowed YouTube host", host)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, trackURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("building transcript request: %w", err)
