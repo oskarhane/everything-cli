@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // newGetCmd returns `drive file get`: one file's metadata by id. Metadata

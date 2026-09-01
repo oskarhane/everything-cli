@@ -6,7 +6,7 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 )
 
 // newSendCmd returns `gmail draft send`: send a stored draft by id and echo

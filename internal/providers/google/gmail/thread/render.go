@@ -7,7 +7,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/message"
 )
 
 // listFields is the field order for thread list output; messageFields is the

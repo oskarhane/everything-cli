@@ -6,7 +6,7 @@ import (
 	gmail "google.golang.org/api/gmail/v1"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 )
 
 // newCreateCmd returns `gmail label create`: a new label.

@@ -12,7 +12,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 

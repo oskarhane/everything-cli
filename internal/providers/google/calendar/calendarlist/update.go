@@ -8,7 +8,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 )
 
 // newUpdateCmd returns `calendar update`: modify an existing calendar. Only

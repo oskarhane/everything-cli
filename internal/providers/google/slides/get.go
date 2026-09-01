@@ -5,7 +5,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // getFields is the field order for slide text output; the same names are the

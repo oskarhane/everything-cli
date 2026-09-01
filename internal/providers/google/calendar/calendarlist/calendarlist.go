@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 )
 
 // NewLeaves returns the calendar CRUD leaf commands, one per file: list.go,

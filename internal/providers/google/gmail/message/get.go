@@ -9,7 +9,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 )
 
 // newGetCmd returns `gmail message get`: one message by id. The default view

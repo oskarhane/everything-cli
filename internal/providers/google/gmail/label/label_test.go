@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 func TestNewCmdRegistersLeaves(t *testing.T) {

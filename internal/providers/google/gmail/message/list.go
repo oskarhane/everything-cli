@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 )
 
 // newListCmd returns `gmail message list`: messages matching a Gmail search

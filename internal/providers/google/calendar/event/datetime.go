@@ -5,7 +5,7 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/dates"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/dates"
 )
 
 // parseWindowTime parses a --from/--to window bound into the RFC3339 value

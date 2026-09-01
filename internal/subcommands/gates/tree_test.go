@@ -15,42 +15,32 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
 	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
-	"github.com/oskarhane/google-cli/internal/subcommands/docs"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
-	"github.com/oskarhane/google-cli/internal/subcommands/sheets"
 	"github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/slides"
 	"github.com/oskarhane/google-cli/internal/subcommands/update"
-	"github.com/oskarhane/google-cli/internal/subcommands/youtube"
 )
 
-// newWholeTree mounts the complete command tree the same way main.go does,
+// newWholeTree mounts the complete command tree the same way main.go does —
+// provider trees under their provider command, CLI-own commands top-level —
 // with an in-memory FS so nothing touches real credential paths.
 func newWholeTree() *cobra.Command {
 	cfg := &app.Config{Fs: afero.NewMemMapFs()}
 	root := app.NewRootCommand(cfg)
 	root.AddCommand(
+		googleprovider.Provider{}.NewCmd(cfg),
 		account.NewCmd(cfg),
-		gmail.NewCmd(cfg),
-		calendar.NewCmd(cfg),
-		drive.NewCmd(cfg),
-		docs.NewCmd(cfg),
-		sheets.NewCmd(cfg),
-		slides.NewCmd(cfg),
 		skill.NewCmd(cfg),
 		update.NewCmd(cfg),
-		youtube.NewCmd(cfg),
 	)
 	return root
 }
 
-// expectedTopLevel is the set of resource subtrees main.go mounts on the
-// root. The mount guard asserts the walk finds each of these, so losing an
-// entire top-level subtree fails loudly naming it, not silently.
-var expectedTopLevel = []string{"account", "gmail", "calendar", "drive", "docs", "sheets", "slides", "skill", "update", "youtube"}
+// expectedTopLevel is the set of subtrees main.go mounts on the root: the
+// registered providers plus the CLI-own commands. The mount guard asserts
+// the walk finds each of these, so losing an entire top-level subtree fails
+// loudly naming it, not silently.
+var expectedTopLevel = []string{"account", "google", "skill", "update"}
 
 // autoAddedTopLevel are commands cobra may inject into the root (at walk
 // time or on Execute); they are tolerated as top-level children but never
@@ -117,9 +107,11 @@ func countInvocations(example string) int {
 	return n
 }
 
-// subcommandsDir resolves the repo root from the test's working directory
-// (the package dir) so the source scanner can find internal/subcommands.
-func subcommandsDir(t *testing.T) string {
+// commandSourceDirs resolves the repo root from the test's working directory
+// (the package dir) and returns the directories holding command sources:
+// CLI-own commands under internal/subcommands and provider trees under
+// internal/providers.
+func commandSourceDirs(t *testing.T) []string {
 	t.Helper()
 	dir, err := os.Getwd()
 	if err != nil {
@@ -127,7 +119,10 @@ func subcommandsDir(t *testing.T) string {
 	}
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return filepath.Join(dir, "internal", "subcommands")
+			return []string{
+				filepath.Join(dir, "internal", "subcommands"),
+				filepath.Join(dir, "internal", "providers"),
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

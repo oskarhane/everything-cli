@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // newClearCmd returns `sheets values clear`: empty every cell in the A1

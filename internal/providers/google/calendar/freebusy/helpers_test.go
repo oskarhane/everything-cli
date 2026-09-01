@@ -11,7 +11,7 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 )
 

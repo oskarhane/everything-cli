@@ -8,7 +8,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // NewCmd returns the `drive file` parent with every file leaf attached.

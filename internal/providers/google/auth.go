@@ -10,11 +10,11 @@ import (
 	"github.com/oskarhane/google-cli/internal/config"
 )
 
-// secretFields are the account JSON fields holding Google's OAuth secrets:
+// secretFieldNames are the account JSON fields holding Google's OAuth secrets:
 // token.access_token and token.refresh_token. Both token values are as
 // sensitive as a refresh token and must never print; they are registered
 // for redaction at the mint/read point (see internal/auth/redact.go).
-var secretFields = []string{"token.access_token", "token.refresh_token"}
+var secretFieldNames = []string{"token.access_token", "token.refresh_token"}
 
 // Strategy is Google's auth.Strategy. Add runs the existing installed-app
 // browser OAuth flow (auth.RunFlowWith with the pinned GoogleOAuth profile)
@@ -38,5 +38,5 @@ func NewStrategy(fs afero.Fs, store *config.Store, credentialsPath string) *Stra
 // SecretFields names the secret-bearing fields of a Google account
 // document: token.access_token and token.refresh_token.
 func (s *Strategy) SecretFields() []string {
-	return append([]string{}, secretFields...)
+	return append([]string{}, secretFieldNames...)
 }

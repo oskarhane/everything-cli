@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
 
 func TestDeleteWithoutForceRefuses(t *testing.T) {

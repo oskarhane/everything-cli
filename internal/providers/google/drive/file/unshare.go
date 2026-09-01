@@ -9,7 +9,7 @@ import (
 	drive "google.golang.org/api/drive/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // newUnshareCmd returns `drive file unshare`: revoke one permission from a

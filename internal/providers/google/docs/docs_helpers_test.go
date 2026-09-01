@@ -12,8 +12,8 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
 
 // TestMain neutralizes format auto-detection so the host's harness env and

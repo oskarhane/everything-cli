@@ -8,17 +8,18 @@ import (
 	"github.com/oskarhane/google-cli/internal/auth"
 	"github.com/oskarhane/google-cli/internal/config"
 	"github.com/oskarhane/google-cli/internal/output"
-	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
 // newAddStrategy is the auth-strategy seam: the OAuth flow runs through the
-// provider's auth.Strategy, never directly. Production wires the google
-// provider's strategy; tests stub it so no test ever starts a real browser
-// authorization.
+// provider's auth.Strategy, never directly. Production wires the pinned
+// Google OAuth profile's strategy (the same construction the google
+// provider package's NewStrategy wraps — imported directly here because the
+// account tree living inside the google provider may not import its parent);
+// tests stub it so no test ever starts a real browser authorization.
 var newAddStrategy = func(fs afero.Fs, store *config.Store, credentialsPath string) auth.Strategy {
-	return googleprovider.NewStrategy(fs, store, credentialsPath)
+	return auth.NewOAuthStrategy(auth.GoogleOAuth, fs, store, credentialsPath)
 }
 
 // addedAccount is the rendered shape of a successful account add.

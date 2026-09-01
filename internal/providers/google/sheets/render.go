@@ -7,7 +7,7 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/sheets/values"
+	"github.com/oskarhane/google-cli/internal/providers/google/sheets/values"
 )
 
 // sheetFields is the sheet-tab row field order for `sheets get` output; the

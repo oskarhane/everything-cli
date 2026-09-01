@@ -10,8 +10,8 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/dates"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/dates"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 )
 
 // newCreateCmd returns `calendar event create`. --recurrence takes raw

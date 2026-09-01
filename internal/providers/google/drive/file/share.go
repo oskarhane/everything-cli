@@ -11,7 +11,7 @@ import (
 	drive "google.golang.org/api/drive/v3"
 
 	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/drive/service"
 )
 
 // newShareCmd returns `drive file share`: grant a permission on a file to a

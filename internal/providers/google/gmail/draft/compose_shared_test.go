@@ -8,9 +8,9 @@ import (
 
 	gmail "google.golang.org/api/gmail/v1"
 
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/message"
+	"github.com/oskarhane/google-cli/internal/providers/google/gmail/service"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/message"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail/service"
 )
 
 // composeSpy records the raw MIME bytes both compose paths hand the API: the

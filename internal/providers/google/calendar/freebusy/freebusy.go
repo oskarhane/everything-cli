@@ -12,8 +12,8 @@ import (
 
 	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/dates"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar/service"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/dates"
+	"github.com/oskarhane/google-cli/internal/providers/google/calendar/service"
 )
 
 // nowFunc is the clock seam: tests pin it so the default window
