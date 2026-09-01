@@ -4,59 +4,17 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	drive "google.golang.org/api/drive/v3"
 
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/oauth2"
 
-	"github.com/oskarhane/google-cli/internal/app"
 	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 	"github.com/oskarhane/google-cli/internal/subcommands/drive/file"
 	"github.com/oskarhane/google-cli/internal/subcommands/drive/service"
 )
-
-// installedAppCredentials is a minimal valid installed-app credentials file;
-// the drive tree only parses it, it never talks to Google's endpoints.
-const installedAppCredentials = `{
-  "installed": {
-    "client_id": "test-client-id",
-    "client_secret": "test-client-secret",
-    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-    "token_uri": "https://oauth2.googleapis.com/token",
-    "redirect_uris": ["http://localhost"]
-  }
-}`
-
-// newDialConfig seeds a hermetic account store on an in-memory FS (never the
-// real ~/.config/google-cli) with a valid token plus the given scopes, and
-// returns the config dial should run against.
-func newDialConfig(t *testing.T, name string, scopes []string) *app.Config {
-	t.Helper()
-	fs := afero.NewMemMapFs()
-	store, err := config.NewStore(fs, "")
-	require.NoError(t, err)
-	acct := &config.Account{
-		Name:   name,
-		Email:  name + "@example.com",
-		Scopes: scopes,
-		Token: &oauth2.Token{
-			AccessToken:  "access-" + name,
-			RefreshToken: "refresh-" + name,
-			TokenType:    "Bearer",
-			Expiry:       time.Now().Add(time.Hour),
-		},
-	}
-	require.NoError(t, store.Save(acct))
-	require.NoError(t, store.SetDefaultAccount(name))
-	path := "/config/credentials.json"
-	require.NoError(t, afero.WriteFile(fs, path, []byte(installedAppCredentials), 0o600))
-	return &app.Config{Fs: fs, Credentials: path}
-}
 
 // TestDialRequiresDriveScope pins the scope guard: an account narrowed to
 // non-drive scopes must fail with the re-consent guidance before any service
@@ -81,7 +39,7 @@ func TestDialRequiresDriveScope(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc, err := dial(context.Background(), newDialConfig(t, "work", tc.scopes))
+			svc, err := dial(context.Background(), cmdtest.NewDialConfig(t, "work", tc.scopes))
 			if !tc.missing {
 				require.NoError(t, err)
 				require.NotNil(t, svc)
@@ -121,7 +79,7 @@ func (fakeFileSvc) DeletePermission(context.Context, string, string) error { ret
 // drive.file-only account (app-created files only) constructs the service for
 // the read/write file leaves without re-consent.
 func TestDialAcceptsDriveFileScope(t *testing.T) {
-	svc, err := dial(context.Background(), newDialConfig(t, "work", []string{auth.ScopeUserEmail, auth.ScopeDriveFile}))
+	svc, err := dial(context.Background(), cmdtest.NewDialConfig(t, "work", []string{auth.ScopeUserEmail, auth.ScopeDriveFile}))
 	require.NoError(t, err)
 	require.NotNil(t, svc)
 }
@@ -129,11 +87,12 @@ func TestDialAcceptsDriveFileScope(t *testing.T) {
 // TestFileSharingLeavesRequireFullDriveScope pins the sharing guard: the
 // read/write leaves run on a drive.file-only account, but the sharing leaves
 // (permissions, share, unshare) refuse it — naming the full drive scope and
-// the re-consent action — before the dialer is ever called. A full-drive
-// account still shares.
+// the re-consent action — before the dialer is ever called. The full-drive
+// success path builds the service inside newSharingSvc and is not covered by
+// any test (it would dial Google live); only the refusal paths are pinned
+// here, and the leaf-level grant behavior is faked in file/share_test.go.
 func TestFileSharingLeavesRequireFullDriveScope(t *testing.T) {
 	driveFileOnly := []string{auth.ScopeUserEmail, auth.ScopeDriveFile}
-	fullDrive := []string{auth.ScopeUserEmail, auth.ScopesDrive[0]}
 
 	tests := []struct {
 		name       string
@@ -162,17 +121,11 @@ func TestFileSharingLeavesRequireFullDriveScope(t *testing.T) {
 			scopes: driveFileOnly,
 			args:   []string{"unshare", "file_1", "--permission", "p1"},
 		},
-		{
-			name:       "share runs on a full-drive account",
-			scopes:     fullDrive,
-			args:       []string{"share", "file_1", "--role", "reader", "--anyone"},
-			wantDialed: true,
-		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := newDialConfig(t, "work", tc.scopes)
+			cfg := cmdtest.NewDialConfig(t, "work", tc.scopes)
 			dialed := false
 			cmd := file.NewCmd(cfg, func(context.Context) (service.FileService, error) {
 				dialed = true
