@@ -48,11 +48,13 @@ google-cli youtube metadata "https://youtu.be/dQw4w9WgXcQ" --format toon`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := youtube.ParseVideoID(args[0])
 			if err != nil {
-				return fmt.Errorf("youtube metadata: %w", err)
+				// The parse produced no ID, so carry the raw input (for bare
+				// IDs this is the video ID itself) to keep the error lineage.
+				return fmt.Errorf("video %s: %w", args[0], err)
 			}
 			p, err := client.Player(cmd.Context(), id)
 			if err != nil {
-				return fmt.Errorf("youtube metadata %s: %w", id, err)
+				return fmt.Errorf("video %s: %w", id, err)
 			}
 			row := metadataRow(p)
 			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), metadataFields, row, []map[string]any{row})
