@@ -1,6 +1,6 @@
 # google-cli
 
-Command-line client for Gmail, Google Calendar, and Google Drive (including Docs, Sheets, and Slides), across multiple Google accounts (Workspace or personal).
+Command-line client for Gmail, Google Calendar, and Google Drive (including Docs, Sheets, and Slides), across multiple Google accounts (Workspace or personal) — plus YouTube video metadata and timed transcripts that need no account at all.
 
 ```
 google-cli account list
@@ -8,6 +8,7 @@ google-cli gmail message list --query "from:boss" --unread-only
 google-cli calendar event decline kq3abc123_20260901T100000Z   # one occurrence
 google-cli calendar freebusy --from -1d --to +7d
 google-cli drive file share 1AbCdEfGh --role reader --email a@x.com
+google-cli youtube transcript https://youtu.be/dQw4w9WgXcQ --lang en
 ```
 
 ## Install
@@ -146,9 +147,25 @@ google-cli slides delete 1AbCdEfGh --force          # permanent
 
 Accounts added before Drive support lack the new scopes: re-run `google-cli account add <name>` to consent again — the flow re-prompts and updates that account in place (same name, refreshed token).
 
+### YouTube
+
+Video metadata and timed transcripts — no Google account, OAuth, or API key required. Accepts watch URLs (`?v=...`), youtu.be / shorts / embed / live links, or bare 11-character video IDs. Data comes from YouTube's unofficial InnerTube player endpoint (Android client context), which can break when YouTube changes it — failures surface as errors, never as silent empty output.
+
+```sh
+google-cli youtube transcript "https://www.youtube.com/watch?v=dQw4w9WgXcQ"   # plain text when piped, table on a TTY
+google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt             # German caption track to a file
+google-cli youtube transcript dQw4w9WgXcQ --format json                       # timed segments as JSON
+google-cli youtube transcript dQw4w9WgXcQ --raw                               # force plain text even on a TTY
+
+google-cli youtube metadata "https://youtu.be/dQw4w9WgXcQ" --format json      # title, channel, views, publish date
+google-cli youtube metadata dQw4w9WgXcQ                                       # table: fields incl. available_langs
+```
+
+`--lang` (default `en`, ISO 639-1) prefers a human-written caption track, then an auto-generated (ASR) one, then the first available track. `metadata`'s `available_langs` lists every track language — use it to pick a `transcript --lang` value.
+
 ### Agent skills
 
-`google-cli` embeds a skill bundle (a `SKILL.md` plus `references/*.md` docs covering accounts, Gmail, and Calendar) that teaches AI agents how to drive the CLI. Install it into any supported agent's skills directory, remove it again, or print the raw markdown:
+`google-cli` embeds a skill bundle (a `SKILL.md` plus `references/*.md` docs covering accounts, Gmail, Calendar, Drive, Docs, Sheets, Slides, and YouTube) that teaches AI agents how to drive the CLI. Install it into any supported agent's skills directory, remove it again, or print the raw markdown:
 
 ```sh
 google-cli skill install                        # every detected agent
