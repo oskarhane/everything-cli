@@ -55,7 +55,9 @@ google-cli youtube transcript dQw4w9WgXcQ --lang de --out de.txt`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			id, err := yt.ParseVideoID(args[0])
 			if err != nil {
-				return err
+				// The parse produced no ID, so carry the raw input (for bare
+				// IDs this is the video ID itself) to keep the error lineage.
+				return fmt.Errorf("video %s: %w", args[0], err)
 			}
 			ctx := cmd.Context()
 			player, err := client.Player(ctx, id)
