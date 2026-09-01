@@ -121,6 +121,59 @@ func TestTokenSourceRefreshPersistsToken(t *testing.T) {
 	assert.Equal(t, 1, rec.count(), "valid tokens must be reused, not re-fetched")
 }
 
+// TestTokenSourceForProvider: the provider-scoped token source reads and
+// persists the account under accounts/<provider>/, refreshing against the
+// profile's pinned endpoint — never the credentials file's.
+func TestTokenSourceForProvider(t *testing.T) {
+	rec := &tokenEndpointRecorder{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rec.mu.Lock()
+		rec.forms = append(rec.forms, r.PostForm)
+		rec.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600,"token_type":"Bearer"}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	profile := OAuthProfile{
+		Name:     "other-cli",
+		Endpoint: oauth2.Endpoint{AuthURL: srv.URL + "/auth", TokenURL: srv.URL + "/token"},
+	}
+	fs := afero.NewMemMapFs()
+	store, err := config.NewStore(fs, "/config")
+	require.NoError(t, err)
+	require.NoError(t, store.Save(&config.Account{
+		Name:     "work",
+		Provider: "other",
+		Email:    "user@example.com",
+		Scopes:   []string{"scope-a"},
+		Token: &oauth2.Token{
+			AccessToken:  "old-access",
+			RefreshToken: "old-refresh",
+			TokenType:    "Bearer",
+			Expiry:       time.Now().Add(-time.Hour), // expired: forces refresh
+		},
+	}))
+	credentialsPath := "/config/credentials.json"
+	require.NoError(t, afero.WriteFile(fs, credentialsPath, []byte(installedAppCredentials), 0o600))
+
+	ts, err := TokenSourceForProvider(fs, store, credentialsPath, "other", "work", profile)
+	require.NoError(t, err)
+	tok, err := ts.Token()
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", tok.AccessToken)
+	assert.Equal(t, 1, rec.count(), "the refresh must hit the profile's pinned endpoint")
+
+	persisted, err := store.GetProvider("other", "work")
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", persisted.Token.AccessToken,
+		"the refresh must persist to accounts/other/, not the google dir")
+}
+
 func TestTokenSourceUnknownAccount(t *testing.T) {
 	stubTokenEndpoint(t)
 	store := newTestStore(t)

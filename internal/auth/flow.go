@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/afero"
@@ -158,12 +159,17 @@ func RunFlowWith(fs afero.Fs, credentialsPath string, scopes []string, profile O
 	if err != nil {
 		return nil, "", err
 	}
-	authURL := conf.AuthCodeURL(state,
+	authURLOpts := []oauth2.AuthCodeOption{
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 		oauth2.SetAuthURLParam("code_challenge", challenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-	)
+	}
+	if profile.ScopeSeparator != "" && profile.ScopeSeparator != " " {
+		authURLOpts = append(authURLOpts,
+			oauth2.SetAuthURLParam("scope", strings.Join(conf.Scopes, profile.ScopeSeparator)))
+	}
+	authURL := conf.AuthCodeURL(state, authURLOpts...)
 
 	emit("Authorize %s by opening:\n\n%s\n\n", profile.Name, authURL)
 	if err := openBrowser(authURL); err != nil {
@@ -226,11 +232,21 @@ func RunFlowWith(fs afero.Fs, credentialsPath string, scopes []string, profile O
 	registerTokenSecrets(tok)
 	emailCtx, cancelEmail := context.WithTimeout(context.Background(), networkTimeout)
 	defer cancelEmail()
-	email, err := fetchEmail(emailCtx, profile.UserinfoURL, tok)
+	email, err := resolveIdentity(emailCtx, profile, tok)
 	if err != nil {
 		return nil, "", err
 	}
 	return tok, email, nil
+}
+
+// resolveIdentity resolves the account email: the profile's
+// IdentityResolver when it carries one (Linear's GraphQL viewer query),
+// else the userinfo GET every existing provider uses.
+func resolveIdentity(ctx context.Context, profile OAuthProfile, tok *oauth2.Token) (string, error) {
+	if profile.IdentityResolver != nil {
+		return profile.IdentityResolver(ctx, tok)
+	}
+	return fetchEmail(ctx, profile.UserinfoURL, tok)
 }
 
 // emit writes a best-effort status line to flowOutput: flow output must

@@ -405,6 +405,79 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 	assert.Equal(t, "test-code", form.Get("code"))
 }
 
+// TestRunFlowWithIdentityResolver: a profile carrying an IdentityResolver
+// (Linear's GraphQL viewer query) resolves the account email through it
+// instead of the userinfo GET.
+func TestRunFlowWithIdentityResolver(t *testing.T) {
+	hooks := stubFlowSeams(t)
+	fs, credentialsPath := writeCredentialsFile(t)
+
+	profile := OAuthProfile{
+		Name:        "other-cli",
+		Endpoint:    oauth2.Endpoint{AuthURL: "https://provider.example/auth", TokenURL: "https://provider.example/token"},
+		UserinfoURL: "https://provider.example/userinfo",
+		EmailScope:  "provider-email-scope",
+		IdentityResolver: func(_ context.Context, tok *oauth2.Token) (string, error) {
+			assert.Equal(t, "access-1", tok.AccessToken,
+				"the resolver is called with the freshly exchanged token")
+			return "resolved@provider.example", nil
+		},
+	}
+	// The userinfo path must not run when a resolver is attached.
+	fetchEmail = func(context.Context, string, *oauth2.Token) (string, error) {
+		return "", errors.New("userinfo GET must not run with an IdentityResolver")
+	}
+
+	res := make(chan flowResult, 1)
+	go func() {
+		tok, email, err := RunFlowWith(fs, credentialsPath, nil, profile)
+		res <- flowResult{token: tok, email: email, err: err}
+	}()
+
+	authURL := waitAuthURL(t, hooks.output)
+	callback := redirectCallback(t, authURL, "state-123")
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+
+	got := <-res
+	require.NoError(t, got.err)
+	assert.Equal(t, "resolved@provider.example", got.email)
+}
+
+// TestRunFlowWithScopeSeparator: a profile's scope separator (Linear
+// documents comma-separated scopes) joins the scope list on the
+// authorization URL.
+func TestRunFlowWithScopeSeparator(t *testing.T) {
+	hooks := stubFlowSeams(t)
+	fs, credentialsPath := writeCredentialsFile(t)
+
+	profile := OAuthProfile{
+		Name:           "other-cli",
+		Endpoint:       oauth2.Endpoint{AuthURL: "https://provider.example/auth", TokenURL: "https://provider.example/token"},
+		UserinfoURL:    "https://provider.example/userinfo",
+		EmailScope:     "provider-email-scope",
+		ScopeSeparator: ",",
+	}
+
+	res := make(chan flowResult, 1)
+	go func() {
+		tok, email, err := RunFlowWith(fs, credentialsPath, []string{"scope-a"}, profile)
+		res <- flowResult{token: tok, email: email, err: err}
+	}()
+
+	authURL := waitAuthURL(t, hooks.output)
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	assert.Equal(t, "scope-a,provider-email-scope", u.Query().Get("scope"))
+
+	callback := redirectCallback(t, authURL, "state-123")
+	resp, err := http.Get(callback)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.NoError(t, (<-res).err)
+}
+
 func TestEnsureEmailScope(t *testing.T) {
 	tests := []struct {
 		name   string

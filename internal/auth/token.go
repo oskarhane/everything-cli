@@ -43,7 +43,15 @@ func TokenSource(fs afero.Fs, store *config.Store, credentialsPath, name string)
 // refresh targets the profile's pinned token endpoint, taken from the
 // profile rather than from the credentials file.
 func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
-	acct, err := store.Get(name)
+	return TokenSourceForProvider(fs, store, credentialsPath, config.ProviderGoogle, name, profile)
+}
+
+// TokenSourceForProvider is TokenSourceWith scoped to a provider's account
+// directory: the account is read from (and refreshes persisted back to)
+// accounts/<provider>/<name>.json. Non-Google OAuth providers (Linear)
+// onboard through it so their token cache refreshes exactly like Google's.
+func TokenSourceForProvider(fs afero.Fs, store *config.Store, credentialsPath, provider, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
+	acct, err := store.GetProvider(provider, name)
 	if err != nil {
 		return nil, err
 	}
@@ -66,10 +74,11 @@ func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name str
 		return nil, fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
 	}
 	return oauth2.ReuseTokenSource(acct.Token, &persistingSource{
-		store: store,
-		name:  name,
-		conf:  conf,
-		last:  acct.Token,
+		store:    store,
+		provider: provider,
+		name:     name,
+		conf:     conf,
+		last:     acct.Token,
 	}), nil
 }
 
@@ -77,10 +86,11 @@ func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name str
 // back to the account file. Google does not always re-issue a refresh token,
 // so the previous one is preserved when the response omits it.
 type persistingSource struct {
-	store *config.Store
-	name  string
-	conf  *oauth2.Config
-	last  *oauth2.Token
+	store    *config.Store
+	provider string
+	name     string
+	conf     *oauth2.Config
+	last     *oauth2.Token
 }
 
 func (p *persistingSource) Token() (*oauth2.Token, error) {
@@ -115,7 +125,7 @@ func (p *persistingSource) changed(tok *oauth2.Token) bool {
 }
 
 func (p *persistingSource) persist(tok *oauth2.Token) error {
-	acct, err := p.store.Get(p.name)
+	acct, err := p.store.GetProvider(p.provider, p.name)
 	if err != nil {
 		return err
 	}

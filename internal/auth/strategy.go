@@ -47,6 +47,17 @@ type AddOptions struct {
 	// from a --api-key flag; empty means the strategy captures it from
 	// its env var or a hidden prompt.
 	APIKey string
+	// UseOAuth selects the OAuth path on providers offering more than one
+	// auth strategy (e.g. `linear account add --oauth`); single-strategy
+	// providers ignore it.
+	UseOAuth bool
+	// ClientID is the OAuth app's client ID for providers whose OAuth
+	// needs no credentials file (captured from a --client-id flag or env
+	// var); empty means the strategy resolves it from its env var.
+	ClientID string
+	// ClientSecret is the OAuth app's client secret. Optional for public
+	// PKCE clients (Linear makes it optional when PKCE is used).
+	ClientSecret string
 }
 
 // OAuthStrategy is the Strategy for installed-app OAuth2 providers. It

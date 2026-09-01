@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"context"
+
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -25,6 +27,16 @@ type OAuthProfile struct {
 	EmailScope string
 	// DefaultScopes is the scope set onboarded when the caller passes none.
 	DefaultScopes []string
+	// ScopeSeparator joins the scope list on the authorization URL; empty
+	// means the oauth2 default (space). Linear's authorize endpoint
+	// documents a comma-separated scope parameter.
+	ScopeSeparator string
+	// IdentityResolver, when non-nil, resolves the account email after the
+	// code exchange instead of the UserinfoURL GET — for providers whose
+	// identity endpoint is not a plain JSON GET (Linear resolves identity
+	// through its GraphQL viewer query). It is called with the freshly
+	// exchanged token.
+	IdentityResolver func(ctx context.Context, tok *oauth2.Token) (string, error)
 }
 
 // GoogleOAuth is the OAuth profile for Google: endpoints pinned to Google's,

@@ -1,6 +1,6 @@
 // Package account implements the `linear account` subcommands: managing
-// Linear's provider-scoped API-key accounts and the provider's default
-// account.
+// Linear's provider-scoped accounts (API-key or OAuth) and the provider's
+// default account.
 package account
 
 import (
@@ -21,9 +21,10 @@ type StrategyFactory func() auth.Strategy
 func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "account",
-		Short: "Manage Linear accounts and their API keys",
-		Long: "Manage Linear accounts: add them with a personal API key, " +
-			"list them, inspect one, pick the default account, and remove them.",
+		Short: "Manage Linear accounts and their credentials",
+		Long: "Manage Linear accounts: add them with a personal API key or " +
+			"OAuth (--oauth), list them, inspect one, pick the default account, " +
+			"and remove them.",
 	}
 
 	cmd.AddCommand(newListCmd(cfg, providerID))
