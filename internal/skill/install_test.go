@@ -122,7 +122,7 @@ func TestInstallCleanSlate(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, exists)
 
-	exists, err = afero.Exists(fsys, filepath.Join(dest, "references", "gmail.md"))
+	exists, err = afero.Exists(fsys, filepath.Join(dest, "references", "google.md"))
 	require.NoError(t, err)
 	assert.True(t, exists)
 }
@@ -168,7 +168,7 @@ func TestInstallFileModes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fs.FileMode(0o600).Perm(), info.Mode().Perm(), "SKILL.md mode")
 
-	info, err = fsys.Stat(filepath.Join(dest, "references", "account.md"))
+	info, err = fsys.Stat(filepath.Join(dest, "references", "google.md"))
 	require.NoError(t, err)
 	assert.Equal(t, fs.FileMode(0o600).Perm(), info.Mode().Perm(), "reference file mode")
 }
@@ -184,15 +184,15 @@ func TestInjectVersion(t *testing.T) {
 	}{
 		{
 			name:    "rewrites existing line",
-			in:      "---\nname: google-cli\nversion: dev\n---\nbody\n",
+			in:      "---\nname: everything-cli\nversion: dev\n---\nbody\n",
 			version: "v1.0.0",
-			want:    "---\nname: google-cli\nversion: v1.0.0\n---\nbody\n",
+			want:    "---\nname: everything-cli\nversion: v1.0.0\n---\nbody\n",
 		},
 		{
 			name:    "inserts when absent",
-			in:      "---\nname: google-cli\ndescription: d\n---\nbody\n",
+			in:      "---\nname: everything-cli\ndescription: d\n---\nbody\n",
 			version: "v1.0.0",
-			want:    "---\nname: google-cli\ndescription: d\nversion: v1.0.0\n---\nbody\n",
+			want:    "---\nname: everything-cli\ndescription: d\nversion: v1.0.0\n---\nbody\n",
 		},
 		{
 			name:    "no frontmatter unchanged",
@@ -202,9 +202,9 @@ func TestInjectVersion(t *testing.T) {
 		},
 		{
 			name:    "empty version is a no-op",
-			in:      "---\nname: google-cli\nversion: dev\n---\nbody\n",
+			in:      "---\nname: everything-cli\nversion: dev\n---\nbody\n",
 			version: "",
-			want:    "---\nname: google-cli\nversion: dev\n---\nbody\n",
+			want:    "---\nname: everything-cli\nversion: dev\n---\nbody\n",
 		},
 	}
 	for _, tt := range tests {
@@ -225,9 +225,9 @@ func TestInstallWrittenBundleIsComplete(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, p := range []string{
-		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "account.md"),
-		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "gmail.md"),
-		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "calendar.md"),
+		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "google.md"),
+		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "granola.md"),
+		filepath.Join(destFor(*FindAgent("claude-code"), home), "references", "linear.md"),
 	} {
 		exists, ferr := afero.Exists(fsys, p)
 		require.NoError(t, ferr, p)
@@ -236,7 +236,7 @@ func TestInstallWrittenBundleIsComplete(t *testing.T) {
 
 	data, rerr := afero.ReadFile(fsys, filepath.Join(destFor(*FindAgent("claude-code"), home), "SKILL.md"))
 	require.NoError(t, rerr)
-	assert.Contains(t, string(data), "name: google-cli")
+	assert.Contains(t, string(data), "name: everything-cli")
 }
 
 // TestParseVersionLineTolerances: ParseVersionLine reads a stamped version

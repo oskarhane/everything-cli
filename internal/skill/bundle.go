@@ -1,5 +1,5 @@
-// Package skill embeds the google-cli agent-skill bundle and installs it
-// into supported AI agents' skills directories.
+// Package skill embeds the everything-cli agent-skill bundle and installs
+// it into supported AI agents' skills directories.
 //
 // The committed bundle/ tree is the source of truth shipped in the binary.
 package skill
@@ -24,7 +24,7 @@ var Bundle fs.FS = mustSub(rawBundle, "bundle")
 
 // SkillName is the on-disk directory name for the installed bundle inside
 // each agent's skills directory.
-const SkillName = "google-cli"
+const SkillName = "everything-cli"
 
 // mustSub wraps fs.Sub and panics on error. The only failure modes are
 // programmer errors (invalid path), so a panic at init time is acceptable.

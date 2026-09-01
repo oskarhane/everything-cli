@@ -122,5 +122,5 @@ func TestRemoveDeletesWholeSkillDir(t *testing.T) {
 
 	exists, ferr := afero.DirExists(fsys, filepath.Dir(dest))
 	require.NoError(t, ferr)
-	assert.False(t, exists, "whole <skills>/google-cli dir must be gone")
+	assert.False(t, exists, "whole <skills>/everything-cli dir must be gone")
 }

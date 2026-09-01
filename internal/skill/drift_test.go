@@ -1,23 +1,33 @@
 package skill_test
 
 import (
+	"io/fs"
 	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
+	"github.com/oskarhane/everything-cli/internal/provider"
 	skillapi "github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/oskarhane/everything-cli/internal/subcommands/account"
 	skillsub "github.com/oskarhane/everything-cli/internal/subcommands/skill"
 	"github.com/oskarhane/everything-cli/internal/subcommands/update"
+
+	// Provider side-effect imports mirror main.go exactly — keep this
+	// list in sync with main.go's import block so the mounted tree and
+	// the registry match the shipped binary.
+	_ "github.com/oskarhane/everything-cli/internal/providers/google"
+	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
+	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
-// google-cli command tree (built exactly as main.go builds it) must be
+// everything-cli command tree (built exactly as main.go builds it —
+// provider trees from the registry, CLI-own commands top-level) must be
 // documented in the embedded skill bundle, so the shipped SKILL.md can
 // never silently fall behind the actual command surface.
 //
@@ -33,17 +43,23 @@ func TestTreeDrift(t *testing.T) {
 			return
 		}
 		leafCount++
-		// Multi-word leaf paths ("gmail message untrash") are specific enough
-		// to match as written; single-word leaves ("update") match
-		// incidentally in prose, so they must appear with the binary prefix
-		// ("google-cli update") for the guard to bite.
+		// The skill is a thin router: provider leaves are documented in
+		// references/<provider>.md by their provider-first paths, which
+		// contain the provider-stripped resource path as a substring —
+		// strip the provider segment ("google gmail list" -> "gmail
+		// list", "linear issue list" -> "issue list") before matching.
+		// Multi-word leaf paths are specific enough to match as written;
+		// single-word leaves ("update") match incidentally in prose, so
+		// they must appear with the binary prefix ("everything-cli
+		// update") for the guard to bite.
 		leafPath := strings.TrimPrefix(cmd.CommandPath(), "everything-cli ")
-		// The bundle still documents the pre-provider command surface; the
-		// provider segment ("google gmail list" -> "gmail list") is stripped
-		// until the skill-sync node rewrites the bundle provider-first.
-		leafPath = strings.TrimPrefix(leafPath, "google ")
+		if first, rest, ok := strings.Cut(leafPath, " "); ok {
+			if _, registered := provider.Get(first); registered {
+				leafPath = rest
+			}
+		}
 		if !strings.Contains(leafPath, " ") {
-			leafPath = "google-cli " + leafPath
+			leafPath = "everything-cli " + leafPath
 		}
 		if !strings.Contains(bundleText, leafPath) {
 			t.Errorf("command %q is not documented in the skill bundle — "+
@@ -55,13 +71,43 @@ func TestTreeDrift(t *testing.T) {
 	}
 }
 
-// newMountedTree mounts the complete command tree the same way main.go does:
-// provider trees under their provider command, CLI-own commands top-level.
+// TestProviderDocsDrift is the provider-coverage guard: every provider
+// registered in the registry (the same set main.go mounts) must be
+// indexed in the thin-router SKILL.md — a link to its reference file in
+// the provider index — and that references/<id>.md file must exist in
+// the embedded bundle. Adding a provider to main.go without either
+// piece fails this test.
+func TestProviderDocsDrift(t *testing.T) {
+	data, err := fs.ReadFile(skillapi.Bundle, "SKILL.md")
+	require.NoError(t, err)
+	skillMd := string(data)
+
+	providers := provider.List()
+	require.NotEmpty(t, providers,
+		"no providers registered; provider-docs guard would pass vacuously")
+	for _, p := range providers {
+		ref := "references/" + p.ID() + ".md"
+		// Pin the markdown link target, not the bare substring — a
+		// mangled path like "references/linear.md.disabled" still
+		// contains "references/linear.md".
+		assert.Contains(t, skillMd, "]("+ref+")",
+			"SKILL.md provider index must link %s for registered provider %q", ref, p.ID())
+		_, statErr := fs.Stat(skillapi.Bundle, ref)
+		assert.NoError(t, statErr,
+			"bundle must ship %s for registered provider %q", ref, p.ID())
+	}
+}
+
+// newMountedTree mounts the complete command tree the same way main.go
+// does: every registered provider's tree under its provider command,
+// CLI-own commands top-level.
 func newMountedTree() *cobra.Command {
 	cfg := &app.Config{Fs: afero.NewMemMapFs()}
 	root := app.NewRootCommand(cfg)
+	for _, p := range provider.List() {
+		root.AddCommand(p.NewCmd(cfg))
+	}
 	root.AddCommand(
-		googleprovider.Provider{}.NewCmd(cfg),
 		account.NewCmd(cfg),
 		skillsub.NewCmd(cfg),
 		update.NewCmd(cfg),
