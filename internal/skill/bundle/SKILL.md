@@ -35,7 +35,7 @@ reference file — this document covers only the shared conventions.
 | --- | --- | --- |
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts; OAuth accounts | [references/google.md](references/google.md) |
 | `granola` | Granola notes via the Granola public API; API-key accounts | [references/granola.md](references/granola.md) |
-| `linear` | Linear issues, teams, projects; API-key accounts | [references/linear.md](references/linear.md) |
+| `linear` | Linear issues, teams, projects; API key or OAuth | [references/linear.md](references/linear.md) |
 
 Every provider also has its own account subtree: `everything-cli
 <provider> account add|list|get|use|remove`.

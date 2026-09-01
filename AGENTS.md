@@ -12,11 +12,15 @@ TEST: `make test` · BUILD: `make build` · LINT: `make lint` · FORMAT: `make f
 
 PRIMARY LANGUAGES: [Go]
 
-`google-cli` — command-line tool for managing Gmail and Google Calendar across multiple Google accounts (OAuth, per-account token cache).
+`everything-cli` — one command-line tool for many SaaS providers (Google, Linear, Granola), multi-account per provider, behind one set of conventions.
 
-`internal/providers/google/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource.
+`internal/providers/google/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource. The other providers have their own seams (`internal/providers/linear/service`, `internal/providers/granola/service.go` + `dial.go`).
 
-The CLI is provider-first: `google-cli <provider> <resource> <action>`. Providers self-register via `init()` under `internal/providers/<id>/` (side-effect imports in main.go; registry in `internal/provider`). The Google resource trees (gmail, calendar, drive, docs, sheets, slides, youtube, account) live under `internal/providers/google/`; `internal/subcommands/` holds only CLI-own commands (`skill`, `update`, the read-only cross-provider `account list`, plus the shared `cmdtest`/`gates` test scaffolding). A back-compat shim in `internal/app/shim.go` rewrites bare pre-provider invocations (`gmail list`, `account add`) to `google <args...>` with a stderr deprecation warning. `--credentials` is a persistent flag on the `google` command, not the root.
+The CLI is provider-first: `everything-cli <provider> <resource> <action>`. Providers self-register via `init()` under `internal/providers/<id>/` (side-effect imports in main.go; registry in `internal/provider`). The Google resource trees (gmail, calendar, drive, docs, sheets, slides, youtube, account) live under `internal/providers/google/`; `internal/subcommands/` holds only CLI-own commands (`skill`, `update`, the read-only cross-provider `account list`, plus the shared `cmdtest`/`gates` test scaffolding). A back-compat shim in `internal/app/shim.go` rewrites bare pre-provider invocations (`gmail list`, `account add`) to `google <args...>` with a stderr deprecation warning. Provider-specific persistent flags live on the provider command, not the root (e.g. `--credentials` on `google`).
+
+Auth strategies live in `internal/auth`: the OAuth flow/token machinery plus a pluggable strategy registry (`strategy.go`) — `internal/auth/apikey` is the API-key strategy used by `linear` (default) and `granola`; `linear` additionally has its own OAuth flow (`internal/providers/linear/oauth.go`).
+
+Adding a provider = `internal/providers/<id>/` (provider.go with an `init()` registration) + one side-effect import in main.go + `internal/skill/bundle/references/<id>.md` + a provider-index row in `internal/skill/bundle/SKILL.md`. `TestProviderDocsDrift` (internal/skill/drift_test.go) enforces the SKILL.md index link and the references file for every registered provider.
 
 ## Cobra Command Layout
 
@@ -49,19 +53,19 @@ TESTING FRAMEWORKS: [Go testing, testify, afero in-memory FS].
 
 - Colocated `*_test.go`; prefer table-driven tests. Hermetic tests — no network.
 - Name test files per command (`get_test.go`, not one big `config_test.go`); shared helpers in `helpers_test.go`. The rule is anti-monolith, NOT literal one-file-per-command: a concern-named file aggregating a single cross-command concern is fine.
-- **Never `afero.NewOsFs()` in tests that touch credential/token paths** — the dev machine has real tokens at `~/.config/google-cli`. Use an empty in-memory FS (`afero.NewMemMapFs()`).
+- **Never `afero.NewOsFs()` in tests that touch credential/token paths** — the dev machine has real tokens at `~/.config/everything-cli` (and the legacy `~/.config/google-cli`). Use an empty in-memory FS (`afero.NewMemMapFs()`).
 
 ## Build System
 
 BUILD SYSTEMS: [Go toolchain, Makefile, golangci-lint].
 
-- `make build` → `bin/google-cli`.
+- `make build` → `bin/everything-cli`.
 - Final gates: `make test`, `make fmt-check`, `make lint`.
 - gofmt discipline: `fmt-check` runs `gofmt -l .` and fails on any output; run `make fmt` to rewrite before committing.
 
 ## Secrets / Redaction
 
-- OAuth access and refresh tokens are secrets: never print them. `account get` shows account metadata only — never token values.
+- OAuth access/refresh tokens and provider API keys are secrets: never print them. `<provider> account get` shows account metadata only — never token or key values.
 - Any secret value that must appear in output is registered for redaction BEFORE printing in table/toon (the JSON field regex closes it only for `--format json`; table cells and TOON rows put the value on a different line from its header, so shape-based redaction misses them). Register at the mint/read point.
 - `--debug` output passes through redaction + control-byte stripping before emission.
 - When emitting free-text debug/log lines through the redactor, do NOT start a line with a `token:`/`secret:`-style prefix (`<secretword>:`) — its assignment regex scrubs the next word to `***`. Word prose so no secret word immediately precedes a `:`/`=`.
