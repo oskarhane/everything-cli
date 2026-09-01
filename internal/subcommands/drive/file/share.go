@@ -2,6 +2,8 @@ package file
 
 import (
 	"fmt"
+	"net/mail"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -47,6 +49,16 @@ google-cli drive file share 1AbCdEfGh --role writer --domain example.com`,
 			if targets != 1 {
 				return fmt.Errorf("exactly one of --email, --anyone, or --domain is required (got %d)", targets)
 			}
+			if email != "" {
+				if reason := validateEmail(email); reason != "" {
+					return fmt.Errorf("invalid --email %q: %s", email, reason)
+				}
+			}
+			if domain != "" {
+				if reason := validateDomain(domain); reason != "" {
+					return fmt.Errorf("invalid --domain %q: %s", domain, reason)
+				}
+			}
 			if expires != "" {
 				if _, err := time.Parse(time.RFC3339, expires); err != nil {
 					return fmt.Errorf("invalid --expires %q: must be an RFC 3339 timestamp (e.g. 2027-01-01T00:00:00Z)", expires)
@@ -91,6 +103,54 @@ func validRole(role string) bool {
 		return true
 	}
 	return false
+}
+
+// validateEmail sanity-checks --email before dialing the API. It returns ""
+// for a valid address, or a short reason for an invalid one.
+func validateEmail(email string) string {
+	if strings.TrimSpace(email) == "" {
+		return "must not be empty"
+	}
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return err.Error()
+	}
+	// Reject odd forms like "Name <a@b.c>" or commented addresses: the value
+	// sent to the API must be the bare address the user typed.
+	if addr.Address != email {
+		return "must be a bare email address (no name or comments)"
+	}
+	return ""
+}
+
+// validateDomain sanity-checks --domain before dialing the API. It is a
+// simple hostname check, not full RFC 1123; it exists to catch clearly-broken
+// values before an API call. Returns "" for valid, or a short reason.
+func validateDomain(domain string) string {
+	if strings.TrimSpace(domain) == "" {
+		return "must not be empty"
+	}
+	if strings.ContainsAny(domain, " \t\n") {
+		return "must not contain spaces"
+	}
+	if strings.Contains(domain, "@") {
+		return "must not contain \"@\" (use --email for a user grant)"
+	}
+	if !strings.Contains(domain, ".") {
+		return "must contain at least one dot (e.g. example.com)"
+	}
+	if strings.HasPrefix(domain, ".") || strings.HasSuffix(domain, ".") {
+		return "must not start or end with a dot"
+	}
+	for _, label := range strings.Split(domain, ".") {
+		if label == "" {
+			return "must not have empty labels (check leading/trailing dots)"
+		}
+		if strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+			return fmt.Sprintf("label %q must not start or end with a hyphen", label)
+		}
+	}
+	return ""
 }
 
 // shareTargets counts how many mutually exclusive targets the flags set.
