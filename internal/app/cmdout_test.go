@@ -52,9 +52,9 @@ func TestWriteToFilePropagatesWriteError(t *testing.T) {
 // TestWriteToFileOpenError checks an un-openable destination surfaces the
 // "opening --out" wrap.
 func TestWriteToFileOpenError(t *testing.T) {
-	// A directory where the file should be makes OpenFile fail.
-	fs := afero.NewMemMapFs()
-	require.NoError(t, fs.MkdirAll("doc.txt", 0o755))
+	// A read-only FS fails OpenFile; a bare filename skips MkdirAll so the
+	// open failure is the first error surfaced.
+	fs := afero.NewReadOnlyFs(afero.NewMemMapFs())
 
 	err := WriteToFile(fs, "doc.txt", func(w io.Writer) error { return nil })
 	require.Error(t, err)
