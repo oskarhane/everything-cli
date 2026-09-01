@@ -1,6 +1,9 @@
 package values
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,8 +24,8 @@ func TestParseValues(t *testing.T) {
 			name:      "json 2d mixed scalars",
 			flagValue: `[[1,"a",true],[2.5,"b",false]]`,
 			want: [][]any{
-				{float64(1), "a", true},
-				{2.5, "b", false},
+				{json.Number("1"), "a", true},
+				{json.Number("2.5"), "b", false},
 			},
 		},
 		{
@@ -36,7 +39,7 @@ func TestParseValues(t *testing.T) {
 		{
 			name:      "json single row single cell",
 			flagValue: `[[42]]`,
-			want:      [][]any{{float64(42)}},
+			want:      [][]any{{json.Number("42")}},
 		},
 		// JSON rejections.
 		{
@@ -83,6 +86,11 @@ func TestParseValues(t *testing.T) {
 			name:      "json invalid syntax rejected",
 			flagValue: `[[1,]`,
 			wantErr:   "not valid JSON",
+		},
+		{
+			name:      "json trailing data rejected",
+			flagValue: `[[1]] [[2]]`,
+			wantErr:   "not valid JSON (trailing data",
 		},
 		{
 			name:      "json empty array rejected",
@@ -158,8 +166,8 @@ func TestParseValues(t *testing.T) {
 			fileBytes: []byte(`[[1,"a"],[2,"b"]]`),
 			ext:       ".json",
 			want: [][]any{
-				{float64(1), "a"},
-				{float64(2), "b"},
+				{json.Number("1"), "a"},
+				{json.Number("2"), "b"},
 			},
 		},
 		{
@@ -228,5 +236,84 @@ func TestParseValues(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
 		})
+	}
+}
+
+// TestParseValuesLargeIntegersSurviveMarshal is the security-audit proof for
+// integer precision: numbers decoded with UseNumber arrive as json.Number
+// and re-marshal through encoding/json as the original literal, so
+// float64-rounded values like 9.007199254740992e+15 can never reach the
+// Sheets API.
+func TestParseValuesLargeIntegersSurviveMarshal(t *testing.T) {
+	tests := []struct {
+		name      string
+		flagValue string
+		digit     string
+	}{
+		{
+			name:      "2^53+1 keeps exact digits",
+			flagValue: `[[9007199254740993]]`,
+			digit:     "9007199254740993",
+		},
+		{
+			name:      "18-digit id keeps exact digits",
+			flagValue: `[[123456789012345678]]`,
+			digit:     "123456789012345678",
+		},
+		{
+			name:      "float literal keeps exact digits",
+			flagValue: `[[2.5]]`,
+			digit:     "2.5",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseValues(tt.flagValue, nil, "")
+			require.NoError(t, err)
+			require.Equal(t, json.Number(tt.digit), got[0][0])
+
+			out, err := json.Marshal(got)
+			require.NoError(t, err)
+			assert.True(t, strings.Contains(string(out), tt.digit),
+				"expected %s verbatim in %s", tt.digit, out)
+			assert.NotContains(t, string(out), "e+")
+		})
+	}
+}
+
+// TestParseValuesJSONFileLargeIntegersSurviveMarshal pins the same guarantee
+// for the .json values-file path.
+func TestParseValuesJSONFileLargeIntegersSurviveMarshal(t *testing.T) {
+	got, err := ParseValues("", []byte(`[[123456789012345678,9007199254740993]]`), ".json")
+	require.NoError(t, err)
+
+	out, err := json.Marshal(got)
+	require.NoError(t, err)
+	require.JSONEq(t, `[[123456789012345678,9007199254740993]]`, string(out))
+}
+
+// TestParseValuesScientificNotationSurviveMarshal checks the literal is kept
+// even for exponents the float64 path used to rewrite.
+func TestParseValuesScientificNotationSurviveMarshal(t *testing.T) {
+	got, err := ParseValues(`[[1e3]]`, nil, "")
+	require.NoError(t, err)
+	require.Equal(t, json.Number("1e3"), got[0][0])
+
+	out, err := json.Marshal(got)
+	require.NoError(t, err)
+	assert.Equal(t, `[[1e3]]`, string(out))
+}
+
+// TestParseValuesNumbersAreNotFloat64 pins that the JSON path yields
+// json.Number, never float64 (the corrupted-precision type).
+func TestParseValuesNumbersAreNotFloat64(t *testing.T) {
+	got, err := ParseValues(`[[1,2.5,true,"x"]]`, nil, "")
+	require.NoError(t, err)
+	for _, cell := range got[0] {
+		if _, ok := cell.(json.Number); ok {
+			continue
+		}
+		require.NotContains(t, fmt.Sprintf("%T", cell), "float64")
 	}
 }

@@ -1,6 +1,7 @@
 package values
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -33,8 +34,8 @@ func TestAppendRoundTripsTyped2DValues(t *testing.T) {
 	require.Equal(t, seedSpreadsheetID, svc.appendID)
 	require.Equal(t, "Sheet1!A1:D", svc.appendRange)
 	require.Equal(t, [][]any{
-		{float64(1), "a", true},
-		{float64(2.5), "b", false},
+		{json.Number("1"), "a", true},
+		{json.Number("2.5"), "b", false},
 	}, svc.appended)
 	require.Equal(t, "USER_ENTERED", svc.appendOption, "default input option")
 }
@@ -77,7 +78,7 @@ func TestAppendValuesFileJSON(t *testing.T) {
 	})
 	cmdtest.RunCmd(t, cmd, seedSpreadsheetID, "--range", "Sheet1!A1:D", "--values-file", "/tmp/rows.json")
 
-	require.Equal(t, [][]any{{float64(1), "a"}, {float64(2), "b"}}, svc.appended)
+	require.Equal(t, [][]any{{json.Number("1"), "a"}, {json.Number("2"), "b"}}, svc.appended)
 }
 
 func TestAppendValuesFileCSVCellsAreStrings(t *testing.T) {

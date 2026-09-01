@@ -33,9 +33,10 @@ const (
 //     (case-insensitive, leading dot optional). Pass fileBytes == nil when
 //     using the flag.
 //
-// JSON values are kept typed (numbers as float64, strings, booleans);
-// CSV/TSV cells are strings. Returns an error describing the expected shape
-// on any malformed input.
+// JSON values are kept typed (strings, booleans, and numbers preserved
+// verbatim as json.Number so large integers survive); CSV/TSV cells are
+// strings. Returns an error describing the expected shape on any malformed
+// input.
 func ParseValues(flagValue string, fileBytes []byte, ext string) ([][]any, error) {
 	hasFlag := strings.TrimSpace(flagValue) != ""
 	hasFile := fileBytes != nil // fileBytes == nil means flag input
@@ -66,16 +67,25 @@ func parseFileValues(fileBytes []byte, ext string) ([][]any, error) {
 	}
 }
 
-// parseJSONValues unmarshals flagValue (or a .json file) and validates it as
-// a rectangular 2D array of scalar cells.
+// parseJSONValues decodes flagValue (or a .json file) and validates it as a
+// rectangular 2D array of scalar cells. Numbers are decoded with
+// UseNumber(), so every JSON number arrives as a json.Number holding the
+// original literal — re-marshaling to the Sheets API emits the digits the
+// user typed instead of a float64 approximation (an 18-digit id or
+// 9007199254740993 would otherwise round).
 func parseJSONValues(data []byte) ([][]any, error) {
 	if len(bytes.TrimSpace(data)) == 0 {
 		return nil, fmt.Errorf("values input is empty: expected a JSON array of arrays like %s", shapeExample)
 	}
 
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
 	var raw any
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := dec.Decode(&raw); err != nil {
 		return nil, fmt.Errorf("values is not valid JSON (%v): expected a JSON array of arrays like %s", err, shapeExample)
+	}
+	if dec.More() {
+		return nil, fmt.Errorf("values is not valid JSON (trailing data after the JSON value): expected a JSON array of arrays like %s", shapeExample)
 	}
 
 	rows, ok := raw.([]any)
@@ -112,10 +122,12 @@ func parseJSONValues(data []byte) ([][]any, error) {
 }
 
 // scalarCell validates a JSON cell is a scalar (string, number, boolean) and
-// returns it as-is.
+// returns it as-is. Numbers arrive as json.Number (UseNumber decoders); the
+// float64 case is kept so the validation stays correct if any caller ever
+// hands over pre-decoded values.
 func scalarCell(cell any, row, col int) (any, error) {
 	switch cell.(type) {
-	case string, float64, bool:
+	case string, float64, bool, json.Number:
 		return cell, nil
 	case []any:
 		return nil, fmt.Errorf("values cells must be scalars (string, number, or boolean): row %d cell %d is an array", row, col)
@@ -133,7 +145,7 @@ func describeJSONType(v any) string {
 		return "null"
 	case string:
 		return "a string"
-	case float64:
+	case float64, json.Number:
 		return "a number"
 	case bool:
 		return "a boolean"
