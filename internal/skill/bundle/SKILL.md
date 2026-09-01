@@ -122,6 +122,10 @@ hint to `export GITHUB_TOKEN` when the GitHub API rate limit is hit.
   `calendar delete`, `calendar event delete`, `drive file delete`,
   `docs delete`, `sheets delete`, `slides delete`. Prefer the trash verbs
   (`gmail message trash`, `drive file trash`) over the permanent deletes.
+- No confirmation prompts anywhere: `drive file share`/`unshare` and every
+  delete/trash verb act immediately. Resource ids are explicit on the
+  command line — verify the id (via a `list`/`get` first) before running
+  destructive or sharing commands.
 - Accounts added before Drive/Docs/Sheets/Slides support lack the new
   scopes: re-run `account add <name>` with the same name to grant them
   (the flow always re-prompts with `prompt=consent`, and the account is
