@@ -43,6 +43,10 @@ type AddOptions struct {
 	// Scopes is the requested OAuth scope set; empty means the provider's
 	// default scopes.
 	Scopes []string
+	// APIKey is a pre-captured API key (API-key strategies only), e.g.
+	// from a --api-key flag; empty means the strategy captures it from
+	// its env var or a hidden prompt.
+	APIKey string
 }
 
 // OAuthStrategy is the Strategy for installed-app OAuth2 providers. It
