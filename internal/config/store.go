@@ -34,11 +34,22 @@ type Store struct {
 }
 
 // NewStore returns a Store on fs rooted at dir. An empty dir resolves via
-// ResolveDir: $GOOGLE_CLI_CONFIG_DIR, then ~/.config/google-cli.
+// ResolveDir: $EVERYTHING_CLI_CONFIG_DIR, then $GOOGLE_CLI_CONFIG_DIR
+// (deprecated), then ~/.config/everything-cli.
+//
+// When resolution lands on the default dir (no explicit dir, no env
+// override) and it does not exist yet, a legacy ~/.config/google-cli tree
+// is copied over first, so existing accounts survive the rename with no
+// user action. The legacy dir is left intact.
 func NewStore(fs afero.Fs, dir string) (*Store, error) {
-	root, err := ResolveDir(dir)
+	root, isDefault, err := resolveDir(dir)
 	if err != nil {
 		return nil, err
+	}
+	if isDefault {
+		if err := copyLegacyDir(fs, root); err != nil {
+			return nil, fmt.Errorf("migrating legacy config dir: %w", err)
+		}
 	}
 	return &Store{fs: fs, root: root}, nil
 }
