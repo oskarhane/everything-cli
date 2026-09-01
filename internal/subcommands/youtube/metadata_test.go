@@ -1,79 +1,15 @@
 package youtube
 
 import (
-	"context"
 	"errors"
-	"os"
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
 	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
 	"github.com/oskarhane/google-cli/internal/youtube"
 )
-
-// videoID is the canonical ID seedPlayer() reports; every input shape
-// (watch URL, youtu.be, shorts, bare ID) must resolve to it.
-const videoID = "dQw4w9WgXcQ"
-
-// TestMain neutralizes format auto-detection so the host's harness env and
-// TTY cannot flip output expectations.
-func TestMain(m *testing.M) {
-	output.IsAgent = func() bool { return false }
-	output.StdoutIsTerminal = func() bool { return false }
-	os.Exit(m.Run())
-}
-
-// fakeClient is the hermetic youtube.Client double: it serves a seeded
-// Player and fails on demand. It never touches the network.
-type fakeClient struct {
-	player    *youtube.Player
-	playerErr error
-}
-
-func (f *fakeClient) Player(context.Context, string) (*youtube.Player, error) {
-	if f.playerErr != nil {
-		return nil, f.playerErr
-	}
-	return f.player, nil
-}
-
-func (f *fakeClient) Transcript(context.Context, string) ([]youtube.Segment, error) {
-	return nil, nil
-}
-
-// seedPlayer returns a realistic player response: two "en" tracks (human +
-// ASR), plus es and ja, so available_langs must carry the duplicate.
-func seedPlayer() *youtube.Player {
-	return &youtube.Player{
-		VideoID:       videoID,
-		Title:         "Rick Astley - Never Gonna Give You Up",
-		Author:        "Rick Astley",
-		ChannelID:     "UCuAXFkgsw1L7xaCfnd5JJOw",
-		LengthSeconds: 213,
-		ViewCount:     1600000000,
-		PublishDate:   "2009-10-25",
-		UploadDate:    "2009-10-25",
-		Category:      "Music",
-		Description:   "Rick Astley's official music video",
-		Tracks: []youtube.Track{
-			{Lang: "en", Generated: false, BaseURL: "https://www.youtube.com/api/timedtext?lang=en"},
-			{Lang: "en", Generated: true, BaseURL: "https://www.youtube.com/api/timedtext?lang=en&kind=asr"},
-			{Lang: "es", Generated: true, BaseURL: "https://www.youtube.com/api/timedtext?lang=es"},
-			{Lang: "ja", Generated: false, BaseURL: "https://www.youtube.com/api/timedtext?lang=ja"},
-		},
-	}
-}
-
-// newLeafCmd builds the metadata leaf against a fake client, ready to
-// execute.
-func newLeafCmd(build func(*app.Config, youtube.Client) *cobra.Command, client youtube.Client, format string) *cobra.Command {
-	return build(cmdtest.NewTestConfig(format), client)
-}
 
 // headerCells extracts the upper-cased header row of a table render, in
 // column order.
