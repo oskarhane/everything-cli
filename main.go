@@ -11,6 +11,8 @@ import (
 
 	// Providers self-register via init(); adding a provider is one import.
 	_ "github.com/oskarhane/google-cli/internal/providers/google"
+	_ "github.com/oskarhane/google-cli/internal/providers/granola"
+	_ "github.com/oskarhane/google-cli/internal/providers/linear"
 )
 
 func main() {
