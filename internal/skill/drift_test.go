@@ -9,17 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/google-cli/internal/app"
+	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
 	skillapi "github.com/oskarhane/google-cli/internal/skill"
 	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
-	"github.com/oskarhane/google-cli/internal/subcommands/docs"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
-	"github.com/oskarhane/google-cli/internal/subcommands/sheets"
 	skillsub "github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/slides"
 	"github.com/oskarhane/google-cli/internal/subcommands/update"
-	"github.com/oskarhane/google-cli/internal/subcommands/youtube"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
@@ -44,6 +38,10 @@ func TestTreeDrift(t *testing.T) {
 		// incidentally in prose, so they must appear with the binary prefix
 		// ("google-cli update") for the guard to bite.
 		leafPath := strings.TrimPrefix(cmd.CommandPath(), "google-cli ")
+		// The bundle still documents the pre-provider command surface; the
+		// provider segment ("google gmail list" -> "gmail list") is stripped
+		// until the skill-sync node rewrites the bundle provider-first.
+		leafPath = strings.TrimPrefix(leafPath, "google ")
 		if !strings.Contains(leafPath, " ") {
 			leafPath = "google-cli " + leafPath
 		}
@@ -57,21 +55,16 @@ func TestTreeDrift(t *testing.T) {
 	}
 }
 
-// newMountedTree mounts the complete command tree the same way main.go does.
+// newMountedTree mounts the complete command tree the same way main.go does:
+// provider trees under their provider command, CLI-own commands top-level.
 func newMountedTree() *cobra.Command {
 	cfg := &app.Config{Fs: afero.NewMemMapFs()}
 	root := app.NewRootCommand(cfg)
 	root.AddCommand(
+		googleprovider.Provider{}.NewCmd(cfg),
 		account.NewCmd(cfg),
-		gmail.NewCmd(cfg),
-		calendar.NewCmd(cfg),
-		drive.NewCmd(cfg),
-		docs.NewCmd(cfg),
-		sheets.NewCmd(cfg),
-		slides.NewCmd(cfg),
 		skillsub.NewCmd(cfg),
 		update.NewCmd(cfg),
-		youtube.NewCmd(cfg),
 	)
 	return root
 }

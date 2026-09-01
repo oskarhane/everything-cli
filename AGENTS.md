@@ -14,11 +14,13 @@ PRIMARY LANGUAGES: [Go]
 
 `google-cli` — command-line tool for managing Gmail and Google Calendar across multiple Google accounts (OAuth, per-account token cache).
 
-`internal/subcommands/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource.
+`internal/providers/google/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource.
+
+The CLI is provider-first: `google-cli <provider> <resource> <action>`. Providers self-register via `init()` under `internal/providers/<id>/` (side-effect imports in main.go; registry in `internal/provider`). The Google resource trees (gmail, calendar, drive, docs, sheets, slides, youtube, account) live under `internal/providers/google/`; `internal/subcommands/` holds only CLI-own commands (`skill`, `update`, the read-only cross-provider `account list`, plus the shared `cmdtest`/`gates` test scaffolding). A back-compat shim in `internal/app/shim.go` rewrites bare pre-provider invocations (`gmail list`, `account add`) to `google <args...>` with a stderr deprecation warning. `--credentials` is a persistent flag on the `google` command, not the root.
 
 ## Cobra Command Layout
 
-Strict one-file-per-leaf layout under `internal/subcommands/<resource>/`. Mirror it for new trees.
+Strict one-file-per-leaf layout under `internal/providers/<id>/<resource>/` (CLI-own commands under `internal/subcommands/<resource>/`). Mirror it for new trees.
 
 - Parent `<resource>.go` — `NewCmd(cfg, ...)`, persistent flags, `cmd.AddCommand(newXxxCmd(...))` per leaf. ≤80 lines. Name it after the resource (not `command.go`).
 - Leaf `<action>.go` — private constructor (`newListCmd(...)`) with the leaf's flags + `RunE`. No leaf bodies in the parent.

@@ -20,9 +20,11 @@ func TestRootCommandPersistentFlags(t *testing.T) {
 	root := NewRootCommand(NewConfig())
 	flags := root.PersistentFlags()
 
-	for _, name := range []string{"account", "format", "debug", "credentials"} {
+	for _, name := range []string{"account", "format", "debug"} {
 		assert.NotNil(t, flags.Lookup(name), "expected persistent flag --%s", name)
 	}
+	assert.Nil(t, flags.Lookup("credentials"),
+		"--credentials is Google-specific: it lives on the google provider command, not the root")
 }
 
 func TestPersistentFlagsBindToConfig(t *testing.T) {
@@ -33,14 +35,12 @@ func TestPersistentFlagsBindToConfig(t *testing.T) {
 		"--account", "user@example.com",
 		"--format", "json",
 		"--debug",
-		"--credentials", "credentials.json",
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "user@example.com", cfg.Account)
 	assert.Equal(t, "json", cfg.Format)
 	assert.True(t, cfg.Debug)
-	assert.Equal(t, "credentials.json", cfg.Credentials)
 }
 
 func TestRootWiresDebugFlagToOutput(t *testing.T) {

@@ -25,7 +25,9 @@ type Config struct {
 	// Debug enables debug output.
 	Debug bool
 
-	// Credentials is the path to an OAuth app credentials JSON file. Empty means auto-resolve.
+	// Credentials is the path to a Google OAuth app credentials JSON file.
+	// Empty means auto-resolve. It is bound to the google provider command's
+	// persistent --credentials flag, not the root's.
 	Credentials string
 
 	// Fs abstracts filesystem access for subcommands.
@@ -59,7 +61,6 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	f.StringVar(&cfg.Account, "account", "", "Google account to act as (empty = default account)")
 	f.StringVar(&cfg.Format, "format", "", "Output format: json, table, or toon (empty = auto-detect)")
 	f.BoolVar(&cfg.Debug, "debug", false, "Enable debug output")
-	f.StringVar(&cfg.Credentials, "credentials", "", "Path to OAuth app credentials JSON (empty = auto-resolve)")
 
 	// Fail closed on `--account ""`: an explicitly set but empty account would
 	// silently fall back to the default account, so e.g. `--account "$ACCT"`

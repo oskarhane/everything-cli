@@ -16,9 +16,8 @@ import (
 	"github.com/oskarhane/google-cli/internal/auth"
 	"github.com/oskarhane/google-cli/internal/config"
 	"github.com/oskarhane/google-cli/internal/output"
+	googleprovider "github.com/oskarhane/google-cli/internal/providers/google"
 	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
 )
 
 // The smoke suite is read-only: it only ever invokes the three read commands
@@ -36,17 +35,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// newRootCommand mounts the real root command tree with the account, gmail,
-// and calendar subtrees attached, the way main.go will once it wires them.
-// cfg uses the real OS filesystem and the production config-dir resolution
-// ($GOOGLE_CLI_CONFIG_DIR, else ~/.config/google-cli), which is the point of
-// the smoke suite.
+// newRootCommand mounts the real root command tree with the google provider
+// tree and the top-level account aggregate attached, the way main.go does.
+// cfg uses the real OS filesystem and the production config-dir resolution,
+// which is the point of the smoke suite.
 func newRootCommand() *cobra.Command {
 	cfg := app.NewConfig()
 	root := app.NewRootCommand(cfg)
+	root.AddCommand(googleprovider.Provider{}.NewCmd(cfg))
 	root.AddCommand(account.NewCmd(cfg))
-	root.AddCommand(gmail.NewCmd(cfg))
-	root.AddCommand(calendar.NewCmd(cfg))
 	return root
 }
 
@@ -82,7 +79,7 @@ func requireAccount(t *testing.T) string {
 	accounts, err := store.List()
 	require.NoError(t, err, "listing accounts in %s", store.Dir())
 	if len(accounts) == 0 {
-		t.Skip("no account configured — run google-cli account add first")
+		t.Skip("no account configured — run google-cli google account add first")
 	}
 	def, err := store.DefaultAccount()
 	require.NoError(t, err, "reading default account")

@@ -17,7 +17,7 @@ func TestSmokeCalendarList(t *testing.T) {
 	acct := requireAccount(t)
 	requireCredentials(t)
 
-	out := runCommand(t, "calendar", "list", "--format", "json", "--account", acct)
+	out := runCommand(t, "google", "calendar", "list", "--format", "json", "--account", acct)
 
 	rows := decodeRows(t, out, "calendar list")
 	require.NotEmpty(t, rows, "expected at least one calendar")
