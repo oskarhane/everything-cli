@@ -1,0 +1,28 @@
+{
+  "notes": [
+    {
+      "id": "not_aaa111bbb222",
+      "object": "note",
+      "title": "Weekly sync",
+      "owner": {
+        "name": "Ada Lovelace",
+        "email": "ada@example.com"
+      },
+      "created_at": "2026-08-20T14:00:00Z",
+      "updated_at": "2026-08-20T14:35:00Z"
+    },
+    {
+      "id": "not_ccc333ddd444",
+      "object": "note",
+      "title": null,
+      "owner": {
+        "name": null,
+        "email": "grace@example.com"
+      },
+      "created_at": "2026-08-22T09:15:00Z",
+      "updated_at": "2026-08-22T09:40:00Z"
+    }
+  ],
+  "hasMore": true,
+  "cursor": "cursor-page-2"
+}
