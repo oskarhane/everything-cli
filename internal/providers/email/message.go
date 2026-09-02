@@ -15,6 +15,8 @@ func newMessageCmd(cfg *app.Config) *cobra.Command {
 		Use:   "message",
 		Short: "List, read, and send messages in a mailbox",
 	}
+	cmd.AddCommand(newMessageGetCmd(cfg))
 	cmd.AddCommand(newMessageListCmd(cfg))
+	cmd.AddCommand(newMessageSendCmd(cfg))
 	return cmd
 }
