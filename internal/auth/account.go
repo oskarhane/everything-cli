@@ -33,6 +33,39 @@ func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
 	return "", fmt.Errorf("no default account set; run `everything-cli google account use <name>` or pass --account")
 }
 
+// ResolveAccountFor is the canonical provider-scoped account resolver: it
+// returns the account a provider's command acts as — the --account flag
+// value when given, else the provider's default account — as the full
+// account record. Every error names the provider so a multi-provider CLI
+// never sends the user hunting in the wrong provider's accounts. Google's
+// OAuth trees keep ResolveAccount above (legacy unscoped texts); API-key
+// providers resolve through here.
+func ResolveAccountFor(cfg *app.Config, store *config.Store, providerID string) (*config.Account, error) {
+	name := cfg.Account
+	if name == "" {
+		def, err := store.DefaultAccountFor(providerID)
+		if err != nil {
+			return nil, err
+		}
+		name = def
+	}
+	if name == "" {
+		accounts, err := store.ListProvider(providerID)
+		if err != nil {
+			return nil, err
+		}
+		if len(accounts) == 0 {
+			return nil, fmt.Errorf("no %s accounts configured; run `everything-cli %s account add`", providerID, providerID)
+		}
+		return nil, fmt.Errorf("no default %s account set; run `everything-cli %s account use <name>` or pass --account", providerID, providerID)
+	}
+	acct, err := store.GetProvider(providerID, name)
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s account %q: %w", providerID, name, err)
+	}
+	return acct, nil
+}
+
 // DialAccount is Dial plus the resolved account record: trees that enforce
 // a scope guardrail need the account's granted scopes, which the name alone
 // does not carry. Same chain, one extra store read.

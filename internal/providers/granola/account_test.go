@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
 func TestAccountAddWithFlagNeverPrintsKey(t *testing.T) {
@@ -121,17 +125,37 @@ func TestResolveAccountFlagAndDefault(t *testing.T) {
 	store := newStore(t, cfg)
 
 	// Default resolution (first add became the default).
-	acct, err := resolveAccount(store, "")
+	acct, err := auth.ResolveAccountFor(&app.Config{}, store, providerID)
 	require.NoError(t, err)
 	assert.Equal(t, "alpha", acct.Name)
 
 	// --account flag wins.
-	acct, err = resolveAccount(store, "beta")
+	acct, err = auth.ResolveAccountFor(&app.Config{Account: "beta"}, store, providerID)
 	require.NoError(t, err)
 	assert.Equal(t, "beta", acct.Name)
 
 	// An unknown flag value fails naming the provider.
-	_, err = resolveAccount(store, "nope")
+	_, err = auth.ResolveAccountFor(&app.Config{Account: "nope"}, store, providerID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "granola")
+}
+
+func TestResolveAccountProviderNamedErrors(t *testing.T) {
+	t.Run("no accounts configured", func(t *testing.T) {
+		cfg, _, _ := newGranolaEnv(t)
+		_, err := auth.ResolveAccountFor(&app.Config{}, newStore(t, cfg), providerID)
+		require.EqualError(t, err, "no granola accounts configured; run `everything-cli granola account add`")
+	})
+
+	t.Run("accounts exist but no default set", func(t *testing.T) {
+		// Store.Save auto-sets the provider default on first save, so the
+		// no-default state can only be constructed by writing the account
+		// file directly, with no config.json holding a default.
+		cfg, _, _ := newGranolaEnv(t)
+		accountJSON := `{"name":"alpha","provider":"granola","auth":{"api_key":"grn_secret_alpha"}}` + "\n"
+		require.NoError(t, afero.WriteFile(cfg.Fs, "/config/accounts/granola/alpha.json", []byte(accountJSON), 0o600))
+
+		_, err := auth.ResolveAccountFor(&app.Config{}, newStore(t, cfg), providerID)
+		require.EqualError(t, err, "no default granola account set; run `everything-cli granola account use <name>` or pass --account")
+	})
 }
