@@ -34,12 +34,15 @@ func init() {
 func (Provider) ID() string { return providerID }
 
 // NewCmd builds the `email` command tree: the provider-scoped account
-// subtree. Every leaf lives in its own file, one AddCommand line each.
+// subtree plus the mailbox and message resource trees. Every leaf lives in
+// its own file, one AddCommand line each.
 func (Provider) NewCmd(cfg *app.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "email",
 		Short: "Regular email accounts over IMAP and SMTP",
 	}
 	cmd.AddCommand(newAccountCmd(cfg))
+	cmd.AddCommand(newMailboxCmd(cfg))
+	cmd.AddCommand(newMessageCmd(cfg))
 	return cmd
 }
