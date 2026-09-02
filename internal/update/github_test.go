@@ -117,6 +117,34 @@ func TestDownload(t *testing.T) {
 	assert.Equal(t, payload, got)
 }
 
+// TestDownloadTokenHostScoping pins that GITHUB_TOKEN is attached only
+// when the download URL's host matches the API host: an absolute asset URL
+// pointing at another host must never receive the token.
+func TestDownloadTokenHostScoping(t *testing.T) {
+	ctx := context.Background()
+	t.Setenv("GITHUB_TOKEN", testToken)
+
+	t.Run("token sent when asset host matches API host", func(t *testing.T) {
+		srv, reqs := testServer(t, http.StatusOK, "bytes")
+		c := NewClient(srv.URL, "owner/repo")
+		_, err := c.Download(ctx, srv.URL+"/asset.tar.gz")
+		require.NoError(t, err)
+		require.Len(t, *reqs, 1)
+		assert.Equal(t, "Bearer "+testToken, (*reqs)[0].Header.Get("Authorization"))
+	})
+
+	t.Run("token withheld when asset host differs", func(t *testing.T) {
+		api, _ := testServer(t, http.StatusOK, `{}`)
+		asset, assetReqs := testServer(t, http.StatusOK, "bytes")
+		c := NewClient(api.URL, "owner/repo")
+		_, err := c.Download(ctx, asset.URL+"/asset.tar.gz")
+		require.NoError(t, err)
+		require.Len(t, *assetReqs, 1)
+		_, has := (*assetReqs)[0].Header["Authorization"]
+		assert.False(t, has, "token must not leak to a foreign host")
+	})
+}
+
 func TestResponseSizeCap(t *testing.T) {
 	ctx := context.Background()
 

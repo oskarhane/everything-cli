@@ -115,6 +115,21 @@ func TestRewriteLegacyArgs(t *testing.T) {
 	}
 }
 
+// TestRewriteLegacyArgsWarningStripsControlBytes: argv is echoed into the
+// deprecation warning, so a crafted argument carrying an ANSI escape must
+// not reach the terminal raw.
+func TestRewriteLegacyArgsWarningStripsControlBytes(t *testing.T) {
+	args := []string{"gmail", "list", "\x1b[31mred"}
+	var errBuf bytes.Buffer
+	got := RewriteLegacyArgs("everything-cli", args, &errBuf)
+	assert.Equal(t, []string{"google", "gmail", "list", "\x1b[31mred"}, got,
+		"the rewrite itself passes argv through untouched")
+	warn := errBuf.String()
+	assert.Contains(t, warn, "deprecated")
+	assert.NotContains(t, warn, "\x1b", "ESC must be stripped from the echoed argv")
+	assert.Contains(t, warn, "?[31mred")
+}
+
 // TestRewriteLegacyArgsDoesNotMutateInput: the rewritten slice must not
 // share backing storage with the caller's argv.
 func TestRewriteLegacyArgsDoesNotMutateInput(t *testing.T) {

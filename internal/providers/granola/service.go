@@ -25,6 +25,10 @@ const pageSize = 30
 // 3000 notes — far beyond any real listing.
 const maxListPages = 100
 
+// apiTimeout bounds each Granola API call so a hung endpoint cannot stall a
+// command indefinitely.
+const apiTimeout = 60 * time.Second
+
 // NoteService is the seam the note leaves consume: the whole Granola HTTP
 // surface this CLI uses. The concrete service owns every HTTP call and the
 // cursor pagination, so no leaf duplicates either.
@@ -149,9 +153,14 @@ type httpService struct {
 }
 
 // newHTTPService binds the service to an authenticated client and API base
-// URL. Tests pass an httptest server's URL and client.
+// URL. Tests pass an httptest server's URL and client. A client without a
+// timeout gets apiTimeout so a hung endpoint cannot stall a command.
 func newHTTPService(client *http.Client, baseURL string) *httpService {
-	return &httpService{client: client, baseURL: strings.TrimRight(baseURL, "/")}
+	c := *client
+	if c.Timeout == 0 {
+		c.Timeout = apiTimeout
+	}
+	return &httpService{client: &c, baseURL: strings.TrimRight(baseURL, "/")}
 }
 
 // ListNotes pages GET /v1/notes until the listing is exhausted.

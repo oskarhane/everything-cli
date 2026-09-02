@@ -24,6 +24,11 @@ const Endpoint = "https://api.linear.app/graphql"
 // command indefinitely.
 const apiTimeout = 120 * time.Second
 
+// maxErrBodyBytes caps how many bytes of a non-200 response body are read
+// and echoed into the error string, so a hostile or broken endpoint cannot
+// exhaust memory or flood the terminal.
+const maxErrBodyBytes = 4096
+
 // Service is the full Linear API surface this package wraps. It is the type
 // New returns; subtrees consume the narrower per-concern interfaces via As.
 type Service struct {
@@ -88,12 +93,14 @@ func (s *Service) exec(ctx context.Context, query string, variables map[string]a
 		return nil, fmt.Errorf("calling linear API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		// Read one byte past the cap so truncation is detected and marked.
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes+1))
+		return nil, fmt.Errorf("linear API returned %s: %s", resp.Status, truncateBody(respBody))
+	}
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading linear response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("linear API returned %s: %s", resp.Status, strings.TrimSpace(string(respBody)))
 	}
 	var envelope struct {
 		Data   json.RawMessage `json:"data"`
@@ -114,6 +121,16 @@ func (s *Service) exec(ctx context.Context, query string, variables map[string]a
 		return nil, fmt.Errorf("linear API error: %s", strings.Join(msgs, "; "))
 	}
 	return envelope.Data, nil
+}
+
+// truncateBody renders a non-200 response body for an error string, capped
+// at maxErrBodyBytes with an ellipsis marking the cut.
+func truncateBody(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if len(s) > maxErrBodyBytes {
+		return s[:maxErrBodyBytes] + "..."
+	}
+	return s
 }
 
 // dig walks data down the given key path and returns the raw JSON found

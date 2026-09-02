@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,19 @@ func newNotesServer(t *testing.T, log *requestLog) *httptest.Server {
 	}))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// TestHTTPServiceClientTimeout pins the request timeout: a client without
+// one gets apiTimeout so a hung endpoint cannot stall a command; an
+// explicit timeout is preserved.
+func TestHTTPServiceClientTimeout(t *testing.T) {
+	svc := newHTTPService(&http.Client{}, "http://example.invalid")
+	assert.Equal(t, apiTimeout, svc.client.Timeout)
+	assert.NotZero(t, svc.client.Timeout)
+
+	custom := 5 * time.Second
+	svc = newHTTPService(&http.Client{Timeout: custom}, "http://example.invalid")
+	assert.Equal(t, custom, svc.client.Timeout)
 }
 
 func TestListNotesPaginatesAcrossTwoPages(t *testing.T) {
