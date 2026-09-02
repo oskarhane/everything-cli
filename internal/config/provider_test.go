@@ -97,6 +97,57 @@ func TestLegacyFlatAccountLoadsAsGoogle(t *testing.T) {
 	assert.Len(t, accounts, 1, "migration must not duplicate the account")
 }
 
+// TestSaveKeepsLegacyFlatFileOfDifferentIdentity: a legacy flat
+// accounts/work.json whose email differs from the saved account's belongs
+// to a different, un-migrated identity that happens to share the name. Save
+// must NOT delete it — that file is the other identity's only copy.
+func TestSaveKeepsLegacyFlatFileOfDifferentIdentity(t *testing.T) {
+	store := newTestStore(t)
+	legacy := `{
+  "name": "work",
+  "email": "other@example.com",
+  "scopes": ["scope-a"],
+  "token": {"access_token": "other-access", "refresh_token": "other-refresh", "token_type": "Bearer"}
+}` + "\n"
+	require.NoError(t, store.fs.MkdirAll(store.accountsDir(), 0o700))
+	require.NoError(t, afero.WriteFile(store.fs, store.legacyAccountPath("work"), []byte(legacy), 0o600))
+
+	require.NoError(t, store.Save(&Account{
+		Name:  "work",
+		Email: "work@example.com",
+		Token: testToken("access-1"),
+	}))
+
+	// The saved account lands at the nested path and wins reads...
+	got, err := store.Get("work")
+	require.NoError(t, err)
+	assert.Equal(t, "work@example.com", got.Email)
+
+	// ...but the other identity's un-migrated flat file is left intact.
+	data, err := afero.ReadFile(store.fs, store.legacyAccountPath("work"))
+	require.NoError(t, err, "legacy flat file of a different identity must survive Save")
+	assert.JSONEq(t, legacy, string(data))
+}
+
+// TestSaveRemovesLegacyFlatFileOfSameIdentity: the cleanup still completes
+// the migration when the flat record holds the SAME identity (same email).
+func TestSaveRemovesLegacyFlatFileOfSameIdentity(t *testing.T) {
+	store := newTestStore(t)
+	legacy := `{"name":"work","email":"user@example.com"}` + "\n"
+	require.NoError(t, store.fs.MkdirAll(store.accountsDir(), 0o700))
+	require.NoError(t, afero.WriteFile(store.fs, store.legacyAccountPath("work"), []byte(legacy), 0o600))
+
+	require.NoError(t, store.Save(&Account{
+		Name:  "work",
+		Email: "user@example.com",
+		Token: testToken("access-1"),
+	}))
+
+	flat, err := afero.Exists(store.fs, store.legacyAccountPath("work"))
+	require.NoError(t, err)
+	assert.False(t, flat, "same-identity legacy flat file is removed once nested holds the account")
+}
+
 // TestProviderScopedIsolation: the same account name can exist under two
 // providers; each provider's store operations see only its own accounts.
 func TestProviderScopedIsolation(t *testing.T) {

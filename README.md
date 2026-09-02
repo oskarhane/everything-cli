@@ -328,7 +328,7 @@ Provider-specific persistent flags live on the provider command, not the root â€
   accounts/<provider>/<name>.json  # per-account secrets (tokens, API keys), 0600, atomic writes
 ```
 
-`$EVERYTHING_CLI_CONFIG_DIR` relocates the whole directory (used by tests). `$GOOGLE_CLI_CONFIG_DIR` is still honored as a deprecated fallback, with a stderr warning.
+`$EVERYTHING_CLI_CONFIG_DIR` relocates the whole directory (used by tests). `$GOOGLE_CLI_CONFIG_DIR` is still honored as a deprecated fallback, with a stderr warning. A relative env value is absolutized against the current working directory, with a stderr warning. An env-pointed directory keeps its existing permissions â€” only directories the tool creates are tightened to 0700.
 
 **Migration from `google-cli`:** on first run with the default config dir, a legacy `~/.config/google-cli` tree is copied over automatically, so existing Google accounts survive the rename with no user action. Legacy flat `accounts/<name>.json` files load as `google` accounts and are rewritten to the nested layout on save.
 

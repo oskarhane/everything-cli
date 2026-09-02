@@ -92,7 +92,7 @@ func (s *Store) writeDefault(provider, name string) error {
 	if err := s.fs.MkdirAll(s.root, dirPermPrivate); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
-	if err := s.hardenDir(s.root); err != nil {
+	if err := s.hardenRoot(); err != nil {
 		return fmt.Errorf("tightening config dir permissions: %w", err)
 	}
 	cfg, err := s.loadSettings()

@@ -11,10 +11,23 @@ import (
 	"github.com/spf13/afero"
 )
 
+// migrationMarker is written inside the new root while a legacy-dir
+// migration is in progress. Its presence distinguishes a crashed migration
+// (resume on the next run) from a pre-existing new dir that is the user's
+// own (never touch). The marker is removed when the migration completes.
+const migrationMarker = ".legacy-migration-in-progress"
+
 // copyLegacyDir performs the first-run migration from the pre-rename config
 // dir: when the default everything-cli dir does NOT exist yet but the
 // sibling legacy google-cli dir DOES, the entire legacy tree is copied
 // (never moved — the old dir is left intact) into the new dir.
+//
+// The migration is atomic per file and resumable across crashes. A marker
+// file in the new root marks an in-progress migration; each file is copied
+// temp+rename, so a crash mid-copy can never leave partial content at a
+// target path, and the next run (marker still present) redoes only the
+// files whose rename never landed. A new root that exists WITHOUT the
+// marker is the user's own dir and is left alone.
 //
 // The store's private permission discipline is applied to every migrated
 // entry rather than trusting source modes: directories land at 0700 and
@@ -24,9 +37,19 @@ import (
 // writes outside the new dir.
 func copyLegacyDir(fsys afero.Fs, newRoot string) error {
 	legacyRoot := filepath.Join(filepath.Dir(newRoot), legacyDirName)
+	markerPath := filepath.Join(newRoot, migrationMarker)
 
 	if _, err := fsys.Stat(newRoot); err == nil {
-		return nil // new dir already exists — never overwrite
+		// The new dir exists: resume only a crashed migration (marker
+		// present); any other pre-existing dir is the user's own — never
+		// overwrite it.
+		if _, err := fsys.Stat(markerPath); err == nil {
+			// resume below
+		} else if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		} else {
+			return fmt.Errorf("checking migration marker: %w", err)
+		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("checking config dir: %w", err)
 	}
@@ -41,7 +64,16 @@ func copyLegacyDir(fsys afero.Fs, newRoot string) error {
 		return nil
 	}
 
-	return afero.Walk(fsys, legacyRoot, func(path string, info fs.FileInfo, err error) error {
+	if err := fsys.MkdirAll(newRoot, dirPermPrivate); err != nil {
+		return fmt.Errorf("creating config dir: %w", err)
+	}
+	// Best-effort marker write BEFORE any copy: a crash after this point
+	// leaves a resumable state.
+	if err := afero.WriteFile(fsys, markerPath, []byte("migration in progress\n"), filePermPrivate); err != nil {
+		return fmt.Errorf("writing migration marker: %w", err)
+	}
+
+	err = afero.Walk(fsys, legacyRoot, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -64,32 +96,52 @@ func copyLegacyDir(fsys afero.Fs, newRoot string) error {
 		if !info.Mode().IsRegular() {
 			return nil
 		}
-		src, err := fsys.Open(path)
-		if err != nil {
-			return fmt.Errorf("reading legacy file: %w", err)
+		// The rename is atomic, so an existing target is a complete copy
+		// from earlier in this run or from the crashed one — skip it.
+		if _, err := fsys.Stat(target); err == nil {
+			return nil
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("checking migrated file: %w", err)
 		}
-		// O_EXCL: the new dir was absent above, so any existing target is
-		// unexpected and must not be overwritten.
-		dst, err := fsys.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, filePermPrivate)
-		if err != nil {
-			_ = src.Close()
-			return fmt.Errorf("creating migrated file: %w", err)
-		}
-		if _, err := io.Copy(dst, src); err != nil {
-			_ = src.Close()
-			_ = dst.Close()
-			return fmt.Errorf("copying legacy file: %w", err)
-		}
-		if err := src.Close(); err != nil {
-			_ = dst.Close()
-			return fmt.Errorf("closing legacy file: %w", err)
-		}
-		if err := dst.Close(); err != nil {
-			return fmt.Errorf("closing migrated file: %w", err)
-		}
-		if err := fsys.Chmod(target, filePermPrivate); err != nil {
-			return fmt.Errorf("tightening migrated file permissions: %w", err)
-		}
-		return nil
+		return copyLegacyFile(fsys, path, target)
 	})
+	if err != nil {
+		return err
+	}
+	if err := fsys.Remove(markerPath); err != nil {
+		return fmt.Errorf("clearing migration marker: %w", err)
+	}
+	return nil
+}
+
+// copyLegacyFile copies src to dst at 0600 via temp+rename, so a crash
+// mid-copy never leaves partial content at dst. The temp name is
+// deterministic (dst + ".tmp"): a crash leaves it behind and the resuming
+// run truncates and redoes the copy, then renames it into place.
+func copyLegacyFile(fsys afero.Fs, src, dst string) error {
+	in, err := fsys.Open(src)
+	if err != nil {
+		return fmt.Errorf("reading legacy file: %w", err)
+	}
+	defer func() { _ = in.Close() }()
+
+	tmp := dst + ".tmp"
+	out, err := fsys.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, filePermPrivate)
+	if err != nil {
+		return fmt.Errorf("creating temp file: %w", err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("copying legacy file: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("closing temp file: %w", err)
+	}
+	if err := fsys.Chmod(tmp, filePermPrivate); err != nil {
+		return fmt.Errorf("tightening temp file permissions: %w", err)
+	}
+	if err := fsys.Rename(tmp, dst); err != nil {
+		return fmt.Errorf("placing migrated file: %w", err)
+	}
+	return nil
 }

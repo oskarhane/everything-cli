@@ -58,9 +58,12 @@ Every provider also has its own account subtree: `everything-cli
   to discover what accounts exist anywhere.
 - Config dir resolution: `$EVERYTHING_CLI_CONFIG_DIR`, then
   `$GOOGLE_CLI_CONFIG_DIR` (deprecated — warns on stderr), then
-  `~/.config/everything-cli`. On first run with the default dir, a legacy
-  `~/.config/google-cli` tree is copied over, so existing Google accounts
-  survive the rename with no user action.
+  `~/.config/everything-cli`. A relative env value is absolutized against
+  the CWD, with a stderr warning; an env-pointed dir's permissions are
+  left alone (only dirs the tool creates are tightened to 0700). On first
+  run with the default dir, a legacy `~/.config/google-cli` tree is copied
+  over (atomically per file, resumable after a crash), so existing Google
+  accounts survive the rename with no user action.
 
 ## Global flags
 
