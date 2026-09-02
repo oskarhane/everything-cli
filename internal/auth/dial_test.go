@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -13,11 +14,11 @@ import (
 )
 
 // noAccountsErr / noDefaultErr are the exact actionable account-selection
-// error texts; client packages assert against them, so they are pinned here
-// verbatim.
+// error texts the google dial path produces via ResolveAccountFor; client
+// packages assert against them, so they are pinned here verbatim.
 const (
-	noAccountsErr = "no Google accounts configured; run `everything-cli google account add`"
-	noDefaultErr  = "no default account set; run `everything-cli google account use <name>` or pass --account"
+	noAccountsErr = "no google accounts configured; run `everything-cli google account add`"
+	noDefaultErr  = "no default google account set; run `everything-cli google account use <name>` or pass --account"
 )
 
 // newDialStore returns a store on fs rooted at the default config dir,
@@ -46,30 +47,9 @@ func seedDialAccount(t *testing.T, store *config.Store, name string, withToken b
 	require.NoError(t, store.Save(acct))
 }
 
-func TestResolveAccount(t *testing.T) {
-	t.Run("flag wins over the stored default", func(t *testing.T) {
-		store := newTestStore(t)
-		seedDialAccount(t, store, "personal", false)
-		require.NoError(t, store.SetDefaultAccount("personal"))
-
-		account, err := ResolveAccount(&app.Config{Account: "work"}, store)
-		require.NoError(t, err)
-		require.Equal(t, "work", account)
-	})
-
-	t.Run("falls back to the store default", func(t *testing.T) {
-		store := newTestStore(t)
-		seedDialAccount(t, store, "personal", false)
-		seedDialAccount(t, store, "work", false)
-		require.NoError(t, store.SetDefaultAccount("work"))
-
-		account, err := ResolveAccount(&app.Config{}, store)
-		require.NoError(t, err)
-		require.Equal(t, "work", account)
-	})
-
-	t.Run("no accounts configured", func(t *testing.T) {
-		_, err := ResolveAccount(&app.Config{}, newTestStore(t))
+func TestDial(t *testing.T) {
+	t.Run("fails fast with the account error before touching credentials", func(t *testing.T) {
+		_, _, err := Dial(&app.Config{Fs: afero.NewMemMapFs()})
 		require.EqualError(t, err, noAccountsErr)
 	})
 
@@ -78,20 +58,13 @@ func TestResolveAccount(t *testing.T) {
 		// no-default state can only be constructed by writing the account
 		// file directly, with no config.json holding a default.
 		fs := afero.NewMemMapFs()
+		store := newDialStore(t, fs)
 		accountJSON := `{"name":"personal","email":"personal@example.com"}` + "\n"
-		require.NoError(t, afero.WriteFile(fs, "/config/accounts/google/personal.json", []byte(accountJSON), 0o600))
-		store, err := config.NewStore(fs, "/config")
-		require.NoError(t, err)
+		require.NoError(t, afero.WriteFile(fs,
+			filepath.Join(store.Dir(), "accounts", "google", "personal.json"), []byte(accountJSON), 0o600))
 
-		_, err = ResolveAccount(&app.Config{}, store)
+		_, _, err := Dial(&app.Config{Fs: fs})
 		require.EqualError(t, err, noDefaultErr)
-	})
-}
-
-func TestDial(t *testing.T) {
-	t.Run("fails fast with the account error before touching credentials", func(t *testing.T) {
-		_, _, err := Dial(&app.Config{Fs: afero.NewMemMapFs()})
-		require.EqualError(t, err, noAccountsErr)
 	})
 
 	t.Run("propagates credentials resolution failure", func(t *testing.T) {

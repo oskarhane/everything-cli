@@ -8,38 +8,12 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// ResolveAccount returns the account to act as: the --account flag value,
-// else the store's default account. It errors with actionable messages when
-// no account can be picked. Every API-backed command resolves its account
-// through here, so the guidance texts live in exactly one place.
-func ResolveAccount(cfg *app.Config, store *config.Store) (string, error) {
-	if cfg.Account != "" {
-		return cfg.Account, nil
-	}
-	def, err := store.DefaultAccount()
-	if err != nil {
-		return "", err
-	}
-	if def != "" {
-		return def, nil
-	}
-	accounts, err := store.List()
-	if err != nil {
-		return "", err
-	}
-	if len(accounts) == 0 {
-		return "", fmt.Errorf("no Google accounts configured; run `everything-cli google account add`")
-	}
-	return "", fmt.Errorf("no default account set; run `everything-cli google account use <name>` or pass --account")
-}
-
-// ResolveAccountFor is the canonical provider-scoped account resolver: it
-// returns the account a provider's command acts as — the --account flag
+// ResolveAccountFor is the single account resolver every provider's commands
+// resolve through: it returns the account to act as — the --account flag
 // value when given, else the provider's default account — as the full
 // account record. Every error names the provider so a multi-provider CLI
-// never sends the user hunting in the wrong provider's accounts. Google's
-// OAuth trees keep ResolveAccount above (legacy unscoped texts); API-key
-// providers resolve through here.
+// never sends the user hunting in the wrong provider's accounts, and the
+// guidance texts live in exactly one place.
 func ResolveAccountFor(cfg *app.Config, store *config.Store, providerID string) (*config.Account, error) {
 	name := cfg.Account
 	if name == "" {
@@ -68,13 +42,13 @@ func ResolveAccountFor(cfg *app.Config, store *config.Store, providerID string) 
 
 // DialAccount is Dial plus the resolved account record: trees that enforce
 // a scope guardrail need the account's granted scopes, which the name alone
-// does not carry. Same chain, one extra store read.
+// does not carry.
 func DialAccount(cfg *app.Config) (*config.Account, oauth2.TokenSource, error) {
 	store, err := cfg.Store()
 	if err != nil {
 		return nil, nil, err
 	}
-	account, err := ResolveAccount(cfg, store)
+	acct, err := ResolveAccountFor(cfg, store, config.ProviderGoogle)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -86,13 +60,9 @@ func DialAccount(cfg *app.Config) (*config.Account, oauth2.TokenSource, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	acct, err := store.Get(account)
+	ts, err := TokenSourceWith(store, creds, acct.Name, GoogleOAuth)
 	if err != nil {
-		return nil, nil, err
-	}
-	ts, err := TokenSourceWith(store, creds, account, GoogleOAuth)
-	if err != nil {
-		return nil, nil, fmt.Errorf("account %q: %w", account, err)
+		return nil, nil, fmt.Errorf("account %q: %w", acct.Name, err)
 	}
 	return acct, ts, nil
 }
