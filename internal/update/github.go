@@ -69,8 +69,11 @@ func AssetName(os, arch string) string {
 
 // HTTPClient is the Client implementation backed by the GitHub REST API.
 type HTTPClient struct {
-	base       string
-	repo       string
+	base string
+	repo string
+	// apiHost is the host of base; the auth token is only ever sent to this
+	// host, never to an absolute asset URL pointing elsewhere.
+	apiHost    string
 	httpClient *http.Client
 }
 
@@ -83,9 +86,14 @@ func NewClient(baseURL, repo string) *HTTPClient {
 	if repo == "" {
 		repo = defaultRepo
 	}
+	apiHost := ""
+	if u, err := url.Parse(baseURL); err == nil {
+		apiHost = u.Host
+	}
 	return &HTTPClient{
 		base:       baseURL,
 		repo:       repo,
+		apiHost:    apiHost,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -119,7 +127,9 @@ func (c *HTTPClient) get(ctx context.Context, endpoint string) ([]byte, error) {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
 	req.Header.Set("Accept", acceptHeader)
-	if tok := authToken(); tok != "" {
+	// The token is scoped to the API host: an absolute asset URL on another
+	// host must not receive it.
+	if tok := authToken(); tok != "" && u.Host == c.apiHost {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 

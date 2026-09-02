@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -274,7 +275,7 @@ func callbackCode(r *http.Request, state string) (string, error) {
 	if e := q.Get("error"); e != "" {
 		return "", fmt.Errorf("authorization was rejected: %s", e)
 	}
-	if got := q.Get("state"); got != state {
+	if got := q.Get("state"); subtle.ConstantTimeCompare([]byte(got), []byte(state)) != 1 {
 		return "", errors.New("state mismatch in OAuth redirect")
 	}
 	code := q.Get("code")

@@ -274,6 +274,24 @@ func TestNon200Surfaces(t *testing.T) {
 	require.ErrorContains(t, err, "502")
 }
 
+func TestNon200ErrorBodyIsTruncated(t *testing.T) {
+	// A hostile endpoint echoing an unbounded error body must not flood the
+	// error string: the read is capped and the cut marked with an ellipsis.
+	big := strings.Repeat("x", maxErrBodyBytes*4)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(big))
+	}))
+	t.Cleanup(srv.Close)
+	svc := newTestService(srv)
+
+	_, err := svc.ListTeams(context.Background())
+	require.Error(t, err)
+	require.ErrorContains(t, err, "500")
+	require.NotContains(t, err.Error(), big, "the full body must not be echoed")
+	require.Contains(t, err.Error(), strings.Repeat("x", maxErrBodyBytes)+"...")
+}
+
 func TestRunawayPaginationIsCapped(t *testing.T) {
 	srv, calls := mockGraphQL(t, func(gqlCall) any {
 		// A misbehaving endpoint that never ends: hasNextPage forever.

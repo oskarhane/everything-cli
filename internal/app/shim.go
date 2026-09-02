@@ -3,6 +3,8 @@ package app
 import (
 	"fmt"
 	"io"
+
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // legacyGoogleResources are the bare top-level resource words that moved
@@ -65,10 +67,12 @@ func RewriteLegacyArgs(binary string, args []string, errw io.Writer) []string {
 	out = append(out, args[:idx]...)
 	out = append(out, "google")
 	out = append(out, args[idx:]...)
+	// argv is echoed into the warning; strip control bytes so a crafted
+	// argument cannot inject ANSI escapes into the terminal.
 	_, _ = fmt.Fprintf(errw,
 		"warning: `%s %s` is deprecated; use `%s %s` "+
 			"(the back-compat shim will be removed in a future release)\n",
-		binary, joinArgs(args), binary, joinArgs(out))
+		binary, output.StripControl(joinArgs(args)), binary, output.StripControl(joinArgs(out)))
 	return out
 }
 
