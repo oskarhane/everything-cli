@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -186,7 +187,7 @@ func TestTokenSourceRefreshKeepsClearedDefault(t *testing.T) {
 		store, err := config.NewStore(fs, "/config")
 		require.NoError(t, err)
 		// Write the account file directly so no default is ever recorded.
-		require.NoError(t, fs.MkdirAll(store.AccountPath("work")[:len(store.AccountPath("work"))-len("/work.json")], 0o700))
+		require.NoError(t, fs.MkdirAll(filepath.Dir(store.AccountPath("work")), 0o700))
 		require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
 			`{"name":"work","email":"user@example.com","scopes":["scope-a"],"token":`+expired+`}`), 0o600))
 		require.NoError(t, afero.WriteFile(fs, "/config/credentials.json", []byte(installedAppCredentials), 0o600))

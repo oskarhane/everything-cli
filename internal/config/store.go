@@ -318,8 +318,20 @@ func (s *Store) SaveToken(provider, name string, tok *oauth2.Token) error {
 		return err
 	}
 	acct.Token = tok
+	// Harden before MkdirAll, mirroring Save: hardenDir replaces a
+	// symlinked dir with a real one, and MkdirAll must not follow a
+	// planted symlink out of the config dir.
+	if err := s.hardenRoot(); err != nil {
+		return fmt.Errorf("tightening config dir permissions: %w", err)
+	}
+	if err := s.hardenDir(s.accountsDir()); err != nil {
+		return fmt.Errorf("tightening accounts dir permissions: %w", err)
+	}
 	if err := s.fs.MkdirAll(s.providerDir(provider), dirPermPrivate); err != nil {
 		return fmt.Errorf("creating accounts dir: %w", err)
+	}
+	if err := s.hardenDir(s.providerDir(provider)); err != nil {
+		return fmt.Errorf("tightening provider dir permissions: %w", err)
 	}
 	data, err := json.MarshalIndent(acct, "", "  ")
 	if err != nil {
