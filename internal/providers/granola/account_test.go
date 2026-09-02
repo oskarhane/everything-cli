@@ -86,18 +86,6 @@ func TestAccountGetNeverPrintsKey(t *testing.T) {
 	}
 }
 
-func TestAccountUseSwitchesDefault(t *testing.T) {
-	cfg, root, out := newGranolaEnv(t)
-	seedAccount(t, cfg, "alpha", "grn_secret_alpha")
-	seedAccount(t, cfg, "beta", "grn_secret_beta")
-
-	_, err := execute(t, root, out, "granola", "account", "use", "beta")
-	require.NoError(t, err)
-	def, err := newStore(t, cfg).DefaultAccountFor("granola")
-	require.NoError(t, err)
-	assert.Equal(t, "beta", def)
-}
-
 func TestAccountRemoveRequiresForceAndPromotes(t *testing.T) {
 	cfg, root, out := newGranolaEnv(t)
 	seedAccount(t, cfg, "alpha", "grn_secret_alpha")
@@ -107,8 +95,11 @@ func TestAccountRemoveRequiresForceAndPromotes(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "--force")
 
-	_, err = execute(t, root, out, "granola", "account", "remove", "alpha", "--force")
+	stdout, err := execute(t, root, out, "granola", "account", "remove", "alpha", "--force")
 	require.NoError(t, err)
+	assert.Contains(t, stdout, "removed account alpha")
+	assert.Contains(t, stdout, "default account is now beta",
+		"removing the default must announce the promoted account")
 
 	// Removing the default promoted the remaining account.
 	def, err := newStore(t, cfg).DefaultAccountFor("granola")

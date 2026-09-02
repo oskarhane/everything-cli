@@ -51,7 +51,8 @@ Manage Granola accounts and their stored API keys.
 - `granola account use <name>` — make `<name>` the default Granola
   account.
 - `granola account remove <name> --force` — remove an account and its
-  stored key. Refuses without `--force`.
+  stored key. Refuses without `--force`. Removing the default promotes
+  another Granola account and announces the new default.
 
 ```sh
 everything-cli granola account add work                                  # hidden prompt

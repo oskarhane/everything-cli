@@ -49,7 +49,8 @@ Every provider also has its own account subtree: `everything-cli
   metadata only.
 - Defaults are per provider and auto-managed: the first account added for
   a provider becomes its default; removing a default promotes another of
-  that provider's accounts. `<provider> account use <name>` is the
+  that provider's accounts (announced as `default account is now <name>`).
+  `<provider> account use <name>` is the
   explicit switch for multi-account providers.
 - The global `--account <name>` flag overrides the default, resolved
   within the executing provider's accounts only.

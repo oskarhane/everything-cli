@@ -51,7 +51,8 @@ at `<config>/accounts/google/<name>.json` (mode 0600) and never printed.
 - `google account use <name>` — make `<name>` the default Google
   account.
 - `google account remove <name> [--force]` — remove an account and its
-  cached token. Refuses without `--force`.
+  cached token. Refuses without `--force`. Removing the default promotes
+  another Google account and announces the new default.
 
 ```sh
 everything-cli google account list --format json
