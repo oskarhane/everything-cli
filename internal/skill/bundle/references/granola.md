@@ -111,7 +111,11 @@ everything-cli granola note list --account work --format toon
   `calendar_event_id`, `scheduled_start_time`, `scheduled_end_time`;
   null when the note is not attached to a meeting), `attendees`
   (`{name, email}`), `folder_membership` (`{id, name,
-  parent_folder_id}`, ancestor folders included), `summary_text` (AI
+  parent_folder_id, space_id}` — `space_id` is the folder's `spc_...`
+  space id, null for folders in "My notes"; ancestor folders included),
+  `space_membership` (the spaces the note belongs to; empty for notes
+  outside any space — element shape is not yet documented by Granola and
+  passes through verbatim), `summary_text` (AI
   summary, plain text), `summary_markdown` (AI summary, markdown; null
   when absent), `private_notes_text` / `private_notes_markdown` (the
   owner's own private notes — only when the API key belongs to the

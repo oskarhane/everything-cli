@@ -91,12 +91,15 @@ type CalendarEvent struct {
 	ScheduledEndTime   *time.Time `json:"scheduled_end_time"`
 }
 
-// Folder is one folder membership entry (ancestors included).
+// Folder is one folder membership entry (ancestors included). SpaceID is
+// the space the folder belongs to (a `spc_...` id), null for folders in
+// "My notes"; the API added it after the published schema.
 type Folder struct {
 	ID             string  `json:"id"`
 	Object         string  `json:"object"`
 	Name           string  `json:"name"`
 	ParentFolderID *string `json:"parent_folder_id"`
+	SpaceID        *string `json:"space_id"`
 }
 
 // Speaker identifies one transcript segment's speaker.
@@ -117,7 +120,12 @@ type TranscriptSegment struct {
 
 // Note is the GET /v1/notes/{note_id} response. Transcript is only present
 // with include=transcript; private notes only when the key belongs to the
-// note's creator.
+// note's creator. SpaceMembership is the spaces the note belongs to; the
+// API added it after the published schema and only notes in a space carry
+// elements (a personal key only ever sees an empty array), so the element
+// shape is undocumented and unobservable. Elements are kept as raw JSON —
+// they round-trip verbatim into JSON/TOON output — rather than guessing a
+// struct strict decoding would break on again.
 type Note struct {
 	ID                   string              `json:"id"`
 	Object               string              `json:"object"`
@@ -129,6 +137,7 @@ type Note struct {
 	CalendarEvent        *CalendarEvent      `json:"calendar_event"`
 	Attendees            []Attendee          `json:"attendees"`
 	FolderMembership     []Folder            `json:"folder_membership"`
+	SpaceMembership      []json.RawMessage   `json:"space_membership"`
 	SummaryText          string              `json:"summary_text"`
 	SummaryMarkdown      *string             `json:"summary_markdown"`
 	PrivateNotesText     *string             `json:"private_notes_text"`

@@ -39,6 +39,12 @@ func TestNoteGetJSON(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "evt_123", cal["calendar_event_id"])
 
+	assert.Contains(t, note, "space_membership")
+	folders, ok := note["folder_membership"].([]any)
+	require.True(t, ok)
+	require.Len(t, folders, 1)
+	assert.Contains(t, folders[0], "space_id")
+
 	queries := log.all()
 	require.Len(t, queries, 1)
 	assert.Empty(t, queries[0]["include"])

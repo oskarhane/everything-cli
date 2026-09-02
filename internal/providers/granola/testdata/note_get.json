@@ -36,9 +36,11 @@
       "id": "fol_aaa111bbb222",
       "object": "folder",
       "name": "Team meetings",
-      "parent_folder_id": null
+      "parent_folder_id": null,
+      "space_id": null
     }
   ],
+  "space_membership": [],
   "summary_text": "Discussed sprint progress and blockers.",
   "summary_markdown": "## Summary\n\nDiscussed sprint progress and blockers.",
   "private_notes_text": null,

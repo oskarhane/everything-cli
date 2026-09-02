@@ -138,6 +138,8 @@ func TestGetNoteParsesFullNote(t *testing.T) {
 	assert.Equal(t, "evt_123", *note.CalendarEvent.CalendarEventID)
 	require.Len(t, note.Attendees, 2)
 	require.Len(t, note.FolderMembership, 1)
+	assert.Nil(t, note.FolderMembership[0].SpaceID)
+	assert.Empty(t, note.SpaceMembership)
 	assert.Nil(t, note.Transcript)
 
 	queries := log.all()
@@ -155,6 +157,51 @@ func TestGetNoteIncludeTranscript(t *testing.T) {
 	queries := log.all()
 	require.Len(t, queries, 1)
 	assert.Equal(t, []string{"transcript"}, queries[0]["include"])
+}
+
+func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
+	// A note in a space carries space_id on its folders and a populated
+	// space_membership. The space element shape is undocumented, so
+	// elements must decode without a pinned struct and re-marshal
+	// verbatim into output instead of failing or dropping data.
+	const body = `{
+		"id": "not_aaa111bbb222",
+		"object": "note",
+		"title": "Space note",
+		"owner": {"name": null, "email": "ada@example.com"},
+		"created_at": "2026-08-20T14:00:00Z",
+		"updated_at": "2026-08-20T14:35:00Z",
+		"web_url": "https://notes.granola.ai/t/not_aaa111bbb222",
+		"calendar_event": null,
+		"attendees": [],
+		"folder_membership": [
+			{"id": "fol_aaa111bbb222", "object": "folder", "name": "Recipes",
+				"parent_folder_id": null, "space_id": "spc_aaa111bbb222"}
+		],
+		"space_membership": [
+			{"id": "spc_aaa111bbb222", "object": "space", "name": "Engineering", "icon": "🥣"}
+		],
+		"summary_text": "s",
+		"summary_markdown": null,
+		"private_notes_text": null,
+		"private_notes_markdown": null,
+		"transcript": null
+	}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	svc := newHTTPService(srv.Client(), srv.URL)
+
+	note, err := svc.GetNote(context.Background(), "not_aaa111bbb222", false)
+	require.NoError(t, err)
+	require.NotNil(t, note.FolderMembership[0].SpaceID)
+	assert.Equal(t, "spc_aaa111bbb222", *note.FolderMembership[0].SpaceID)
+	require.Len(t, note.SpaceMembership, 1)
+	assert.JSONEq(t,
+		`{"id": "spc_aaa111bbb222", "object": "space", "name": "Engineering", "icon": "🥣"}`,
+		string(note.SpaceMembership[0]))
 }
 
 func TestStatusErrors(t *testing.T) {
