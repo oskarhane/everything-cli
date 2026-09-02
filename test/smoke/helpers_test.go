@@ -108,8 +108,8 @@ func requireCredentials(t *testing.T) {
 // whose refresh fails.
 var authErrorMarkers = []string{
 	"no OAuth credentials",              // credentials resolution found nothing
-	"no Google accounts configured",     // account resolution
-	"no default account set",            // account resolution
+	"no google accounts configured",     // account resolution
+	"no default google account set",     // account resolution
 	"reading credentials",               // credentials file unreadable
 	"refreshing token",                  // expired token, refresh failed (dialer path)
 	"cannot fetch token",                // refresh failed (API client transport path: "auth:"/"oauth2:" prefixes)

@@ -13,9 +13,9 @@ import (
 
 // TestResolveAccountFor pins the canonical provider-scoped resolver: flag
 // wins over the provider default, and both actionable error texts name the
-// provider for every API-key provider.
+// provider for every registered provider.
 func TestResolveAccountFor(t *testing.T) {
-	providers := []string{"linear", "granola"}
+	providers := []string{"google", "linear", "granola"}
 
 	seedProviderAccount := func(t *testing.T, store *config.Store, provider, name string) {
 		t.Helper()
