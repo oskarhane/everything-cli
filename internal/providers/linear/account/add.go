@@ -44,12 +44,25 @@ everything-cli linear account add work --api-key lin_api_...
 # from the flag or LINEAR_CLIENT_ID, the secret is optional under PKCE
 everything-cli linear account add work --oauth --client-id 7231...`,
 		Args: cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			// The OAuth app credential flags are meaningless on the
+			// API-key path; fail fast instead of silently ignoring them.
+			if useOAuth {
+				return nil
+			}
+			for _, name := range []string{"client-id", "client-secret"} {
+				if cmd.Flags().Changed(name) {
+					return fmt.Errorf("--%s only applies with --oauth", name)
+				}
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}
-			acct, err := newStrategy().Add(cmd.Context(), cfg.Fs, store, auth.AddOptions{
+			acct, err := newStrategy(store).Add(cmd.Context(), cfg.Fs, store, auth.AddOptions{
 				Name:         args[0],
 				APIKey:       apiKey,
 				UseOAuth:     useOAuth,

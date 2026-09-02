@@ -7,6 +7,7 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/account"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/project"
@@ -33,6 +34,11 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(project.NewCmd(cfg, func(ctx context.Context) (service.ProjectService, error) {
 		return service.As[service.ProjectService](dial(ctx, cfg))
 	}))
-	cmd.AddCommand(account.NewCmd(cfg, ID, func() auth.Strategy { return newStrategy(nil) }))
+	cmd.AddCommand(account.NewCmd(cfg, ID, newAccountStrategy))
 	return cmd
 }
+
+// newAccountStrategy builds the add-path composite strategy on the store
+// account add resolved for the invocation, so the strategy is fully
+// constructed: a Client call on it can never dereference a nil store.
+func newAccountStrategy(store *config.Store) auth.Strategy { return newStrategy(store) }

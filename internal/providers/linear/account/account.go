@@ -9,12 +9,15 @@ import (
 	sharedaccount "github.com/oskarhane/everything-cli/internal/account"
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // StrategyFactory builds the auth strategy account add onboards through.
-// Production wires the linear provider's API-key strategy; tests substitute
-// fakes so the flag/env/prompt capture paths run hermetically.
-type StrategyFactory func() auth.Strategy
+// It is handed the store add resolved for the invocation, so the strategy
+// is always fully constructed — never backed by a nil store. Production
+// wires the linear provider's composite strategy; tests substitute fakes
+// so the flag/env/prompt capture paths run hermetically.
+type StrategyFactory func(store *config.Store) auth.Strategy
 
 // NewCmd builds the linear account parent command, scoped to the provider
 // ID so accounts resolve under accounts/<provider>/ only. The

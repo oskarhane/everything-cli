@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // addNeverPrintsKey asserts the captured key appears in no output format.
@@ -57,7 +58,7 @@ func TestAddFlagWinsOverEnv(t *testing.T) {
 
 func TestAddCapturesKeyFromHiddenPrompt(t *testing.T) {
 	fake := &fakePromptStrategy{key: "test-key-789"}
-	cfg, root, out := newAccountEnv(t, func() auth.Strategy { return fake })
+	cfg, root, out := newAccountEnv(t, func(*config.Store) auth.Strategy { return fake })
 
 	_, err := execute(t, root, out, "account", "add", "work")
 	require.NoError(t, err)
