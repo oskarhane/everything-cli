@@ -56,7 +56,7 @@ func (c *Config) Store() (*config.Store, error) {
 func NewRootCommand(cfg *Config) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "everything-cli",
-		Short: "Interact with Google services from the command line",
+		Short: "One CLI for many SaaS providers (Google, Linear, Granola)",
 		// Version enables the built-in --version flag; cobra prints it as
 		// "everything-cli version <Version>" via its default template.
 		Version: Version,
