@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	provideraccount "github.com/oskarhane/everything-cli/internal/account"
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
@@ -16,10 +17,10 @@ import (
 // default. Secrets (tokens, API keys) are deliberately absent — no output
 // format may ever carry them.
 type listAccount struct {
-	Name      string `json:"name"`
-	Provider  string `json:"provider"`
-	Identity  string `json:"identity"`
-	IsDefault bool   `json:"is_default"`
+	Name     string `json:"name"`
+	Provider string `json:"provider"`
+	Identity string `json:"identity"`
+	Default  bool   `json:"default"`
 }
 
 // identity renders the account's human identity: the Google email when set,
@@ -49,7 +50,7 @@ func newListCmd(cfg *app.Config) *cobra.Command {
 		Example: `# List every configured account, across all providers
 everything-cli account list
 
-# List accounts as JSON; each provider's default carries "is_default": true
+# List accounts as JSON; each provider's default carries "default": true
 everything-cli account list --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -76,28 +77,24 @@ everything-cli account list --format json`,
 					defaults[a.Provider] = def
 				}
 				rows = append(rows, listAccount{
-					Name:      a.Name,
-					Provider:  a.Provider,
-					Identity:  identity(a),
-					IsDefault: a.Name == def,
+					Name:     a.Name,
+					Provider: a.Provider,
+					Identity: identity(a),
+					Default:  a.Name == def,
 				})
 			}
 
 			tableRows := make([]map[string]any, 0, len(rows))
 			for _, r := range rows {
-				marker := ""
-				if r.IsDefault {
-					marker = "yes"
-				}
 				tableRows = append(tableRows, map[string]any{
-					"name":       r.Name,
-					"provider":   r.Provider,
-					"identity":   r.Identity,
-					"is_default": marker,
+					"name":     r.Name,
+					"provider": r.Provider,
+					"identity": r.Identity,
+					"default":  provideraccount.DefaultMarker(r.Default),
 				})
 			}
 			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format),
-				[]string{"name", "provider", "identity", "is_default"}, rows, tableRows)
+				[]string{"name", "provider", "identity", "default"}, rows, tableRows)
 			return nil
 		},
 	}

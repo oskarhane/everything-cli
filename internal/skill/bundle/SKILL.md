@@ -55,7 +55,7 @@ Every provider also has its own account subtree: `everything-cli
 - The global `--account <name>` flag overrides the default, resolved
   within the executing provider's accounts only.
 - `everything-cli account list` — read-only aggregate of every account
-  across all providers (name, provider, identity, is-default). Start here
+  across all providers (name, provider, identity, default). Start here
   to discover what accounts exist anywhere.
 - Config dir resolution: `$EVERYTHING_CLI_CONFIG_DIR`, then
   `$GOOGLE_CLI_CONFIG_DIR` (deprecated — warns on stderr), then
