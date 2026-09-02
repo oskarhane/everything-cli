@@ -26,6 +26,7 @@ everything-cli granola note list --created-after 2026-08-01
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts | Google OAuth (your own OAuth Desktop-app client; per-account token cache). YouTube needs no account at all. |
 | `linear` | Linear issues, teams, projects | Personal API key **or** OAuth (browser flow with PKCE) |
 | `granola` | Granola notes (read-only) | Official `grn_` API key — requires a Granola **Business or Enterprise** plan |
+| `email` | IMAP/SMTP email (accounts only for now; mailbox/message commands come later) | Username + password per account |
 
 Every provider has its own account subtree (`everything-cli <provider> account add|list|get|use|remove`); see [Accounts](#accounts).
 
@@ -72,6 +73,15 @@ Requires a Granola **Business or Enterprise** plan — personal plans cannot cre
 ```sh
 everything-cli granola account add work                       # hidden prompt
 GRANOLA_API_KEY=grn_... everything-cli granola account add work  # non-interactive
+```
+
+### Email (IMAP/SMTP username + password)
+
+```sh
+everything-cli email account add work \
+    --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com  # hidden password prompt
+EMAIL_PASSWORD=... everything-cli email account add work \
+    --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com  # non-interactive
 ```
 
 ### Verify your accounts
