@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // ScopeUserEmail is requested on every flow so the account's email can be
@@ -60,7 +60,7 @@ var ScopesSlides = []string{
 // add without --scopes always pass; the guard only trips for narrowed grants.
 func RequireScopes(acct *config.Account, required []string) error {
 	if acct == nil {
-		return fmt.Errorf("no account: run \"google-cli account add <name>\" first")
+		return fmt.Errorf("no account: run \"everything-cli google account add <name>\" first")
 	}
 	missing := missingScopes(acct, required)
 	if len(missing) == 0 {
@@ -70,7 +70,7 @@ func RequireScopes(acct *config.Account, required []string) error {
 	if len(missing) > 1 {
 		label = "scopes"
 	}
-	return fmt.Errorf("account %q is missing %s %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
+	return fmt.Errorf("account %q is missing %s %s: re-run \"everything-cli google account add <name>\" to consent (accounts added before Drive support need this once)",
 		acct.Name, label, strings.Join(missing, ", "))
 }
 
@@ -82,12 +82,12 @@ func RequireScopes(acct *config.Account, required []string) error {
 // grants.
 func RequireAnyScopes(acct *config.Account, required []string) error {
 	if acct == nil {
-		return fmt.Errorf("no account: run \"google-cli account add <name>\" first")
+		return fmt.Errorf("no account: run \"everything-cli google account add <name>\" first")
 	}
 	if len(missingScopes(acct, required)) < len(required) {
 		return nil
 	}
-	return fmt.Errorf("account %q is missing scope %s: re-run \"google-cli account add <name>\" to consent (accounts added before Drive support need this once)",
+	return fmt.Errorf("account %q is missing scope %s: re-run \"everything-cli google account add <name>\" to consent (accounts added before Drive support need this once)",
 		acct.Name, strings.Join(required, " or "))
 }
 

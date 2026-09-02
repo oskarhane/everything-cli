@@ -13,8 +13,13 @@ import (
 
 const (
 	defaultGitHubBase = "https://api.github.com"
-	defaultRepo       = "oskarhane/google-cli"
-	acceptHeader      = "application/vnd.github+json"
+	// defaultRepo is the GitHub repo hosting the releases. The GitHub repo
+	// has NOT been renamed yet — it is still oskarhane/google-cli today
+	// (scripts/install.sh agrees). Flip this to oskarhane/everything-cli
+	// when the repo is renamed on GitHub; the module/binary rename is
+	// independent of that.
+	defaultRepo  = "oskarhane/google-cli"
+	acceptHeader = "application/vnd.github+json"
 
 	// maxBodyBytes caps how many bytes are read from any single response
 	// body. Release metadata responses are tiny (a few KB); the largest
@@ -59,18 +64,21 @@ func (r *Release) Asset(name string) (*Asset, error) {
 
 // AssetName is the single source of truth for release asset naming.
 func AssetName(os, arch string) string {
-	return fmt.Sprintf("google-cli_%s_%s.tar.gz", os, arch)
+	return fmt.Sprintf("everything-cli_%s_%s.tar.gz", os, arch)
 }
 
 // HTTPClient is the Client implementation backed by the GitHub REST API.
 type HTTPClient struct {
-	base       string
-	repo       string
+	base string
+	repo string
+	// apiHost is the host of base; the auth token is only ever sent to this
+	// host, never to an absolute asset URL pointing elsewhere.
+	apiHost    string
 	httpClient *http.Client
 }
 
 // NewClient builds a GitHub releases Client. Empty baseURL or repo fall
-// back to https://api.github.com and oskarhane/google-cli.
+// back to https://api.github.com and defaultRepo.
 func NewClient(baseURL, repo string) *HTTPClient {
 	if baseURL == "" {
 		baseURL = defaultGitHubBase
@@ -78,9 +86,14 @@ func NewClient(baseURL, repo string) *HTTPClient {
 	if repo == "" {
 		repo = defaultRepo
 	}
+	apiHost := ""
+	if u, err := url.Parse(baseURL); err == nil {
+		apiHost = u.Host
+	}
 	return &HTTPClient{
 		base:       baseURL,
 		repo:       repo,
+		apiHost:    apiHost,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -114,7 +127,9 @@ func (c *HTTPClient) get(ctx context.Context, endpoint string) ([]byte, error) {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
 	req.Header.Set("Accept", acceptHeader)
-	if tok := authToken(); tok != "" {
+	// The token is scoped to the API host: an absolute asset URL on another
+	// host must not receive it.
+	if tok := authToken(); tok != "" && u.Host == c.apiHost {
 		req.Header.Set("Authorization", "Bearer "+tok)
 	}
 

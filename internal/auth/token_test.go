@@ -5,18 +5,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
 
-// stubTokenEndpoint swaps the credentials-config seam for one whose token
+// stubTokenEndpoint swaps the oauth-config seam for one whose token
 // endpoint is a local httptest server, and records every token request.
 func stubTokenEndpoint(t *testing.T) *tokenEndpointRecorder {
 	t.Helper()
@@ -35,18 +36,18 @@ func stubTokenEndpoint(t *testing.T) *tokenEndpointRecorder {
 	}))
 	t.Cleanup(srv.Close)
 
-	saved := credentialsConfig
-	t.Cleanup(func() { credentialsConfig = saved })
-	credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, error) {
+	saved := oauthConfigFor
+	t.Cleanup(func() { oauthConfigFor = saved })
+	oauthConfigFor = func(_ OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
 		return &oauth2.Config{
-			ClientID:     "test-client-id",
-			ClientSecret: "test-client-secret",
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  srv.URL + "/auth",
 				TokenURL: srv.URL + "/token",
 			},
 			Scopes: scopes,
-		}, nil
+		}
 	}
 	return rec
 }
@@ -121,11 +122,119 @@ func TestTokenSourceRefreshPersistsToken(t *testing.T) {
 	assert.Equal(t, 1, rec.count(), "valid tokens must be reused, not re-fetched")
 }
 
+// TestTokenSourceForProvider: the provider-scoped token source reads and
+// persists the account under accounts/<provider>/, refreshing against the
+// profile's pinned endpoint — never the credentials file's.
+func TestTokenSourceForProvider(t *testing.T) {
+	rec := &tokenEndpointRecorder{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		rec.mu.Lock()
+		rec.forms = append(rec.forms, r.PostForm)
+		rec.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintln(w, `{"access_token":"new-access","refresh_token":"new-refresh","expires_in":3600,"token_type":"Bearer"}`)
+	}))
+	t.Cleanup(srv.Close)
+
+	profile := OAuthProfile{
+		Name:     "other-cli",
+		Endpoint: oauth2.Endpoint{AuthURL: srv.URL + "/auth", TokenURL: srv.URL + "/token"},
+	}
+	fs := afero.NewMemMapFs()
+	store, err := config.NewStore(fs, "/config")
+	require.NoError(t, err)
+	require.NoError(t, store.Save(&config.Account{
+		Name:     "work",
+		Provider: "other",
+		Email:    "user@example.com",
+		Scopes:   []string{"scope-a"},
+		Token: &oauth2.Token{
+			AccessToken:  "old-access",
+			RefreshToken: "old-refresh",
+			TokenType:    "Bearer",
+			Expiry:       time.Now().Add(-time.Hour), // expired: forces refresh
+		},
+	}))
+	ts, err := TokenSourceForProvider(store, testClientCredentials, "other", "work", profile)
+	require.NoError(t, err)
+	tok, err := ts.Token()
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", tok.AccessToken)
+	assert.Equal(t, 1, rec.count(), "the refresh must hit the profile's pinned endpoint")
+
+	persisted, err := store.GetProvider("other", "work")
+	require.NoError(t, err)
+	assert.Equal(t, "new-access", persisted.Token.AccessToken,
+		"the refresh must persist to accounts/other/, not the google dir")
+}
+
+// TestTokenSourceRefreshKeepsClearedDefault: a provider with an account
+// but NO default (settings cleared, e.g. the default account was removed)
+// must still have no default after a refresh persists the new token — a
+// background refresh must never silently switch which account bare
+// commands resolve to. Pinned for both OAuth refresh paths: google
+// (TokenSource) and linear (TokenSourceForProvider).
+func TestTokenSourceRefreshKeepsClearedDefault(t *testing.T) {
+	stubTokenEndpoint(t)
+	expired := `{"access_token":"old-access","refresh_token":"old-refresh","token_type":"Bearer","expiry":"2000-01-01T00:00:00Z"}`
+
+	t.Run("google", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		store, err := config.NewStore(fs, "/config")
+		require.NoError(t, err)
+		// Write the account file directly so no default is ever recorded.
+		require.NoError(t, fs.MkdirAll(filepath.Dir(store.AccountPath("work")), 0o700))
+		require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
+			`{"name":"work","email":"user@example.com","scopes":["scope-a"],"token":`+expired+`}`), 0o600))
+		require.NoError(t, afero.WriteFile(fs, "/config/credentials.json", []byte(installedAppCredentials), 0o600))
+
+		ts, err := TokenSource(fs, store, "/config/credentials.json", "work")
+		require.NoError(t, err)
+		_, err = ts.Token()
+		require.NoError(t, err)
+
+		def, err := store.DefaultAccountFor(config.ProviderGoogle)
+		require.NoError(t, err)
+		assert.Empty(t, def, "a refresh must not re-default the provider")
+		got, err := store.Get("work")
+		require.NoError(t, err)
+		assert.Equal(t, "new-access", got.Token.AccessToken, "the refreshed token must persist")
+	})
+
+	t.Run("linear", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		store, err := config.NewStore(fs, "/config")
+		require.NoError(t, err)
+		path := store.AccountPathFor("linear", "work")
+		require.NoError(t, fs.MkdirAll(path[:len(path)-len("/work.json")], 0o700))
+		require.NoError(t, afero.WriteFile(fs, path, []byte(
+			`{"name":"work","provider":"linear","email":"user@example.com","token":`+expired+`}`), 0o600))
+
+		ts, err := TokenSourceForProvider(store, testClientCredentials, "linear", "work", GoogleOAuth)
+		require.NoError(t, err)
+		_, err = ts.Token()
+		require.NoError(t, err)
+
+		def, err := store.DefaultAccountFor("linear")
+		require.NoError(t, err)
+		assert.Empty(t, def, "a refresh must not re-default the provider")
+		got, err := store.GetProvider("linear", "work")
+		require.NoError(t, err)
+		assert.Equal(t, "new-access", got.Token.AccessToken, "the refreshed token must persist")
+	})
+}
+
 func TestTokenSourceUnknownAccount(t *testing.T) {
 	stubTokenEndpoint(t)
 	store := newTestStore(t)
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/creds.json", []byte(installedAppCredentials), 0o600))
 
-	_, err := TokenSource(afero.NewMemMapFs(), store, "/creds.json", "ghost")
+	_, err := TokenSource(fs, store, "/creds.json", "ghost")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ghost")
 }
@@ -149,6 +258,7 @@ func TestTokenSourceIdentityMismatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
 		`{"name":"personal","email":"user@example.com","scopes":["scope-a"]}`), 0o600))
+	require.NoError(t, afero.WriteFile(fs, "/config/credentials.json", []byte(installedAppCredentials), 0o600))
 
 	_, err = TokenSource(fs, store, "/config/credentials.json", "work")
 
@@ -171,14 +281,15 @@ func TestTokenSourceRefreshTimesOut(t *testing.T) {
 	savedTimeout := refreshTimeout
 	refreshTimeout = 100 * time.Millisecond
 	t.Cleanup(func() { refreshTimeout = savedTimeout })
-	savedCreds := credentialsConfig
-	t.Cleanup(func() { credentialsConfig = savedCreds })
-	credentialsConfig = func([]byte, ...string) (*oauth2.Config, error) {
+	savedConf := oauthConfigFor
+	t.Cleanup(func() { oauthConfigFor = savedConf })
+	oauthConfigFor = func(_ OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
 		return &oauth2.Config{
-			ClientID:     "test-client-id",
-			ClientSecret: "test-client-secret",
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
 			Endpoint:     oauth2.Endpoint{TokenURL: srv.URL + "/token"},
-		}, nil
+			Scopes:       scopes,
+		}
 	}
 
 	store := newTestStore(t)

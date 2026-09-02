@@ -9,14 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBundleContents: the embedded Bundle is re-rooted at SKILL.md plus the
-// three reference files — the flat layout the installer walks.
+// TestBundleContents: the embedded Bundle is re-rooted at SKILL.md plus
+// one reference file per provider — the flat layout the installer walks.
 func TestBundleContents(t *testing.T) {
 	want := map[string]bool{
-		"SKILL.md":               false,
-		"references/account.md":  false,
-		"references/gmail.md":    false,
-		"references/calendar.md": false,
+		"SKILL.md":              false,
+		"references/google.md":  false,
+		"references/granola.md": false,
+		"references/linear.md":  false,
 	}
 
 	err := fs.WalkDir(Bundle, ".", func(p string, d fs.DirEntry, err error) error {
@@ -38,15 +38,15 @@ func TestBundleContents(t *testing.T) {
 	}
 }
 
-// TestBundleFrontmatter: SKILL.md identifies the skill as google-cli and
-// carries a version line for the installer to rewrite.
+// TestBundleFrontmatter: SKILL.md identifies the skill as everything-cli
+// and carries a version line for the installer to rewrite.
 func TestBundleFrontmatter(t *testing.T) {
 	data, err := fs.ReadFile(Bundle, "SKILL.md")
 	require.NoError(t, err)
 
 	body := string(data)
 	assert.Equal(t, "---", firstLine(body))
-	assert.Contains(t, body, "name: google-cli")
+	assert.Contains(t, body, "name: everything-cli")
 
 	// The bundle ships `version: dev`; Install rewrites the line.
 	assert.Regexp(t, `(?m)^version: dev[ \t]*$`, body)

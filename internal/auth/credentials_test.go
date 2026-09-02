@@ -108,10 +108,33 @@ func TestResolveCredentialsErrorNamesTriedPaths(t *testing.T) {
 	}
 }
 
-// TestParseGoogleCredentialsPinsEndpoints: auth_uri/token_uri from the
-// credentials file are ignored — the built config must always target
-// Google's endpoints, so a tampered file cannot redirect token requests.
-func TestParseGoogleCredentialsPinsEndpoints(t *testing.T) {
+// TestParseClientCredentialsRegistersClientSecret pins the AGENTS.md
+// mint/read-point rule for the Google credentials funnel: the client_secret
+// from credentials.json is registered for redaction at parse, so no
+// rendered output or error can leak it.
+func TestParseClientCredentialsRegistersClientSecret(t *testing.T) {
+	data := []byte(`{
+	  "installed": {
+	    "client_id": "redact-pin-client-id",
+	    "client_secret": "redact-pin-client-secret",
+	    "redirect_uris": ["http://localhost"]
+	  }
+	}`)
+
+	creds, err := ParseClientCredentials(data)
+	require.NoError(t, err)
+	require.Equal(t, "redact-pin-client-secret", creds.Secret)
+
+	assert.Equal(t, "***", Redact("redact-pin-client-secret"),
+		"the parsed client_secret must be registered for redaction")
+}
+
+// TestGoogleConfigPinsEndpoints: auth_uri/token_uri from the credentials
+// file are ignored — the file parses into ClientCredentials (which carry no
+// endpoints), and the config built from them always targets the profile's
+// pinned Google endpoints, so a tampered file cannot redirect token
+// requests.
+func TestGoogleConfigPinsEndpoints(t *testing.T) {
 	data := []byte(`{
 	  "installed": {
 	    "client_id": "test-client-id",
@@ -122,10 +145,14 @@ func TestParseGoogleCredentialsPinsEndpoints(t *testing.T) {
 	  }
 	}`)
 
-	conf, err := parseGoogleCredentials(data, "scope-a")
+	creds, err := ParseClientCredentials(data)
 	require.NoError(t, err)
+	assert.Equal(t, "test-client-id", creds.ID,
+		"parsing must keep the file's client_id")
+
+	conf := oauthConfigFor(GoogleOAuth, creds, "scope-a")
 	assert.Equal(t, google.Endpoint.AuthURL, conf.Endpoint.AuthURL)
 	assert.Equal(t, google.Endpoint.TokenURL, conf.Endpoint.TokenURL)
-	assert.Equal(t, "test-client-id", conf.ClientID,
-		"pinning must keep the file's client_id")
+	assert.Equal(t, "test-client-id", conf.ClientID)
+	assert.Equal(t, []string{"scope-a"}, conf.Scopes)
 }

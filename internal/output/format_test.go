@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oskarhane/google-cli/internal/agent"
+	"github.com/oskarhane/everything-cli/internal/agent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

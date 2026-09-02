@@ -10,6 +10,8 @@ import (
 	toon "github.com/toon-format/toon-go"
 
 	"github.com/jedib0t/go-pretty/v6/table"
+
+	"github.com/oskarhane/everything-cli/internal/redact"
 )
 
 // StripControl replaces C0 control characters (runes < 0x20) and DEL (0x7F)
@@ -201,8 +203,12 @@ func stripControlDeep(v any) any {
 	return walkStrings(v, StripControl)
 }
 
-// writeLine writes s followed by a single newline.
+// writeLine scrubs registered secrets from s, then writes it followed by a
+// single newline. Every emission in this package — Print, PrintJSON,
+// PrintTable, PrintToon, and Debug — funnels through here, so redaction
+// applies uniformly to all rendered output regardless of its shape (JSON
+// field, table cell, or TOON row).
 func writeLine(w io.Writer, s string) {
-	_, _ = io.WriteString(w, s)
+	_, _ = io.WriteString(w, redact.Redact(s))
 	_, _ = io.WriteString(w, "\n")
 }

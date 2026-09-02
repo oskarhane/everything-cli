@@ -6,10 +6,9 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // CredentialsName is the credentials filename auto-detected in the config
@@ -50,16 +49,45 @@ func ResolveCredentials(fs afero.Fs, flagValue, configDir string) (string, error
 	return "", fmt.Errorf("no OAuth credentials file found; tried: %s", strings.Join(tried, ", "))
 }
 
-// parseGoogleCredentials parses installed-app credentials JSON into an OAuth
-// config with the endpoints pinned to Google's. The file therefore supplies
-// only client_id/client_secret: auth_uri and token_uri from a credentials
-// file are ignored, so a tampered or planted file can never redirect
-// authorization or token (refresh) requests to another server.
-func parseGoogleCredentials(data []byte, scopes ...string) (*oauth2.Config, error) {
-	conf, err := google.ConfigFromJSON(data, scopes...)
+// ClientCredentials carries an OAuth app's client_id and client_secret
+// directly, so the flow and token machinery never needs a credentials
+// document at runtime. Providers either parse their credentials file into
+// this shape once (Google) or capture the values from flags/env (Linear).
+type ClientCredentials struct {
+	// ID is the OAuth app's client ID (non-secret metadata).
+	ID string
+	// Secret is the OAuth app's client secret; empty for public PKCE
+	// clients. It is a secret: registered for redaction at mint/read.
+	Secret string
+}
+
+// ParseClientCredentials parses installed-app credentials JSON into
+// ClientCredentials. Only client_id/client_secret are taken from the
+// document: auth_uri and token_uri are ignored (endpoints come from the
+// pinned OAuthProfile), so a tampered or planted file can never redirect
+// authorization or token (refresh) requests to another server. The client
+// secret is registered for redaction at this read point.
+func ParseClientCredentials(data []byte) (ClientCredentials, error) {
+	conf, err := google.ConfigFromJSON(data)
 	if err != nil {
-		return nil, err
+		return ClientCredentials{}, err
 	}
-	conf.Endpoint = google.Endpoint
-	return conf, nil
+	if conf.ClientSecret != "" {
+		RegisterSecret(conf.ClientSecret)
+	}
+	return ClientCredentials{ID: conf.ClientID, Secret: conf.ClientSecret}, nil
+}
+
+// ReadClientCredentials reads and parses the credentials file at path —
+// the single read every credentials-consuming path funnels through.
+func ReadClientCredentials(fs afero.Fs, path string) (ClientCredentials, error) {
+	data, err := afero.ReadFile(fs, path)
+	if err != nil {
+		return ClientCredentials{}, fmt.Errorf("reading credentials %s: %w", path, err)
+	}
+	creds, err := ParseClientCredentials(data)
+	if err != nil {
+		return ClientCredentials{}, fmt.Errorf("parsing credentials %s: %w", path, err)
+	}
+	return creds, nil
 }

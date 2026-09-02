@@ -33,7 +33,7 @@ func ParseVersionLine(body []byte) (string, bool) {
 var frontmatterRe = regexp.MustCompile(`(?s)\A---\r?\n(.*?)\r?\n---(\r?\n|\z)`)
 
 // Install copies the embedded Bundle into each target agent's skills
-// directory under `<expanded SkillsDir>/google-cli/`. The SKILL.md
+// directory under `<expanded SkillsDir>/everything-cli/`. The SKILL.md
 // frontmatter `version:` line is rewritten (or inserted) to `version`;
 // references are copied verbatim. Each target is installed clean-slate
 // (prior contents removed first) so deleted reference files don't linger.
@@ -47,7 +47,7 @@ var frontmatterRe = regexp.MustCompile(`(?s)\A---\r?\n(.*?)\r?\n---(\r?\n|\z)`)
 // InstallResult describes one completed bundle install.
 type InstallResult struct {
 	Agent string // agent id the bundle was written to
-	Path  string // the installed <skills>/google-cli directory
+	Path  string // the installed <skills>/everything-cli directory
 }
 
 func Install(filesystem afero.Fs, version, agentFilter string) ([]InstallResult, error) {

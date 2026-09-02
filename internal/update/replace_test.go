@@ -21,7 +21,7 @@ func writeExe(t *testing.T, path, data string) {
 func tempBinary(t *testing.T, symlink bool) (target, installPath string) {
 	t.Helper()
 	dir := t.TempDir()
-	target = filepath.Join(dir, "google-cli")
+	target = filepath.Join(dir, "everything-cli")
 	writeExe(t, target, "old")
 	installPath = target
 	if symlink {

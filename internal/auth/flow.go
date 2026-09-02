@@ -1,11 +1,14 @@
-// Package auth runs the installed-app Google OAuth flow and keeps the
-// per-account token cache fresh.
+// Package auth runs installed-app OAuth flows and keeps the per-account
+// token cache fresh. The flow machinery is provider-general (RunFlowWith,
+// TokenSourceWith): endpoints and the identity URL come from an OAuthProfile
+// supplied by the provider, never from user-supplied files.
 package auth
 
 import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -17,9 +20,9 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
-	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
 )
 
@@ -30,9 +33,6 @@ const flowTimeout = 5 * time.Minute
 // exchange and the userinfo fetch) so a hung endpoint cannot stall the CLI
 // indefinitely. Var so tests can shrink it.
 var networkTimeout = 60 * time.Second
-
-// userinfoURL resolves the account email after the flow.
-const userinfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
 
 // flowOutput receives the authorization URL and flow status lines (stderr,
 // so stdout stays data-clean).
@@ -94,9 +94,10 @@ var exchangeCode = func(ctx context.Context, conf *oauth2.Config, code, verifier
 	return conf.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", verifier))
 }
 
-// fetchEmail resolves the account email from the userinfo endpoint. Seam for tests.
-var fetchEmail = func(ctx context.Context, tok *oauth2.Token) (string, error) {
-	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(tok)).Get(userinfoURL)
+// fetchEmail resolves the account email from the provider's userinfo
+// endpoint. Seam for tests.
+var fetchEmail = func(ctx context.Context, url string, tok *oauth2.Token) (string, error) {
+	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(tok)).Get(url)
 	if err != nil {
 		return "", fmt.Errorf("calling userinfo endpoint: %w", err)
 	}
@@ -116,20 +117,15 @@ var fetchEmail = func(ctx context.Context, tok *oauth2.Token) (string, error) {
 	return out.Email, nil
 }
 
-// RunFlow performs the installed-app OAuth flow for the given scopes:
-// parses the credentials file, starts a localhost listener on a random port
-// as the redirect URI, prints the authorization URL (and tries to open a
-// browser), waits for the code callback, exchanges it, and resolves the
-// account email from the userinfo endpoint.
-func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
-	data, err := afero.ReadFile(fs, credentialsPath)
-	if err != nil {
-		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
-	}
-	conf, err := credentialsConfig(data, withEmailScope(scopes)...)
-	if err != nil {
-		return nil, "", fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
-	}
+// RunFlowWith performs the installed-app OAuth flow for any provider
+// described by profile, with the app's client credentials carried directly
+// (endpoints pinned to the profile's, never read from any file): starts a
+// localhost listener on a random port as the redirect URI, prints the
+// authorization URL (and tries to open a browser), waits for the code
+// callback, exchanges it, and resolves the account email from the
+// profile's userinfo endpoint.
+func RunFlowWith(creds ClientCredentials, scopes []string, profile OAuthProfile) (*oauth2.Token, string, error) {
+	conf := oauthConfigFor(profile, creds, ensureScope(scopes, profile.EmailScope)...)
 
 	ln, err := listenLoopback()
 	if err != nil {
@@ -151,14 +147,19 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	if err != nil {
 		return nil, "", err
 	}
-	authURL := conf.AuthCodeURL(state,
+	authURLOpts := []oauth2.AuthCodeOption{
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 		oauth2.SetAuthURLParam("code_challenge", challenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-	)
+	}
+	if profile.ScopeSeparator != "" && profile.ScopeSeparator != " " {
+		authURLOpts = append(authURLOpts,
+			oauth2.SetAuthURLParam("scope", strings.Join(conf.Scopes, profile.ScopeSeparator)))
+	}
+	authURL := conf.AuthCodeURL(state, authURLOpts...)
 
-	emit("Authorize google-cli by opening:\n\n%s\n\n", authURL)
+	emit("Authorize %s by opening:\n\n%s\n\n", profile.Name, authURL)
 	if err := openBrowser(authURL); err != nil {
 		emit("Could not open a browser; open the URL above manually.\n")
 	}
@@ -214,13 +215,26 @@ func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Toke
 	if err != nil {
 		return nil, "", fmt.Errorf("exchanging authorization code: %w", err)
 	}
+	// Mint point: register the fresh token's secrets for redaction before
+	// anything else can render them.
+	registerTokenSecrets(tok)
 	emailCtx, cancelEmail := context.WithTimeout(context.Background(), networkTimeout)
 	defer cancelEmail()
-	email, err := fetchEmail(emailCtx, tok)
+	email, err := resolveIdentity(emailCtx, profile, tok)
 	if err != nil {
 		return nil, "", err
 	}
 	return tok, email, nil
+}
+
+// resolveIdentity resolves the account email: the profile's
+// IdentityResolver when it carries one (Linear's GraphQL viewer query),
+// else the userinfo GET every existing provider uses.
+func resolveIdentity(ctx context.Context, profile OAuthProfile, tok *oauth2.Token) (string, error) {
+	if profile.IdentityResolver != nil {
+		return profile.IdentityResolver(ctx, tok)
+	}
+	return fetchEmail(ctx, profile.UserinfoURL, tok)
 }
 
 // emit writes a best-effort status line to flowOutput: flow output must
@@ -249,7 +263,7 @@ func callbackCode(r *http.Request, state string) (string, error) {
 	if e := q.Get("error"); e != "" {
 		return "", fmt.Errorf("authorization was rejected: %s", e)
 	}
-	if got := q.Get("state"); got != state {
+	if got := q.Get("state"); subtle.ConstantTimeCompare([]byte(got), []byte(state)) != 1 {
 		return "", errors.New("state mismatch in OAuth redirect")
 	}
 	code := q.Get("code")
@@ -259,15 +273,15 @@ func callbackCode(r *http.Request, state string) (string, error) {
 	return code, nil
 }
 
-// withEmailScope appends the userinfo.email scope unless already granted,
-// so RunFlow can always resolve the account email.
-func withEmailScope(scopes []string) []string {
+// ensureScope appends scope to scopes unless already granted, so a flow can
+// always guarantee the scope its identity resolution depends on.
+func ensureScope(scopes []string, scope string) []string {
 	out := make([]string, 0, len(scopes)+1)
 	out = append(out, scopes...)
 	for _, s := range out {
-		if s == ScopeUserEmail {
+		if s == scope {
 			return out
 		}
 	}
-	return append(out, ScopeUserEmail)
+	return append(out, scope)
 }

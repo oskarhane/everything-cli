@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"net"
+	"net/url"
 	"regexp"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -48,7 +49,11 @@ func writeCredentialsFile(t *testing.T) (afero.Fs, string) {
 	return fs, path
 }
 
-// syncBuffer is a goroutine-safe bytes.Buffer: RunFlow writes the
+// testClientCredentials is the ClientCredentials shape of
+// installedAppCredentials, for tests that bypass the file.
+var testClientCredentials = ClientCredentials{ID: "test-client-id", Secret: "test-client-secret"}
+
+// syncBuffer is a goroutine-safe bytes.Buffer: the flow writes the
 // authorization URL from its own goroutine while the test reads it.
 type syncBuffer struct {
 	mu  sync.Mutex
@@ -67,7 +72,7 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// stubFlowSeams replaces all RunFlow seams for the test's lifetime with
+// stubFlowSeams replaces all flow seams for the test's lifetime with
 // hermetic defaults: no browser, fixed state, and stubbed exchange/userinfo.
 type flowHooks struct {
 	output     *syncBuffer
@@ -79,11 +84,11 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	t.Helper()
 	h := &flowHooks{output: &syncBuffer{}}
 	savedOutput, savedBrowser, savedListen, savedState := flowOutput, openBrowser, listenLoopback, newState
-	savedExchange, savedEmail, savedCreds := exchangeCode, fetchEmail, credentialsConfig
+	savedExchange, savedEmail, savedConf := exchangeCode, fetchEmail, oauthConfigFor
 	savedRandRead := randRead
 	t.Cleanup(func() {
 		flowOutput, openBrowser, listenLoopback, newState = savedOutput, savedBrowser, savedListen, savedState
-		exchangeCode, fetchEmail, credentialsConfig = savedExchange, savedEmail, savedCreds
+		exchangeCode, fetchEmail, oauthConfigFor = savedExchange, savedEmail, savedConf
 		randRead = savedRandRead
 	})
 
@@ -104,7 +109,7 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 			Expiry:       time.Now().Add(time.Hour),
 		}, nil
 	}
-	fetchEmail = func(_ context.Context, tok *oauth2.Token) (string, error) {
+	fetchEmail = func(_ context.Context, _ string, tok *oauth2.Token) (string, error) {
 		if h.emailFn != nil {
 			return h.emailFn(tok)
 		}
@@ -113,11 +118,21 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	return h
 }
 
-// waitAuthURL waits for RunFlow to print the authorization URL and returns it.
+// waitAuthURL waits for the flow to print the authorization URL and returns it.
 func waitAuthURL(t *testing.T, out *syncBuffer) string {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		return authURLPattern.FindString(out.String()) != ""
-	}, 5*time.Second, 10*time.Millisecond, "RunFlow should print an authorization URL")
+	}, 5*time.Second, 10*time.Millisecond, "the flow should print an authorization URL")
 	return authURLPattern.FindString(out.String())
+}
+
+// redirectCallback builds the loopback callback URL for a printed
+// authorization URL, carrying the given state.
+func redirectCallback(t *testing.T, authURL, state string) string {
+	t.Helper()
+	u, err := url.Parse(authURL)
+	require.NoError(t, err)
+	return u.Query().Get("redirect_uri") + "?" +
+		url.Values{"code": {"test-code"}, "state": {state}}.Encode()
 }

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+
+	"github.com/oskarhane/everything-cli/internal/cmdtree"
 )
 
 // exampleViolations returns the documentation violations of one runnable
@@ -18,11 +20,11 @@ func exampleViolations(cmd *cobra.Command) []string {
 	var violations []string
 	if !firstLineFlushLeft(cmd.Example) {
 		violations = append(violations,
-			fmt.Sprintf("%s: Example must start flush-left with \"#\" or \"google-cli\"", name))
+			fmt.Sprintf("%s: Example must start flush-left with \"#\" or \"everything-cli\"", name))
 	}
 	if n := countInvocations(cmd.Example); n < 2 {
 		violations = append(violations,
-			fmt.Sprintf("%s: Example has %d google-cli invocation(s), want >= 2", name, n))
+			fmt.Sprintf("%s: Example has %d everything-cli invocation(s), want >= 2", name, n))
 	}
 	return violations
 }
@@ -31,18 +33,18 @@ func exampleViolations(cmd *cobra.Command) []string {
 // column zero with a comment or an invocation (no leading whitespace).
 func firstLineFlushLeft(example string) bool {
 	first, _, _ := strings.Cut(example, "\n")
-	return strings.HasPrefix(first, "#") || strings.HasPrefix(example, "google-cli")
+	return strings.HasPrefix(first, "#") || strings.HasPrefix(example, "everything-cli")
 }
 
 // TestAllLeafCommands_HaveExamples walks every command under the mounted
-// root (account + gmail + calendar trees) and requires every runnable leaf
-// to carry a flush-left Example with at least two google-cli invocations.
+// root (every registered provider tree + the CLI-own commands) and requires every runnable leaf
+// to carry a flush-left Example with at least two everything-cli invocations.
 // Per-package gates cover their own leaves; this whole-tree gate also
 // catches leaves a package test forgot and future subtrees automatically.
 func TestAllLeafCommands_HaveExamples(t *testing.T) {
 	_, _, leaves := mountAndCheck(t)
 	var violations []string
-	walkTree(newWholeTree(), func(cmd *cobra.Command) {
+	cmdtree.WalkTree(newWholeTree(), func(cmd *cobra.Command) {
 		if isRunnableLeaf(cmd) {
 			violations = append(violations, exampleViolations(cmd)...)
 		}

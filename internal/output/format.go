@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/oskarhane/google-cli/internal/agent"
+	"github.com/oskarhane/everything-cli/internal/agent"
 	"golang.org/x/term"
 )
 

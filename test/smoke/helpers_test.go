@@ -12,13 +12,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
+	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
+	"github.com/oskarhane/everything-cli/internal/subcommands/account"
 )
 
 // The smoke suite is read-only: it only ever invokes the three read commands
@@ -36,17 +35,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// newRootCommand mounts the real root command tree with the account, gmail,
-// and calendar subtrees attached, the way main.go will once it wires them.
-// cfg uses the real OS filesystem and the production config-dir resolution
-// ($GOOGLE_CLI_CONFIG_DIR, else ~/.config/google-cli), which is the point of
-// the smoke suite.
+// newRootCommand mounts the real root command tree with the google provider
+// tree and the top-level account aggregate attached, the way main.go does.
+// cfg uses the real OS filesystem and the production config-dir resolution,
+// which is the point of the smoke suite.
 func newRootCommand() *cobra.Command {
 	cfg := app.NewConfig()
 	root := app.NewRootCommand(cfg)
+	root.AddCommand(googleprovider.Provider{}.NewCmd(cfg))
 	root.AddCommand(account.NewCmd(cfg))
-	root.AddCommand(gmail.NewCmd(cfg))
-	root.AddCommand(calendar.NewCmd(cfg))
 	return root
 }
 
@@ -66,7 +63,7 @@ func runCommand(t *testing.T, args ...string) string {
 		if isAuthError(err) {
 			t.Skipf("auth not usable in this environment (environment problem, not a test failure): %v", err)
 		}
-		t.Fatalf("google-cli %s: %v", strings.Join(args, " "), err)
+		t.Fatalf("everything-cli %s: %v", strings.Join(args, " "), err)
 	}
 	return out.String()
 }
@@ -82,7 +79,7 @@ func requireAccount(t *testing.T) string {
 	accounts, err := store.List()
 	require.NoError(t, err, "listing accounts in %s", store.Dir())
 	if len(accounts) == 0 {
-		t.Skip("no account configured — run google-cli account add first")
+		t.Skip("no account configured — run everything-cli google account add first")
 	}
 	def, err := store.DefaultAccount()
 	require.NoError(t, err, "reading default account")
@@ -111,8 +108,8 @@ func requireCredentials(t *testing.T) {
 // whose refresh fails.
 var authErrorMarkers = []string{
 	"no OAuth credentials",              // credentials resolution found nothing
-	"no Google accounts configured",     // account resolution
-	"no default account set",            // account resolution
+	"no google accounts configured",     // account resolution
+	"no default google account set",     // account resolution
 	"reading credentials",               // credentials file unreadable
 	"refreshing token",                  // expired token, refresh failed (dialer path)
 	"cannot fetch token",                // refresh failed (API client transport path: "auth:"/"oauth2:" prefixes)

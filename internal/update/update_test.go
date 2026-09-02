@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/skill"
 )
 
 // fakeClient is an in-memory Client: release metadata plus a URL to body
@@ -70,7 +70,7 @@ const (
 func newEnv(t *testing.T) (*env, string) {
 	t.Helper()
 	dir := t.TempDir()
-	target := filepath.Join(dir, "google-cli")
+	target := filepath.Join(dir, "everything-cli")
 	require.NoError(t, os.WriteFile(target, []byte("old"), 0o755))
 	link := filepath.Join(dir, "install-link")
 	require.NoError(t, os.Symlink(target, link))
@@ -120,7 +120,7 @@ func (e *env) seedSkill(t *testing.T, version string) {
 	require.NoError(t, afero.WriteFile(e.fs, filepath.Join(skillsDir, "SKILL.md"), []byte(body), 0o644))
 }
 
-// testRelease builds a v1.1.0 release: a tarball with a google-cli member
+// testRelease builds a v1.1.0 release: a tarball with an everything-cli member
 // (payload "NEW-PAYLOAD") plus a reference file, and a matching
 // checksums.txt. wrongInner swaps the binary member for a misnamed one;
 // badSum records a wrong digest in the manifest.
@@ -134,7 +134,7 @@ func testRelease(t *testing.T, wrongInner, badSum bool) (*Release, map[string][]
 	}
 	if wrongInner {
 		delete(files, binaryName)
-		files["not-google-cli"] = []byte("NEW-PAYLOAD")
+		files["not-everything-cli"] = []byte("NEW-PAYLOAD")
 	}
 	tb := buildTarball(t, files)
 	sum := sha256.Sum256(tb)
@@ -353,7 +353,7 @@ func TestRunTarballWrongInnerName(t *testing.T) {
 
 	_, err := Run(context.Background(), e.client, "v1.0.0", e.opts())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no google-cli member")
+	assert.Contains(t, err.Error(), "no everything-cli member")
 	assert.Empty(t, e.replaced)
 	assert.Empty(t, e.executed)
 }

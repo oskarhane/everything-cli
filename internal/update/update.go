@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/afero"
 
-	"github.com/oskarhane/google-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/skill"
 )
 
 // ErrUpToDate is returned by Run when the installed version already matches
@@ -38,7 +38,7 @@ const (
 	// manifest for the tarball.
 	checksumsAsset = "checksums.txt"
 	// binaryName is the tarball member holding the binary.
-	binaryName = "google-cli"
+	binaryName = "everything-cli"
 	// DefaultRepoSlug is the repo checked when Options.RepoSlug is empty.
 	DefaultRepoSlug = defaultRepo
 )
@@ -236,13 +236,13 @@ func performUpdate(ctx context.Context, client Client, rel *Release, current str
 	res.Updated = true
 
 	if opts.SkipSkillInstall {
-		res.SkillHint = "run 'google-cli skill install' to refresh the installed skill bundle"
+		res.SkillHint = "run 'everything-cli skill install' to refresh the installed skill bundle"
 		return res, nil
 	}
 	return reinstallSkill(ctx, opts, res)
 }
 
-// extractBinary pulls the google-cli member out of the release tar.gz into a
+// extractBinary pulls the everything-cli member out of the release tar.gz into a
 // temp file with mode 0755. The caller removes the temp file.
 func extractBinary(tarGz []byte) (string, error) {
 	gz, err := gzip.NewReader(bytes.NewReader(tarGz))
@@ -260,8 +260,8 @@ func extractBinary(tarGz []byte) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("reading release tarball: %w", err)
 		}
-		// Exact member match only: filepath.Clean also collapses "./google-cli",
-		// and any traversal-style name cannot equal "google-cli".
+		// Exact member match only: filepath.Clean also collapses "./everything-cli",
+		// and any traversal-style name cannot equal "everything-cli".
 		if hdr.Typeflag != tar.TypeReg || filepath.Clean(hdr.Name) != binaryName {
 			continue
 		}
@@ -273,7 +273,7 @@ func extractBinary(tarGz []byte) (string, error) {
 // stageBinary writes a tar entry to a fresh temp file with executable
 // permissions. The temp file is removed on any failure.
 func stageBinary(tr *tar.Reader) (string, error) {
-	tmp, err := os.CreateTemp("", "google-cli-update-*")
+	tmp, err := os.CreateTemp("", "everything-cli-update-*")
 	if err != nil {
 		return "", fmt.Errorf("staging new binary: %w", err)
 	}
@@ -323,7 +323,7 @@ func reinstallSkill(ctx context.Context, opts Options, res Result) (Result, erro
 	return res, nil
 }
 
-// installedSkill reports the installed google-cli bundle directories and the
+// installedSkill reports the installed everything-cli bundle directories and the
 // version stamped in the first installed SKILL.md. Read-only mirror of
 // skill.Install's target resolution against the post-install state.
 func installedSkill(fs afero.Fs, agentFilter string) ([]string, string, error) {

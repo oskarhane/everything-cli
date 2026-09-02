@@ -1,4 +1,4 @@
-// Package update implements the google-cli update command: check GitHub
+// Package update implements the everything-cli update command: check GitHub
 // releases for a newer version, replace the running binary, and (user
 // permitting) reinstall the refreshed agent-skill bundle.
 package update
@@ -14,10 +14,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	"github.com/oskarhane/google-cli/internal/skill"
-	updateapi "github.com/oskarhane/google-cli/internal/update"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/skill"
+	updateapi "github.com/oskarhane/everything-cli/internal/update"
 )
 
 // newClient is the seam for the GitHub releases client, so command tests can
@@ -73,21 +73,21 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	)
 	cmd := &cobra.Command{
 		Use:   "update",
-		Short: "Check for and install the latest google-cli release",
-		Long: "Check GitHub releases for a newer google-cli version and, if one " +
+		Short: "Check for and install the latest everything-cli release",
+		Long: "Check GitHub releases for a newer everything-cli version and, if one " +
 			"exists, download it, verify it against the release checksum manifest, " +
 			"and replace the running binary atomically. After a successful " +
 			"replacement the refreshed skill bundle is installed: automatically " +
 			"with --yes, on confirmation at an interactive terminal, or not at all " +
 			"(a hint is printed instead). --check reports versions only.",
 		Example: `# Report the current and latest versions without changing anything
-google-cli update --check
+everything-cli update --check
 
 # Update and auto-install the refreshed skill bundle without prompting
-google-cli update --yes
+everything-cli update --yes
 
 # Update and install the refreshed skill bundle only into Claude Code
-google-cli update --yes --agent claude-code`,
+everything-cli update --yes --agent claude-code`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client := newClient()

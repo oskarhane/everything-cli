@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/output"
-	updateapi "github.com/oskarhane/google-cli/internal/update"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/output"
+	updateapi "github.com/oskarhane/everything-cli/internal/update"
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
@@ -92,7 +92,7 @@ func relFixture() *updateapi.Release {
 
 // skipHint is the skill_hint the real Run fills when the reinstall is
 // skipped.
-const skipHint = "run 'google-cli skill install' to refresh the installed skill bundle"
+const skipHint = "run 'everything-cli skill install' to refresh the installed skill bundle"
 
 // stubClient installs a fake releases client for the duration of the test.
 func stubClient(t *testing.T, c updateapi.Client) {
@@ -117,13 +117,13 @@ func stubRun(t *testing.T) *[]updateapi.Options {
 			LatestVersion:   "v1.2.3",
 			UpdateAvailable: true,
 			Updated:         true,
-			BinaryPath:      "/usr/local/bin/google-cli",
+			BinaryPath:      "/usr/local/bin/everything-cli",
 		}
 		if opts.SkipSkillInstall {
 			res.SkillHint = skipHint
 			return res, nil
 		}
-		res.SkillInstalled = []string{"/home/u/.claude/skills/google-cli"}
+		res.SkillInstalled = []string{"/home/u/.claude/skills/everything-cli"}
 		res.SkillVersion = "v1.2.3"
 		return res, nil
 	}

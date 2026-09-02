@@ -1,13 +1,16 @@
-// Package app builds the google-cli command tree.
+// Package app builds the everything-cli command tree.
 package app
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
-	"github.com/oskarhane/google-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/redact"
 )
 
 // Version is stamped at build time via ldflags (-X); "dev" is the fallback.
@@ -25,7 +28,9 @@ type Config struct {
 	// Debug enables debug output.
 	Debug bool
 
-	// Credentials is the path to an OAuth app credentials JSON file. Empty means auto-resolve.
+	// Credentials is the path to a Google OAuth app credentials JSON file.
+	// Empty means auto-resolve. It is bound to the google provider command's
+	// persistent --credentials flag, not the root's.
 	Credentials string
 
 	// Fs abstracts filesystem access for subcommands.
@@ -39,14 +44,21 @@ func NewConfig() *Config {
 	}
 }
 
-// NewRootCommand builds the google-cli root command with persistent flags bound to cfg.
+// Store opens the CLI's account store on the configured filesystem. Every
+// command needing the store gets it from here, so the store-root
+// resolution lives in exactly one place.
+func (c *Config) Store() (*config.Store, error) {
+	return config.NewStore(c.Fs, "")
+}
+
+// NewRootCommand builds the everything-cli root command with persistent flags bound to cfg.
 // Subcommands are attached by callers and receive cfg.
 func NewRootCommand(cfg *Config) *cobra.Command {
 	root := &cobra.Command{
-		Use:   "google-cli",
-		Short: "Interact with Google services from the command line",
+		Use:   "everything-cli",
+		Short: "One CLI for many SaaS providers (Google, Linear, Granola)",
 		// Version enables the built-in --version flag; cobra prints it as
-		// "google-cli version <Version>" via its default template.
+		// "everything-cli version <Version>" via its default template.
 		Version: Version,
 		// Run prints help so the root's flags and usage stay visible
 		// until subcommands are attached.
@@ -56,10 +68,9 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	}
 
 	f := root.PersistentFlags()
-	f.StringVar(&cfg.Account, "account", "", "Google account to act as (empty = default account)")
+	f.StringVar(&cfg.Account, "account", "", "Account to act as (empty = default account)")
 	f.StringVar(&cfg.Format, "format", "", "Output format: json, table, or toon (empty = auto-detect)")
 	f.BoolVar(&cfg.Debug, "debug", false, "Enable debug output")
-	f.StringVar(&cfg.Credentials, "credentials", "", "Path to OAuth app credentials JSON (empty = auto-resolve)")
 
 	// Fail closed on `--account ""`: an explicitly set but empty account would
 	// silently fall back to the default account, so e.g. `--account "$ACCT"`
@@ -77,4 +88,12 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	}
 
 	return root
+}
+
+// PrintError writes err to w in cobra's default "Error: <msg>" shape with
+// registered secrets scrubbed. main wires this in place of cobra's error
+// printing (root.SilenceErrors = true) so an error message carrying a
+// secret can never reach stderr.
+func PrintError(w io.Writer, err error) {
+	_, _ = fmt.Fprintf(w, "Error: %s\n", redact.Redact(err.Error()))
 }

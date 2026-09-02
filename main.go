@@ -3,35 +3,27 @@ package main
 import (
 	"os"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/subcommands/account"
-	"github.com/oskarhane/google-cli/internal/subcommands/calendar"
-	"github.com/oskarhane/google-cli/internal/subcommands/docs"
-	"github.com/oskarhane/google-cli/internal/subcommands/drive"
-	"github.com/oskarhane/google-cli/internal/subcommands/gmail"
-	"github.com/oskarhane/google-cli/internal/subcommands/sheets"
-	"github.com/oskarhane/google-cli/internal/subcommands/skill"
-	"github.com/oskarhane/google-cli/internal/subcommands/slides"
-	"github.com/oskarhane/google-cli/internal/subcommands/update"
-	"github.com/oskarhane/google-cli/internal/subcommands/youtube"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/cmdtree"
+
+	// Providers self-register via init(); adding a provider is one import.
+	// cmdtree.New then discovers them through provider.List().
+	_ "github.com/oskarhane/everything-cli/internal/providers/google"
+	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
+	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
 )
 
 func main() {
 	cfg := app.NewConfig()
-	root := app.NewRootCommand(cfg)
-	root.AddCommand(
-		account.NewCmd(cfg),
-		gmail.NewCmd(cfg),
-		calendar.NewCmd(cfg),
-		drive.NewCmd(cfg),
-		docs.NewCmd(cfg),
-		sheets.NewCmd(cfg),
-		slides.NewCmd(cfg),
-		skill.NewCmd(cfg),
-		update.NewCmd(cfg),
-		youtube.NewCmd(cfg),
-	)
+	root := cmdtree.New(cfg)
+	// Back-compat shim: rewrite bare pre-provider invocations (`gmail list`,
+	// `account add work`) to their provider-first form before cobra parses.
+	root.SetArgs(app.RewriteLegacyArgs(root.Use, os.Args[1:], os.Stderr))
+	// Errors print through PrintError (redacted) instead of cobra's default
+	// stderr print, so a secret inside an error message cannot leak.
+	root.SilenceErrors = true
 	if err := root.Execute(); err != nil {
+		app.PrintError(os.Stderr, err)
 		os.Exit(1)
 	}
 }

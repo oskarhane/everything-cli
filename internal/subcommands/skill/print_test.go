@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	skillapi "github.com/oskarhane/google-cli/internal/skill"
+	skillapi "github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +62,7 @@ func TestPrintSeparatorOrder(t *testing.T) {
 
 	var sepIdx []int
 	for _, name := range []string{
-		"references/account.md", "references/calendar.md", "references/gmail.md",
+		"references/google.md", "references/granola.md", "references/linear.md",
 	} {
 		sep := "===== " + name + " =====\n"
 		idx := strings.Index(stdout, sep)

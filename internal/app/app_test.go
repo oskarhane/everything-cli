@@ -2,17 +2,20 @@ package app
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/everything-cli/internal/redact"
 )
 
 func TestNewRootCommand(t *testing.T) {
 	root := NewRootCommand(NewConfig())
 
-	assert.Equal(t, "google-cli", root.Use)
+	assert.Equal(t, "everything-cli", root.Use)
 	assert.NotEmpty(t, root.Short, "root command should have a short description")
 }
 
@@ -20,9 +23,11 @@ func TestRootCommandPersistentFlags(t *testing.T) {
 	root := NewRootCommand(NewConfig())
 	flags := root.PersistentFlags()
 
-	for _, name := range []string{"account", "format", "debug", "credentials"} {
+	for _, name := range []string{"account", "format", "debug"} {
 		assert.NotNil(t, flags.Lookup(name), "expected persistent flag --%s", name)
 	}
+	assert.Nil(t, flags.Lookup("credentials"),
+		"--credentials is Google-specific: it lives on the google provider command, not the root")
 }
 
 func TestPersistentFlagsBindToConfig(t *testing.T) {
@@ -33,14 +38,12 @@ func TestPersistentFlagsBindToConfig(t *testing.T) {
 		"--account", "user@example.com",
 		"--format", "json",
 		"--debug",
-		"--credentials", "credentials.json",
 	})
 	require.NoError(t, err)
 
 	assert.Equal(t, "user@example.com", cfg.Account)
 	assert.Equal(t, "json", cfg.Format)
 	assert.True(t, cfg.Debug)
-	assert.Equal(t, "credentials.json", cfg.Credentials)
 }
 
 func TestRootWiresDebugFlagToOutput(t *testing.T) {
@@ -64,7 +67,7 @@ func TestRootCommandVersionFlag(t *testing.T) {
 	root.SetArgs([]string{"--version"})
 	require.NoError(t, root.Execute(), "--version must exit without error")
 
-	assert.Equal(t, "google-cli version v9.9.9-test\n", out.String())
+	assert.Equal(t, "everything-cli version v9.9.9-test\n", out.String())
 }
 
 func TestNewConfigDefaults(t *testing.T) {
@@ -75,4 +78,16 @@ func TestNewConfigDefaults(t *testing.T) {
 	assert.False(t, cfg.Debug)
 	assert.Empty(t, cfg.Credentials)
 	assert.NotNil(t, cfg.Fs)
+}
+
+// TestPrintErrorRedactsSecrets: the top-level error print (wired in main in
+// place of cobra's default, which root.SilenceErrors disables) scrubs
+// registered secrets before the message reaches stderr.
+func TestPrintErrorRedactsSecrets(t *testing.T) {
+	redact.RegisterSecret("canary-secret-error-4b8d")
+
+	var buf bytes.Buffer
+	PrintError(&buf, errors.New("token canary-secret-error-4b8d expired"))
+
+	assert.Equal(t, "Error: token *** expired\n", buf.String())
 }

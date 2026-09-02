@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/subcommands/cmdtest"
+	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
 // TestSmokeGmailLabelList runs `gmail label list` against the real account
@@ -17,7 +17,7 @@ func TestSmokeGmailLabelList(t *testing.T) {
 	acct := requireAccount(t)
 	requireCredentials(t)
 
-	out := runCommand(t, "gmail", "label", "list", "--format", "json", "--account", acct)
+	out := runCommand(t, "google", "gmail", "label", "list", "--format", "json", "--account", acct)
 
 	rows := decodeRows(t, out, "gmail label list")
 	require.NotEmpty(t, rows, "expected at least one label")

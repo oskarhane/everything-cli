@@ -149,29 +149,31 @@ func namesEndInFields(names []*ast.Ident) bool {
 	return false
 }
 
-// TestOutputFields_AreSnakeCase scans every non-test Go source under
-// internal/subcommands for PrintTable/Print fields literals and fields
-// variables, asserting snake_case. Each failure message carries file:line,
-// the field name, and its context.
+// TestOutputFields_AreSnakeCase scans every non-test Go source under the
+// command-source dirs (internal/subcommands and internal/providers) for
+// PrintTable/Print fields literals and fields variables, asserting
+// snake_case. Each failure message carries file:line, the field name, and
+// its context.
 func TestOutputFields_AreSnakeCase(t *testing.T) {
 	var violations []string
-	root := subcommandsDir(t)
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+	for _, root := range commandSourceDirs(t) {
+		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+				return nil
+			}
+			vs, err := outputCasingViolations(path)
+			if err != nil {
+				return err
+			}
+			violations = append(violations, vs...)
 			return nil
-		}
-		vs, err := outputCasingViolations(path)
+		})
 		if err != nil {
-			return err
+			t.Fatalf("scan %s: %v", root, err)
 		}
-		violations = append(violations, vs...)
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("scan %s: %v", root, err)
 	}
 	for _, v := range violations {
 		t.Error(v)

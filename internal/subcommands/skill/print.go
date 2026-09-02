@@ -1,8 +1,8 @@
 package skill
 
 import (
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/skill"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/skill"
 	"github.com/spf13/cobra"
 )
 
@@ -16,18 +16,18 @@ import (
 func newPrintCmd(cfg *app.Config) *cobra.Command {
 	return &cobra.Command{
 		Use:   "print",
-		Short: "Print the embedded google-cli skill bundle as raw markdown",
-		Long: "Print the entire embedded google-cli agent-skill bundle to stdout: " +
+		Short: "Print the embedded everything-cli skill bundle as raw markdown",
+		Long: "Print the entire embedded everything-cli agent-skill bundle to stdout: " +
 			"SKILL.md first, then every references/*.md in sorted order, each " +
 			"preceded by a '===== references/<name>.md =====' separator line.\n\n" +
 			"The output is raw markdown written directly to stdout. It deliberately " +
 			"bypasses the --format auto-detection entirely (markdown must never be " +
 			"marshalled through toon/table/json), so --format has no effect here.",
 		Example: `# Show exactly what skill install writes on disk
-google-cli skill print
+everything-cli skill print
 
 # Capture the bundle to a file
-google-cli skill print > google-cli-skill.md`,
+everything-cli skill print > everything-cli-skill.md`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return skill.Render(cmd.OutOrStdout())

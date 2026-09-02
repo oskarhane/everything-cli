@@ -10,7 +10,7 @@ import (
 // RemoveResult describes the outcome of one removal target.
 type RemoveResult struct {
 	Agent   string // agent id whose skills dir was acted on
-	Path    string // the <skills>/google-cli directory that was inspected
+	Path    string // the <skills>/everything-cli directory that was inspected
 	Removed bool   // true when the bundle dir existed and was removed
 }
 

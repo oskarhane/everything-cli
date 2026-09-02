@@ -1,0 +1,47 @@
+{
+  "id": "not_aaa111bbb222",
+  "object": "note",
+  "title": "Weekly sync",
+  "owner": {
+    "name": "Ada Lovelace",
+    "email": "ada@example.com"
+  },
+  "created_at": "2026-08-20T14:00:00Z",
+  "updated_at": "2026-08-20T14:35:00Z",
+  "web_url": "https://notes.granola.ai/t/not_aaa111bbb222",
+  "calendar_event": {
+    "event_title": "Weekly sync",
+    "invitees": [
+      {
+        "email": "grace@example.com"
+      }
+    ],
+    "organiser": "ada@example.com",
+    "calendar_event_id": "evt_123",
+    "scheduled_start_time": "2026-08-20T14:00:00Z",
+    "scheduled_end_time": "2026-08-20T14:30:00Z"
+  },
+  "attendees": [
+    {
+      "name": "Ada Lovelace",
+      "email": "ada@example.com"
+    },
+    {
+      "name": null,
+      "email": "grace@example.com"
+    }
+  ],
+  "folder_membership": [
+    {
+      "id": "fol_aaa111bbb222",
+      "object": "folder",
+      "name": "Team meetings",
+      "parent_folder_id": null
+    }
+  ],
+  "summary_text": "Discussed sprint progress and blockers.",
+  "summary_markdown": "## Summary\n\nDiscussed sprint progress and blockers.",
+  "private_notes_text": null,
+  "private_notes_markdown": null,
+  "transcript": null
+}

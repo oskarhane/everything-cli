@@ -11,15 +11,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/google-cli/internal/app"
-	"github.com/oskarhane/google-cli/internal/auth"
-	"github.com/oskarhane/google-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // newAccountFlagRoot mounts a dummy leaf under the root. The leaf's RunE
-// resolves the account the way API-backed leaves do (auth.ResolveAccount on an
-// empty in-memory store) so the tests can tell the flag gate from the later
-// account-resolution failure. Its ran output reports whether RunE executed.
+// resolves the account the way API-backed leaves do (auth.ResolveAccountFor
+// on an empty in-memory store) so the tests can tell the flag gate from the
+// later account-resolution failure. Its ran output reports whether RunE
+// executed.
 func newAccountFlagRoot(t *testing.T) (*cobra.Command, *app.Config, *bool) {
 	t.Helper()
 
@@ -34,7 +35,7 @@ func newAccountFlagRoot(t *testing.T) (*cobra.Command, *app.Config, *bool) {
 			if err != nil {
 				return err
 			}
-			_, err = auth.ResolveAccount(cfg, store)
+			_, err = auth.ResolveAccountFor(cfg, store, config.ProviderGoogle)
 			return err
 		},
 	}
@@ -62,16 +63,23 @@ func TestAccountFlagUnsetKeepsDefaultResolution(t *testing.T) {
 	// RunE runs; the failure is the later resolution error on the empty
 	// store, NOT the empty-flag error.
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "no Google accounts configured")
+	assert.ErrorContains(t, err, "no google accounts configured")
 	assert.True(t, *ran, "no --account must not trip the flag gate")
 	assert.Empty(t, cfg.Account)
 }
 
 func TestAccountFlagNamedAccountRuns(t *testing.T) {
 	root, cfg, ran := newAccountFlagRoot(t)
+
+	// ResolveAccountFor verifies the account record exists, so seed the
+	// named account on the same store the dummy leaf resolves against.
+	store, err := config.NewStore(cfg.Fs, "")
+	require.NoError(t, err)
+	require.NoError(t, store.Save(&config.Account{Name: "work"}))
+
 	root.SetArgs([]string{"--account", "work", "dummy"})
 
-	err := root.Execute()
+	err = root.Execute()
 
 	require.NoError(t, err, "a named --account resolves without a default set")
 	assert.Equal(t, "work", cfg.Account)

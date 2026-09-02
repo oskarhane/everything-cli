@@ -1,10 +1,11 @@
 #!/bin/sh
-# google-cli installer: curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+# everything-cli installer: curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+# (pages URL still uses the google-cli repo slug until the GitHub repo is renamed)
 set -eu
 
 REPO=oskarhane/google-cli
-ASSET_PREFIX=google-cli
-BIN_NAME=google-cli
+ASSET_PREFIX=everything-cli
+BIN_NAME=everything-cli
 INSTALL_DIR="$HOME/.local/bin"
 
 die() {
@@ -52,7 +53,7 @@ tag=$(fetch "https://api.github.com/repos/$REPO/releases/latest" |
 	head -n 1)
 [ -n "$tag" ] || die "could not resolve latest release for $REPO"
 
-echo "Installing google-cli $tag ($os/$arch) to $INSTALL_DIR"
+echo "Installing everything-cli $tag ($os/$arch) to $INSTALL_DIR"
 
 download_url="$base_url/$tag"
 fetch "$download_url/$asset" >"$tmp/$asset" ||
@@ -93,5 +94,5 @@ case ":$PATH:" in
 	;;
 esac
 
-echo "Installed google-cli $tag at $INSTALL_DIR/$BIN_NAME"
-echo "run: google-cli skill install"
+echo "Installed everything-cli $tag at $INSTALL_DIR/$BIN_NAME"
+echo "run: everything-cli skill install"
