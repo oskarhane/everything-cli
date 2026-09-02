@@ -7,9 +7,6 @@ Command layout:
 everything-cli email <resource> <action>
 ```
 
-Currently shipped: the `account` subtree. Mailbox/message commands are
-added by later work.
-
 ## Auth (username + password)
 
 Email accounts authenticate to their IMAP and SMTP servers with a
@@ -63,11 +60,80 @@ everything-cli email account use work
 everything-cli email account remove old --force
 ```
 
+## mailbox
+
+List the account's IMAP mailboxes (folders).
+
+### mailbox list
+
+- `email mailbox list` — every mailbox on the acting account, in the
+  server's sorted order. No flags of its own. Output field: `name` (one
+  row per mailbox).
+
+```sh
+everything-cli email mailbox list
+everything-cli email mailbox list --format json
+```
+
+## message
+
+List, read, and send messages inside a mailbox. IMAP UIDs are
+per-mailbox, so the read commands take `--mailbox <name>` (default
+`INBOX`) to scope the lookup.
+
+### message list
+
+- `email message list` — message envelopes (headers only, never bodies)
+  from one mailbox, newest first. Flags: `--mailbox <name>` (default
+  `INBOX`), `--limit <n>` (default `25`; `<= 0` means all). Output
+  fields: `uid`, `date` (RFC3339, UTC), `from`, `subject`, `flags`
+  (array in JSON/TOON; comma-joined in the table cell).
+
+```sh
+everything-cli email message list
+everything-cli email message list --mailbox Archive --limit 10 --format json
+```
+
+### message get
+
+- `email message get <uid>` — one fully fetched message by IMAP UID.
+  Flag: `--mailbox <name>` (default `INBOX`). JSON/TOON output: `uid`,
+  `from`, `to`, `subject`, `date`, `body_text` (decoded plain-text
+  body), `attachments` (array of `{filename, content_type, size}` —
+  metadata only; attachment bytes are never fetched). Table output is a
+  header row (`uid`, `from`, `to`, `subject`, `date`) with the body
+  printed as plain text below it, control bytes stripped.
+
+```sh
+everything-cli email message get 7 --format json
+everything-cli email message get 42 --mailbox Archive
+```
+
+### message send
+
+- `email message send` — submit one plain-text message via the account's
+  SMTP server. Flags: `--to <addr>` (repeatable, at least one required),
+  `--cc <addr>` (repeatable), `--subject <s>` (required), and exactly
+  one of `--body <text>` / `--body-file <path>` (`-` reads stdin).
+  Addresses accept plain `a@b` or `Name <a@b>` forms. Prints `{sent:
+  true, to: [...]}` — the subject, body, and credentials are never
+  echoed.
+
+```sh
+everything-cli email message send --to alice@example.com --subject "Lunch" --body "Noon works"
+everything-cli email message send --to a@example.com --to b@example.com --cc carol@example.com --subject "Report" --body-file report.txt
+printf 'hi' | everything-cli email message send --to alice@example.com --subject "Hi" --body-file -
+```
+
 ## Tips & gotchas (email)
 
 - TLS only: IMAP uses implicit TLS on port 993; SMTP uses STARTTLS
   submission on port 587 (or implicit TLS on 465). There is no plaintext
   fallback.
+- IMAP UIDs are per-mailbox: a `uid` from `message list --mailbox
+  Archive` must be fetched with `message get <uid> --mailbox Archive`.
+- `message list` caps at `--limit 25` by default — pass `--limit 0` for
+  the whole mailbox.
 - The account password is a secret: it is registered for redaction
   before anything could print it and never appears in output, including
   `--debug`.

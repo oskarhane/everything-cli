@@ -1,6 +1,6 @@
 # everything-cli
 
-One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, and Granola — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
+One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, Granola, and regular IMAP/SMTP email — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
 
 The command layout is provider-first:
 
@@ -26,7 +26,7 @@ everything-cli granola note list --created-after 2026-08-01
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts | Google OAuth (your own OAuth Desktop-app client; per-account token cache). YouTube needs no account at all. |
 | `linear` | Linear issues, teams, projects | Personal API key **or** OAuth (browser flow with PKCE) |
 | `granola` | Granola notes (read-only) | Official `grn_` API key — requires a Granola **Business or Enterprise** plan |
-| `email` | IMAP/SMTP email (accounts only for now; mailbox/message commands come later) | Username + password per account |
+| `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send | Username + password per account |
 
 Every provider has its own account subtree (`everything-cli <provider> account add|list|get|use|remove`); see [Accounts](#accounts).
 
@@ -82,6 +82,10 @@ everything-cli email account add work \
     --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com  # hidden password prompt
 EMAIL_PASSWORD=... everything-cli email account add work \
     --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com  # non-interactive
+
+everything-cli email mailbox list
+everything-cli email message list --limit 10
+everything-cli email message send --to alice@example.com --subject "Hi" --body "hello"
 ```
 
 ### Verify your accounts
@@ -277,6 +281,18 @@ Read-only: list and get notes (with AI summaries) via the official Granola publi
 ```sh
 everything-cli granola note list [--created-after 2026-08-01] [--created-before 2026-09-01] [--folder-id fol_...]
 everything-cli granola note get not_abc123def456 [--include-transcript]
+```
+
+### Email
+
+Regular email over IMAP (read) and SMTP (send). IMAP UIDs are per-mailbox, so `--mailbox` scopes both `message list` and `message get`.
+
+```sh
+everything-cli email mailbox list                                        # mailbox (folder) names
+everything-cli email message list [--mailbox INBOX] [--limit 25]         # envelopes: uid, date, from, subject, flags
+everything-cli email message get 42 [--mailbox Archive]                  # full message + attachment metadata
+everything-cli email message send --to a@x.com --to b@x.com [--cc c@x.com] \
+    --subject "Report" (--body "text" | --body-file report.txt | --body-file -)   # - reads stdin
 ```
 
 ## Agent skills
