@@ -90,7 +90,7 @@ func printMessageGet(cmd *cobra.Command, cfg *app.Config, msg *Message) {
 		// The body bypasses output.Print, so strip control bytes here
 		// (same rule as gmail's --raw path): a hostile message must not
 		// inject ANSI/OSC escapes into the terminal. "\t\n\r" survive.
-		fmt.Fprintln(cmd.OutOrStdout(), output.StripControl(msg.BodyText))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), output.StripControl(msg.BodyText))
 		return
 	}
 	view := messageGetView{
