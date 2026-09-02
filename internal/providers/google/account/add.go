@@ -41,7 +41,7 @@ everything-cli google account add work
 everything-cli google account add work --credentials ~/google/credentials.json --scopes https://www.googleapis.com/auth/gmail.send`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}
@@ -84,24 +84,12 @@ everything-cli google account add work --credentials ~/google/credentials.json -
 	return cmd
 }
 
-// defaultScopes returns the scopes granted when --scopes is not given: full
-// Gmail, Calendar, Drive, Docs, Sheets and Slides access, plus
-// userinfo.email.
-func defaultScopes() []string {
-	scopes := append([]string{}, auth.ScopesGmail...)
-	scopes = append(scopes, auth.ScopesCalendar...)
-	scopes = append(scopes, auth.ScopesDrive...)
-	scopes = append(scopes, auth.ScopesDocs...)
-	scopes = append(scopes, auth.ScopesSheets...)
-	scopes = append(scopes, auth.ScopesSlides...)
-	return append(scopes, auth.ScopeUserEmail)
-}
-
 // parseScopes splits a comma-separated --scopes value, trimming blanks. An
-// empty value yields the default scope set.
+// empty value yields nil, and the strategy falls back to the profile's
+// default scope set (auth.GoogleOAuth.DefaultScopes).
 func parseScopes(flagValue string) []string {
 	if flagValue == "" {
-		return defaultScopes()
+		return nil
 	}
 	scopes := make([]string, 0, 4)
 	for _, s := range strings.Split(flagValue, ",") {

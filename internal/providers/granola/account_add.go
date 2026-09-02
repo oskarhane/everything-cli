@@ -7,7 +7,6 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
-	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
 )
 
@@ -37,7 +36,7 @@ GRANOLA_API_KEY=grn_... everything-cli granola account add work
 everything-cli granola account add work --api-key grn_...`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}

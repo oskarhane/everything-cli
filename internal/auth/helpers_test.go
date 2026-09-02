@@ -53,7 +53,7 @@ func writeCredentialsFile(t *testing.T) (afero.Fs, string) {
 // installedAppCredentials, for tests that bypass the file.
 var testClientCredentials = ClientCredentials{ID: "test-client-id", Secret: "test-client-secret"}
 
-// syncBuffer is a goroutine-safe bytes.Buffer: RunFlow writes the
+// syncBuffer is a goroutine-safe bytes.Buffer: the flow writes the
 // authorization URL from its own goroutine while the test reads it.
 type syncBuffer struct {
 	mu  sync.Mutex
@@ -72,7 +72,7 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
-// stubFlowSeams replaces all RunFlow seams for the test's lifetime with
+// stubFlowSeams replaces all flow seams for the test's lifetime with
 // hermetic defaults: no browser, fixed state, and stubbed exchange/userinfo.
 type flowHooks struct {
 	output     *syncBuffer
@@ -118,12 +118,12 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	return h
 }
 
-// waitAuthURL waits for RunFlow to print the authorization URL and returns it.
+// waitAuthURL waits for the flow to print the authorization URL and returns it.
 func waitAuthURL(t *testing.T, out *syncBuffer) string {
 	t.Helper()
 	require.Eventually(t, func() bool {
 		return authURLPattern.FindString(out.String()) != ""
-	}, 5*time.Second, 10*time.Millisecond, "RunFlow should print an authorization URL")
+	}, 5*time.Second, 10*time.Millisecond, "the flow should print an authorization URL")
 	return authURLPattern.FindString(out.String())
 }
 

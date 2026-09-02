@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
 )
 
@@ -37,7 +36,7 @@ everything-cli ` + spec.ProviderID + ` account list
 everything-cli ` + spec.ProviderID + ` account list --format json`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}

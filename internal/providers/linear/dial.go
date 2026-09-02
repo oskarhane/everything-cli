@@ -5,7 +5,6 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
-	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
@@ -15,7 +14,7 @@ import (
 // provider's API-key strategy, and binds a service.Service to it. Leaves
 // call it from RunE, so tests substitute a fake-returning func.
 func dial(ctx context.Context, cfg *app.Config) (*service.Service, error) {
-	store, err := config.NewStore(cfg.Fs, "")
+	store, err := cfg.Store()
 	if err != nil {
 		return nil, err
 	}

@@ -7,7 +7,6 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
-	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
 )
 
@@ -46,7 +45,7 @@ everything-cli linear account add work --api-key lin_api_...
 everything-cli linear account add work --oauth --client-id 7231...`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}

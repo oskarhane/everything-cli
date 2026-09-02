@@ -30,17 +30,15 @@ var _ auth.Strategy = (*strategy)(nil)
 // strategy backed by the store for token refresh. Both register their
 // secrets for redaction at capture/read, so they never reach output.
 func newStrategy(store *config.Store) *strategy {
-	s, err := apikey.New(apikey.Config{
-		Provider:     ID,
-		HeaderName:   "Authorization",
-		HeaderFormat: "%s",
-		EnvVar:       envVarAPIKey,
-	})
-	if err != nil {
-		// The config is static; a failure here is a programmer error.
-		panic(err)
+	return &strategy{
+		apiKey: apikey.Must(apikey.Config{
+			Provider:     ID,
+			HeaderName:   "Authorization",
+			HeaderFormat: "%s",
+			EnvVar:       envVarAPIKey,
+		}),
+		oauth: newOAuthStrategy(store),
 	}
-	return &strategy{apiKey: s, oauth: newOAuthStrategy(store)}
 }
 
 // Add onboards through the OAuth strategy when opts.UseOAuth is set

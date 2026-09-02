@@ -75,6 +75,17 @@ func New(cfg Config) (*Strategy, error) {
 	return &Strategy{cfg: cfg, getenv: os.Getenv, prompt: promptHidden}, nil
 }
 
+// Must is New for compile-time-constant configs: a misconfiguration is a
+// programmer error that must fail loudly at startup, like a duplicate
+// registry ID, so it panics instead of returning the error.
+func Must(cfg Config) *Strategy {
+	s, err := New(cfg)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
 // authPayload is the provider-shaped JSON stored in Account.Auth. The key
 // field is snake_case per the casing rule.
 type authPayload struct {

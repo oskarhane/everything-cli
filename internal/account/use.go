@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // NewUseCmd builds account use for the provider described by spec: set the
@@ -23,7 +22,7 @@ everything-cli ` + spec.ProviderID + ` account use work
 everything-cli ` + spec.ProviderID + ` account use personal`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}
