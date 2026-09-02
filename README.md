@@ -32,12 +32,12 @@ Every provider has its own account subtree (`everything-cli <provider> account a
 ## Install
 
 ```sh
-curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
+curl -fsSL https://oskarhane.github.io/everything-cli/install.sh | sh
 ```
 
-Installs the latest release binary (with sha256 verification) to `~/.local/bin/everything-cli` — make sure that directory is on your `PATH`. Note: the install URL and GitHub releases still live under the `oskarhane/google-cli` repo slug until the repo is renamed; the binary and release assets are already named `everything-cli`.
+Installs the latest release binary (with sha256 verification) to `~/.local/bin` — make sure that directory is on your `PATH`. Note: the repo was renamed from `google-cli`, but until the first `everything-cli` release is cut the installer still delivers the last `google-cli`-named release (v0.3.0, binary `google-cli`) — build from source with `make build` (→ `bin/everything-cli`) to run the new CLI today.
 
-After installing, run `everything-cli skill install` to install the agent skill bundle, and `everything-cli update` later to check for new releases.
+After installing, run `everything-cli skill install` to install the agent skill bundle, and `everything-cli update` later to check for new releases (on the v0.3.0 binary, substitute `google-cli`).
 
 ## Quick start per provider
 

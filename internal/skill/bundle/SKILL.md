@@ -122,7 +122,7 @@ config dir.
 ## Self-update
 
 Fresh install (macOS/Linux, latest release binary to `~/.local/bin`):
-`curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh`.
+`curl -fsSL https://oskarhane.github.io/everything-cli/install.sh | sh`.
 
 `everything-cli update` self-updates the binary from GitHub releases,
 then refreshes the installed skill bundle — run it after any upgrade so
