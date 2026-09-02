@@ -345,9 +345,9 @@ func TestRunFlowExchangeTimesOut(t *testing.T) {
 // code_verifier auth option) against a local token endpoint, proving the
 // verifier presented on the wire hashes to the auth-URL code_challenge.
 func TestRunFlowPKCEOnTheWire(t *testing.T) {
-	savedCreds, savedOutput, savedBrowser, savedEmail, savedState := credentialsConfig, flowOutput, openBrowser, fetchEmail, newState
+	savedConf, savedOutput, savedBrowser, savedEmail, savedState := oauthConfigFor, flowOutput, openBrowser, fetchEmail, newState
 	t.Cleanup(func() {
-		credentialsConfig, flowOutput, openBrowser, fetchEmail, newState = savedCreds, savedOutput, savedBrowser, savedEmail, savedState
+		oauthConfigFor, flowOutput, openBrowser, fetchEmail, newState = savedConf, savedOutput, savedBrowser, savedEmail, savedState
 	})
 
 	var mu sync.Mutex
@@ -365,13 +365,13 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 	}))
 	t.Cleanup(tokSrv.Close)
 
-	credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, error) {
-		c, err := parseGoogleCredentials(data, scopes...)
-		if err != nil {
-			return nil, err
+	oauthConfigFor = func(_ OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
+		return &oauth2.Config{
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
+			Endpoint:     oauth2.Endpoint{AuthURL: tokSrv.URL + "/auth", TokenURL: tokSrv.URL + "/token"},
+			Scopes:       scopes,
 		}
-		c.Endpoint = oauth2.Endpoint{AuthURL: tokSrv.URL + "/auth", TokenURL: tokSrv.URL + "/token"}
-		return c, nil
 	}
 	out := &syncBuffer{}
 	flowOutput = out
@@ -410,7 +410,6 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 // instead of the userinfo GET.
 func TestRunFlowWithIdentityResolver(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 
 	profile := OAuthProfile{
 		Name:        "other-cli",
@@ -430,7 +429,7 @@ func TestRunFlowWithIdentityResolver(t *testing.T) {
 
 	res := make(chan flowResult, 1)
 	go func() {
-		tok, email, err := RunFlowWith(fs, credentialsPath, nil, profile)
+		tok, email, err := RunFlowWith(testClientCredentials, nil, profile)
 		res <- flowResult{token: tok, email: email, err: err}
 	}()
 
@@ -450,7 +449,6 @@ func TestRunFlowWithIdentityResolver(t *testing.T) {
 // authorization URL.
 func TestRunFlowWithScopeSeparator(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 
 	profile := OAuthProfile{
 		Name:           "other-cli",
@@ -462,7 +460,7 @@ func TestRunFlowWithScopeSeparator(t *testing.T) {
 
 	res := make(chan flowResult, 1)
 	go func() {
-		tok, email, err := RunFlowWith(fs, credentialsPath, []string{"scope-a"}, profile)
+		tok, email, err := RunFlowWith(testClientCredentials, []string{"scope-a"}, profile)
 		res <- flowResult{token: tok, email: email, err: err}
 	}()
 

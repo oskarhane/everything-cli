@@ -114,29 +114,20 @@ func newOAuthTestStrategy(t *testing.T, f *fakeLinear) (*OAuthStrategy, afero.Fs
 	fs := afero.NewMemMapFs()
 	store, err := config.NewStore(fs, "/config")
 	require.NoError(t, err)
-	s := newOAuthStrategy(fs, store)
+	s := newOAuthStrategy(store)
 	s.profile = f.profileOver(s.profile)
 	s.graphqlURL = f.graphqlURL
 	s.getenv = func(string) string { return "" }
-	s.runFlow = func(flowFs afero.Fs, credentialsPath string, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error) {
+	s.runFlow = func(creds auth.ClientCredentials, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error) {
 		// A hermetic stand-in for the browser flow: the browser leg is
 		// covered by internal/auth flow tests. The exchange runs for real
-		// against the profile's pinned endpoint — if endpoints came from
-		// anywhere else (a credentials file), this would miss the fake.
-		data, err := afero.ReadFile(flowFs, credentialsPath)
-		require.NoError(t, err)
-		var creds struct {
-			Installed struct {
-				ClientID     string `json:"client_id"`
-				ClientSecret string `json:"client_secret"`
-			} `json:"installed"`
-		}
-		require.NoError(t, json.Unmarshal(data, &creds))
-		require.Equal(t, "test-client-id", creds.Installed.ClientID,
+		// against the profile's pinned endpoint — the client credentials
+		// arrive directly, never through a file.
+		require.Equal(t, "test-client-id", creds.ID,
 			"the flow must receive the captured client ID")
 		conf := &oauth2.Config{
-			ClientID:     creds.Installed.ClientID,
-			ClientSecret: creds.Installed.ClientSecret,
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
 			Endpoint:     profile.Endpoint,
 			Scopes:       scopes,
 			RedirectURL:  "http://localhost:1",
@@ -163,16 +154,9 @@ func TestLinearOAuthProfilePinsEndpoints(t *testing.T) {
 	assert.Equal(t, ",", linearOAuthProfile.ScopeSeparator,
 		"Linear's authorize endpoint documents a comma-separated scope list")
 
-	// The generated client-credentials document carries ONLY the client
-	// credentials — no auth_uri/token_uri a tampered file could exploit.
-	fs := afero.NewMemMapFs()
-	path, cleanup, err := writeClientCredentials(fs, "id-1", "secret-1")
-	require.NoError(t, err)
-	defer cleanup()
-	data, err := afero.ReadFile(fs, path)
-	require.NoError(t, err)
-	assert.NotContains(t, string(data), "auth_uri")
-	assert.NotContains(t, string(data), "token_uri")
+	// The OAuth path passes client credentials directly to the flow/token
+	// machinery — no credentials document exists that could carry a
+	// tampered auth_uri/token_uri.
 }
 
 // TestOAuthAddRunsFlowAndPersistsLinearAccount: the OAuth path exchanges
@@ -243,11 +227,9 @@ func TestOAuthAddClientIDFromEnv(t *testing.T) {
 		}
 		return ""
 	}
-	// The env client ID must reach the flow's credentials document.
-	s.runFlow = func(flowFs afero.Fs, credentialsPath string, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error) {
-		data, err := afero.ReadFile(flowFs, credentialsPath)
-		require.NoError(t, err)
-		assert.Contains(t, string(data), "env-client-id")
+	// The env client ID must reach the flow's client credentials.
+	s.runFlow = func(creds auth.ClientCredentials, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error) {
+		assert.Equal(t, "env-client-id", creds.ID)
 		tok := &oauth2.Token{AccessToken: "fake-access", Expiry: time.Now().Add(time.Hour)}
 		email, err := profile.IdentityResolver(context.Background(), tok)
 		require.NoError(t, err)

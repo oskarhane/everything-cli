@@ -97,25 +97,23 @@ type oauthAuthPayload struct {
 type OAuthStrategy struct {
 	profile    auth.OAuthProfile
 	graphqlURL string
-	fs         afero.Fs
 	store      *config.Store
 	getenv     func(string) string
 	// runFlow is the flow seam; production is auth.RunFlowWith, tests a
 	// hermetic flow against fake endpoints.
-	runFlow func(fs afero.Fs, credentialsPath string, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error)
+	runFlow func(creds auth.ClientCredentials, scopes []string, profile auth.OAuthProfile) (*oauth2.Token, string, error)
 }
 
 // Compile-time proof that OAuthStrategy satisfies the auth seam.
 var _ auth.Strategy = (*OAuthStrategy)(nil)
 
-// newOAuthStrategy builds the production OAuth strategy. fs and store back
+// newOAuthStrategy builds the production OAuth strategy. store backs
 // Client's token refresh and persistence; Add uses the fs/store it is
 // handed per call.
-func newOAuthStrategy(fs afero.Fs, store *config.Store) *OAuthStrategy {
+func newOAuthStrategy(store *config.Store) *OAuthStrategy {
 	return &OAuthStrategy{
 		profile:    linearOAuthProfile,
 		graphqlURL: linearGraphQLURL,
-		fs:         fs,
 		store:      store,
 		getenv:     os.Getenv,
 		runFlow:    auth.RunFlowWith,
@@ -127,7 +125,7 @@ func newOAuthStrategy(fs afero.Fs, store *config.Store) *OAuthStrategy {
 // browser flow with PKCE against the pinned endpoints, resolves the
 // account identity through the viewer query, and persists the account
 // under the linear provider with its token and client credentials.
-func (s *OAuthStrategy) Add(_ context.Context, fs afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
+func (s *OAuthStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
 	clientID := strings.TrimSpace(opts.ClientID)
 	if clientID == "" {
 		clientID = strings.TrimSpace(s.getenv(envVarClientID))
@@ -163,13 +161,7 @@ func (s *OAuthStrategy) Add(_ context.Context, fs afero.Fs, store *config.Store,
 		return v.Email, nil
 	}
 
-	credentialsPath, cleanup, err := writeClientCredentials(fs, clientID, clientSecret)
-	if err != nil {
-		return nil, err
-	}
-	defer cleanup()
-
-	tok, email, err := s.runFlow(fs, credentialsPath, scopes, profile)
+	tok, email, err := s.runFlow(auth.ClientCredentials{ID: clientID, Secret: clientSecret}, scopes, profile)
 	if err != nil {
 		return nil, err
 	}
@@ -222,55 +214,12 @@ func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http
 	if payload.ClientSecret != "" {
 		auth.RegisterSecret(payload.ClientSecret)
 	}
-	credentialsPath, cleanup, err := writeClientCredentials(s.fs, payload.ClientID, payload.ClientSecret)
-	if err != nil {
-		return nil, err
-	}
-	defer cleanup()
-	ts, err := auth.TokenSourceForProvider(s.fs, s.store, credentialsPath, ID, acct.Name, s.profile)
+	creds := auth.ClientCredentials{ID: payload.ClientID, Secret: payload.ClientSecret}
+	ts, err := auth.TokenSourceForProvider(s.store, creds, ID, acct.Name, s.profile)
 	if err != nil {
 		return nil, err
 	}
 	return oauth2.NewClient(ctx, ts), nil
-}
-
-// writeClientCredentials renders the installed-app credentials document
-// the generalized flow/token machinery parses, carrying ONLY the client
-// credentials — the endpoints come from the pinned profile, never from any
-// file. The file lands in the fs temp dir (0600 via the store's parent
-// dirs are not involved, so tighten explicitly) and the returned cleanup
-// removes it.
-func writeClientCredentials(fs afero.Fs, clientID, clientSecret string) (path string, cleanup func(), err error) {
-	data, err := json.Marshal(map[string]any{
-		"installed": map[string]any{
-			"client_id":     clientID,
-			"client_secret": clientSecret,
-			"redirect_uris": []string{"http://localhost"},
-		},
-	})
-	if err != nil {
-		return "", nil, fmt.Errorf("encoding client credentials: %w", err)
-	}
-	f, err := afero.TempFile(fs, "", "linear-oauth-*.json")
-	if err != nil {
-		return "", nil, fmt.Errorf("creating client credentials file: %w", err)
-	}
-	path = f.Name()
-	cleanup = func() { _ = fs.Remove(path) }
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		cleanup()
-		return "", nil, fmt.Errorf("writing client credentials: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		cleanup()
-		return "", nil, fmt.Errorf("writing client credentials: %w", err)
-	}
-	if err := fs.Chmod(path, 0o600); err != nil {
-		cleanup()
-		return "", nil, fmt.Errorf("securing client credentials: %w", err)
-	}
-	return path, cleanup, nil
 }
 
 // queryViewer resolves the token owner's identity through Linear's GraphQL

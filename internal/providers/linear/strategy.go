@@ -27,9 +27,9 @@ var _ auth.Strategy = (*strategy)(nil)
 // newStrategy builds Linear's composite strategy: the API-key strategy
 // (raw key in the Authorization header, no Bearer prefix, captured from
 // --api-key, then LINEAR_API_KEY, then a hidden prompt) plus the OAuth
-// strategy backed by fs/store for token refresh. Both register their
+// strategy backed by the store for token refresh. Both register their
 // secrets for redaction at capture/read, so they never reach output.
-func newStrategy(fs afero.Fs, store *config.Store) *strategy {
+func newStrategy(store *config.Store) *strategy {
 	s, err := apikey.New(apikey.Config{
 		Provider:     ID,
 		HeaderName:   "Authorization",
@@ -40,7 +40,7 @@ func newStrategy(fs afero.Fs, store *config.Store) *strategy {
 		// The config is static; a failure here is a programmer error.
 		panic(err)
 	}
-	return &strategy{apiKey: s, oauth: newOAuthStrategy(fs, store)}
+	return &strategy{apiKey: s, oauth: newOAuthStrategy(store)}
 }
 
 // Add onboards through the OAuth strategy when opts.UseOAuth is set

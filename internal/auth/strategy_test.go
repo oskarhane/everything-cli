@@ -28,9 +28,11 @@ func TestGoogleOAuthProfile(t *testing.T) {
 	}
 }
 
-// TestParseCredentialsPinsProfileEndpoint: a profile's endpoint wins over
-// auth_uri/token_uri claimed by the credentials file, for any provider.
-func TestParseCredentialsPinsProfileEndpoint(t *testing.T) {
+// TestParseClientCredentialsIgnoresEndpoints: the parsed shape carries only
+// client_id/client_secret — auth_uri/token_uri claimed by a credentials
+// file never even enter it, so a profile's pinned endpoints always win, for
+// any provider.
+func TestParseClientCredentialsIgnoresEndpoints(t *testing.T) {
 	data := []byte(`{
 	  "installed": {
 	    "client_id": "test-client-id",
@@ -40,12 +42,11 @@ func TestParseCredentialsPinsProfileEndpoint(t *testing.T) {
 	    "redirect_uris": ["http://localhost"]
 	  }
 	}`)
-	endpoint := oauth2.Endpoint{AuthURL: "https://provider.example/auth", TokenURL: "https://provider.example/token"}
 
-	conf, err := parseCredentials(data, endpoint, "scope-a")
+	creds, err := ParseClientCredentials(data)
 	require.NoError(t, err)
-	assert.Equal(t, endpoint, conf.Endpoint)
-	assert.Equal(t, "test-client-id", conf.ClientID)
+	assert.Equal(t, ClientCredentials{ID: "test-client-id", Secret: "test-client-secret"}, creds,
+		"the shape carries no endpoints a planted file could exploit")
 }
 
 // TestOAuthStrategyClientReturnsHTTPClient: Client must hand back an
@@ -59,8 +60,7 @@ func TestOAuthStrategyClientReturnsHTTPClient(t *testing.T) {
 		TokenType:   "Bearer",
 		Expiry:      time.Now().Add(time.Hour),
 	})
-	fs, credentialsPath := writeCredentialsFile(t)
-	s := NewOAuthStrategy(GoogleOAuth, fs, store, credentialsPath)
+	s := NewOAuthStrategy(GoogleOAuth, store, testClientCredentials)
 
 	acct, err := store.Get("work")
 	require.NoError(t, err)
@@ -71,7 +71,7 @@ func TestOAuthStrategyClientReturnsHTTPClient(t *testing.T) {
 }
 
 func TestOAuthStrategyClientNilAccount(t *testing.T) {
-	s := NewOAuthStrategy(GoogleOAuth, afero.NewMemMapFs(), nil, "")
+	s := NewOAuthStrategy(GoogleOAuth, nil, ClientCredentials{})
 
 	_, err := s.Client(context.Background(), nil)
 	require.Error(t, err)
@@ -88,8 +88,7 @@ func TestOAuthStrategyClientRefreshesExpiredToken(t *testing.T) {
 		TokenType:    "Bearer",
 		Expiry:       time.Now().Add(-time.Hour),
 	})
-	fs, credentialsPath := writeCredentialsFile(t)
-	s := NewOAuthStrategy(GoogleOAuth, fs, store, credentialsPath)
+	s := NewOAuthStrategy(GoogleOAuth, store, testClientCredentials)
 
 	acct, err := store.Get("work")
 	require.NoError(t, err)
@@ -116,9 +115,9 @@ func TestOAuthStrategyClientRefreshesExpiredToken(t *testing.T) {
 // account, exactly like `account add` does today for Google.
 func TestOAuthStrategyAdd(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
+	fs := afero.NewMemMapFs()
 	store := newTestStore(t)
-	s := NewOAuthStrategy(GoogleOAuth, fs, store, credentialsPath)
+	s := NewOAuthStrategy(GoogleOAuth, store, testClientCredentials)
 
 	res := make(chan struct {
 		acct *config.Account
@@ -126,9 +125,9 @@ func TestOAuthStrategyAdd(t *testing.T) {
 	}, 1)
 	go func() {
 		acct, err := s.Add(context.Background(), fs, store, AddOptions{
-			Name:            "work",
-			CredentialsPath: credentialsPath,
-			Scopes:          []string{"scope-a"},
+			Name:        "work",
+			Credentials: testClientCredentials,
+			Scopes:      []string{"scope-a"},
 		})
 		res <- struct {
 			acct *config.Account
@@ -158,15 +157,14 @@ func TestOAuthStrategyAdd(t *testing.T) {
 // the profile's default scope set.
 func TestOAuthStrategyAddDefaultScopes(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
+	fs := afero.NewMemMapFs()
 	store := newTestStore(t)
-	s := NewOAuthStrategy(GoogleOAuth, fs, store, credentialsPath)
+	s := NewOAuthStrategy(GoogleOAuth, store, testClientCredentials)
 
 	res := make(chan error, 1)
 	go func() {
 		_, err := s.Add(context.Background(), fs, store, AddOptions{
-			Name:            "work",
-			CredentialsPath: credentialsPath,
+			Name: "work",
 		})
 		res <- err
 	}()
@@ -184,21 +182,10 @@ func TestOAuthStrategyAddDefaultScopes(t *testing.T) {
 }
 
 // TestRunFlowWithCustomProfile: the generalized flow takes its endpoints,
-// identity URL and email scope from the supplied profile — a planted
-// credentials file cannot redirect them.
+// identity URL and email scope from the supplied profile — the client
+// credentials it is handed carry no endpoints at all.
 func TestRunFlowWithCustomProfile(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs := afero.NewMemMapFs()
-	credentialsPath := "/planted/credentials.json"
-	require.NoError(t, afero.WriteFile(fs, credentialsPath, []byte(`{
-	  "installed": {
-	    "client_id": "test-client-id",
-	    "client_secret": "test-client-secret",
-	    "auth_uri": "https://evil.example/auth",
-	    "token_uri": "https://evil.example/token",
-	    "redirect_uris": ["http://localhost"]
-	  }
-	}`), 0o600))
 
 	profile := OAuthProfile{
 		Name:        "other-cli",
@@ -225,7 +212,7 @@ func TestRunFlowWithCustomProfile(t *testing.T) {
 
 	res := make(chan flowResult, 1)
 	go func() {
-		tok, email, err := RunFlowWith(fs, credentialsPath, []string{"scope-a"}, profile)
+		tok, email, err := RunFlowWith(testClientCredentials, []string{"scope-a"}, profile)
 		res <- flowResult{token: tok, email: email, err: err}
 	}()
 

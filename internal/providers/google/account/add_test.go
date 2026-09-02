@@ -4,31 +4,32 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+
+	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
-// TestAddRunsFlowAndSavesAccount: add resolves the credentials file, runs
-// the OAuth flow with the default scope set, saves the account, and prints
-// its name and email.
+// TestAddRunsFlowAndSavesAccount: add resolves and parses the credentials
+// file, runs the OAuth flow with the default scope set, saves the account,
+// and prints its name and email.
 func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
 
-	var gotCredentials string
+	var gotCreds auth.ClientCredentials
 	var gotScopes []string
-	stubAddStrategy(t, func(_ afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
-		gotCredentials, gotScopes = credentialsPath, scopes
+	stubAddStrategy(t, func(creds auth.ClientCredentials, scopes []string) (*oauth2.Token, string, error) {
+		gotCreds, gotScopes = creds, scopes
 		return testToken("work"), "user@example.com", nil
 	})
 
 	outStr, err := execute(t, root, out, "account", "add", "work")
 	require.NoError(t, err)
 
-	assert.Equal(t, "/config/credentials.json", gotCredentials,
-		"the auto-resolved credentials file must reach the flow")
+	assert.Equal(t, "test-client-id", gotCreds.ID,
+		"the client credentials from the auto-resolved file must reach the flow")
 	assert.Equal(t, defaultScopes(), gotScopes, "no --scopes flag means the default scope set")
 	assert.Contains(t, outStr, "work")
 	assert.Contains(t, outStr, "user@example.com")
@@ -63,7 +64,7 @@ func TestAddScopesFlag(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
 
-	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(auth.ClientCredentials, []string) (*oauth2.Token, string, error) {
 		return testToken("work"), "user@example.com", nil
 	})
 
@@ -85,18 +86,19 @@ func TestAddScopesFlag(t *testing.T) {
 func TestAddCredentialsFlag(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
-	writeCredentials(t, cfg, "/elsewhere/credentials.json")
+	writeCredentialsWithID(t, cfg, "/elsewhere/credentials.json", "flag-client-id")
 
-	var gotCredentials string
-	stubAddStrategy(t, func(_ afero.Fs, credentialsPath string, _ []string) (*oauth2.Token, string, error) {
-		gotCredentials = credentialsPath
+	var gotCreds auth.ClientCredentials
+	stubAddStrategy(t, func(creds auth.ClientCredentials, _ []string) (*oauth2.Token, string, error) {
+		gotCreds = creds
 		return testToken("work"), "user@example.com", nil
 	})
 
 	_, err := execute(t, root, out, "account", "add", "work",
 		"--credentials", "/elsewhere/credentials.json")
 	require.NoError(t, err)
-	assert.Equal(t, "/elsewhere/credentials.json", gotCredentials)
+	assert.Equal(t, "flag-client-id", gotCreds.ID,
+		"the flag's credentials file must be the one parsed")
 }
 
 // TestAddWithoutCredentialsErrors: no credentials file anywhere yields the
@@ -104,7 +106,7 @@ func TestAddCredentialsFlag(t *testing.T) {
 func TestAddWithoutCredentialsErrors(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 
-	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(auth.ClientCredentials, []string) (*oauth2.Token, string, error) {
 		t.Fatal("the flow must not run without credentials")
 		return nil, "", nil
 	})
@@ -124,7 +126,7 @@ func TestAddFlowErrorPropagates(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	writeCredentials(t, cfg, "/config/credentials.json")
 
-	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(auth.ClientCredentials, []string) (*oauth2.Token, string, error) {
 		return nil, "", errors.New("flow blew up")
 	})
 
@@ -145,7 +147,7 @@ func TestAddDedupesByEmail(t *testing.T) {
 	writeCredentials(t, cfg, "/config/credentials.json")
 	seedAccount(t, cfg, "work", "user@example.com")
 
-	stubAddStrategy(t, func(_ afero.Fs, _ string, _ []string) (*oauth2.Token, string, error) {
+	stubAddStrategy(t, func(auth.ClientCredentials, []string) (*oauth2.Token, string, error) {
 		return testToken("alt"), "user@example.com", nil
 	})
 

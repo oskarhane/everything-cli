@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 
@@ -88,10 +89,10 @@ func testToken(name string) *oauth2.Token {
 // stubAddStrategy replaces the newAddStrategy seam for the test's lifetime
 // with a fake strategy whose Add runs fn, so no test ever starts a real
 // browser authorization.
-func stubAddStrategy(t *testing.T, fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)) {
+func stubAddStrategy(t *testing.T, fn func(creds auth.ClientCredentials, scopes []string) (*oauth2.Token, string, error)) {
 	t.Helper()
 	saved := newAddStrategy
-	newAddStrategy = func(afero.Fs, *config.Store, string) auth.Strategy {
+	newAddStrategy = func(*config.Store, auth.ClientCredentials) auth.Strategy {
 		return fakeStrategy{fn: fn}
 	}
 	t.Cleanup(func() { newAddStrategy = saved })
@@ -101,11 +102,11 @@ func stubAddStrategy(t *testing.T, fn func(fs afero.Fs, credentialsPath string, 
 // persists through the real provider-scoped store, mirroring the production
 // OAuth strategy without a browser.
 type fakeStrategy struct {
-	fn func(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error)
+	fn func(creds auth.ClientCredentials, scopes []string) (*oauth2.Token, string, error)
 }
 
-func (f fakeStrategy) Add(_ context.Context, fs afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
-	tok, email, err := f.fn(fs, opts.CredentialsPath, opts.Scopes)
+func (f fakeStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
+	tok, email, err := f.fn(opts.Credentials, opts.Scopes)
 	if err != nil {
 		return nil, err
 	}
@@ -120,9 +121,19 @@ func (f fakeStrategy) Client(context.Context, *config.Account) (*http.Client, er
 	return nil, errors.New("fakeStrategy has no client")
 }
 
-// writeCredentials writes a credentials file on the in-memory FS.
+// writeCredentials writes a valid installed-app credentials file on the
+// in-memory FS.
 func writeCredentials(t *testing.T, cfg *app.Config, path string) {
 	t.Helper()
+	writeCredentialsWithID(t, cfg, path, "test-client-id")
+}
+
+// writeCredentialsWithID is writeCredentials with a distinctive client ID,
+// so tests can tell which resolved file was parsed.
+func writeCredentialsWithID(t *testing.T, cfg *app.Config, path, clientID string) {
+	t.Helper()
+	doc := `{"installed":{"client_id":` + strconv.Quote(clientID) +
+		`,"client_secret":"test-client-secret","redirect_uris":["http://localhost"]}}`
 	require.NoError(t, cfg.Fs.MkdirAll(filepath.Dir(path), 0o700))
-	require.NoError(t, afero.WriteFile(cfg.Fs, path, []byte("{}"), 0o600))
+	require.NoError(t, afero.WriteFile(cfg.Fs, path, []byte(doc), 0o600))
 }

@@ -16,7 +16,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// stubTokenEndpoint swaps the credentials-config seam for one whose token
+// stubTokenEndpoint swaps the oauth-config seam for one whose token
 // endpoint is a local httptest server, and records every token request.
 func stubTokenEndpoint(t *testing.T) *tokenEndpointRecorder {
 	t.Helper()
@@ -35,18 +35,18 @@ func stubTokenEndpoint(t *testing.T) *tokenEndpointRecorder {
 	}))
 	t.Cleanup(srv.Close)
 
-	saved := credentialsConfig
-	t.Cleanup(func() { credentialsConfig = saved })
-	credentialsConfig = func(data []byte, scopes ...string) (*oauth2.Config, error) {
+	saved := oauthConfigFor
+	t.Cleanup(func() { oauthConfigFor = saved })
+	oauthConfigFor = func(_ OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
 		return &oauth2.Config{
-			ClientID:     "test-client-id",
-			ClientSecret: "test-client-secret",
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
 			Endpoint: oauth2.Endpoint{
 				AuthURL:  srv.URL + "/auth",
 				TokenURL: srv.URL + "/token",
 			},
 			Scopes: scopes,
-		}, nil
+		}
 	}
 	return rec
 }
@@ -158,10 +158,7 @@ func TestTokenSourceForProvider(t *testing.T) {
 			Expiry:       time.Now().Add(-time.Hour), // expired: forces refresh
 		},
 	}))
-	credentialsPath := "/config/credentials.json"
-	require.NoError(t, afero.WriteFile(fs, credentialsPath, []byte(installedAppCredentials), 0o600))
-
-	ts, err := TokenSourceForProvider(fs, store, credentialsPath, "other", "work", profile)
+	ts, err := TokenSourceForProvider(store, testClientCredentials, "other", "work", profile)
 	require.NoError(t, err)
 	tok, err := ts.Token()
 	require.NoError(t, err)
@@ -177,8 +174,10 @@ func TestTokenSourceForProvider(t *testing.T) {
 func TestTokenSourceUnknownAccount(t *testing.T) {
 	stubTokenEndpoint(t)
 	store := newTestStore(t)
+	fs := afero.NewMemMapFs()
+	require.NoError(t, afero.WriteFile(fs, "/creds.json", []byte(installedAppCredentials), 0o600))
 
-	_, err := TokenSource(afero.NewMemMapFs(), store, "/creds.json", "ghost")
+	_, err := TokenSource(fs, store, "/creds.json", "ghost")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "ghost")
 }
@@ -202,6 +201,7 @@ func TestTokenSourceIdentityMismatch(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
 		`{"name":"personal","email":"user@example.com","scopes":["scope-a"]}`), 0o600))
+	require.NoError(t, afero.WriteFile(fs, "/config/credentials.json", []byte(installedAppCredentials), 0o600))
 
 	_, err = TokenSource(fs, store, "/config/credentials.json", "work")
 
@@ -224,14 +224,15 @@ func TestTokenSourceRefreshTimesOut(t *testing.T) {
 	savedTimeout := refreshTimeout
 	refreshTimeout = 100 * time.Millisecond
 	t.Cleanup(func() { refreshTimeout = savedTimeout })
-	savedCreds := credentialsConfig
-	t.Cleanup(func() { credentialsConfig = savedCreds })
-	credentialsConfig = func([]byte, ...string) (*oauth2.Config, error) {
+	savedConf := oauthConfigFor
+	t.Cleanup(func() { oauthConfigFor = savedConf })
+	oauthConfigFor = func(_ OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
 		return &oauth2.Config{
-			ClientID:     "test-client-id",
-			ClientSecret: "test-client-secret",
+			ClientID:     creds.ID,
+			ClientSecret: creds.Secret,
 			Endpoint:     oauth2.Endpoint{TokenURL: srv.URL + "/token"},
-		}, nil
+			Scopes:       scopes,
+		}
 	}
 
 	store := newTestStore(t)
