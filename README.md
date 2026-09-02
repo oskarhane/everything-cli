@@ -141,7 +141,7 @@ The flow stores the token at `~/.config/everything-cli/accounts/google/<name>.js
 - **Multi-account per provider.** Each named account holds its own secret (OAuth token or API key) at `<config>/accounts/<provider>/<name>.json` (mode 0600, atomic writes). Secrets are never printed — `<provider> account get` shows metadata only.
 - **Defaults are per provider and auto-managed.** The first account added for a provider becomes its default; removing a default promotes another of that provider's accounts (announced as `default account is now <name>`). `<provider> account use <name>` is the explicit switch.
 - The global `--account <name>` flag overrides the default, resolved within the executing provider's accounts only.
-- `everything-cli account list` is a read-only aggregate of every account across all providers (name, provider, identity, is-default) — start here to discover what's configured anywhere.
+- `everything-cli account list` is a read-only aggregate of every account across all providers (name, provider, identity, default) — start here to discover what's configured anywhere.
 
 ## Usage
 

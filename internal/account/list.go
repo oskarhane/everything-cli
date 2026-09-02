@@ -59,7 +59,7 @@ everything-cli ` + spec.ProviderID + ` account list --format json`,
 					tableRows = append(tableRows, map[string]any{
 						"name":    a.Name,
 						"email":   a.Email,
-						"default": defaultMarker(isDefault),
+						"default": DefaultMarker(isDefault),
 					})
 				}
 				output.Print(cmd.OutOrStdout(), format,
@@ -74,7 +74,7 @@ everything-cli ` + spec.ProviderID + ` account list --format json`,
 				rows = append(rows, listRow{Name: a.Name, Default: isDefault})
 				tableRows = append(tableRows, map[string]any{
 					"name":    a.Name,
-					"default": defaultMarker(isDefault),
+					"default": DefaultMarker(isDefault),
 				})
 			}
 			output.Print(cmd.OutOrStdout(), format,
@@ -84,9 +84,10 @@ everything-cli ` + spec.ProviderID + ` account list --format json`,
 	}
 }
 
-// defaultMarker renders the table's default column: a marker on the
-// default account's row, empty elsewhere.
-func defaultMarker(isDefault bool) string {
+// DefaultMarker renders the table's default column: a marker on the
+// default account's row, empty elsewhere. Shared by the per-provider and
+// cross-provider account lists so both mark defaults identically.
+func DefaultMarker(isDefault bool) string {
 	if isDefault {
 		return "(default)"
 	}
