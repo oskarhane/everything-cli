@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -147,6 +149,77 @@ func TestCopyLegacyDir(t *testing.T) {
 			}
 		})
 	}
+}
+
+// crashFs simulates a crash mid-migration: the second migrated file's
+// rename fails, leaving the first file complete at its target, the second
+// present only as a temp file, and the marker in place.
+type crashFs struct {
+	afero.Fs
+	renames int
+}
+
+func (f *crashFs) Rename(oldname, newname string) error {
+	if strings.HasSuffix(oldname, ".tmp") {
+		f.renames++
+		if f.renames > 1 {
+			return errors.New("injected crash")
+		}
+	}
+	return f.Fs.Rename(oldname, newname)
+}
+
+// TestCopyLegacyDirResumesAfterCrash: a crash mid-copy must leave a state
+// the next run completes — marker present, copied files intact, the crashed
+// file never partially at its target, and no temp residue after resume.
+func TestCopyLegacyDirResumesAfterCrash(t *testing.T) {
+	home := t.TempDir() // only used as a path prefix — never touched for real
+	t.Setenv("HOME", home)
+	fsys := afero.NewMemMapFs()
+	seedLegacyDir(t, fsys, home)
+	newRoot := newRootFor(home)
+
+	// First run crashes after the first file's rename lands.
+	_, err := NewStore(&crashFs{Fs: fsys}, "")
+	require.Error(t, err, "the injected crash must surface")
+	assert.Contains(t, err.Error(), "injected crash")
+
+	// Resumable state: marker present, the completed file is at its
+	// target, the crashed file is absent there (never partial)...
+	_, err = fsys.Stat(filepath.Join(newRoot, migrationMarker))
+	require.NoError(t, err, "crashed migration must leave its marker behind")
+	data, err := afero.ReadFile(fsys, filepath.Join(newRoot, "accounts", "google", "work.json"))
+	require.NoError(t, err, "a completed copy survives the crash")
+	assert.JSONEq(t, `{"name":"work"}`, string(data))
+	_, err = fsys.Stat(filepath.Join(newRoot, "config.json"))
+	assert.ErrorIs(t, err, fs.ErrNotExist,
+		"temp+rename means a crashed copy never leaves partial content at the target")
+
+	// The next run resumes and completes the migration.
+	store, err := NewStore(fsys, "")
+	require.NoError(t, err)
+	assert.Equal(t, newRoot, store.Dir())
+	data, err = afero.ReadFile(fsys, filepath.Join(newRoot, "config.json"))
+	require.NoError(t, err, "resume must copy the file the crash skipped")
+	assert.JSONEq(t, `{"default_accounts":{"google":"work"}}`, string(data))
+
+	// No residue: marker cleared, crashed temp file redone and renamed away.
+	_, err = fsys.Stat(filepath.Join(newRoot, migrationMarker))
+	assert.ErrorIs(t, err, fs.ErrNotExist, "completed migration clears its marker")
+	_, err = fsys.Stat(filepath.Join(newRoot, "config.json.tmp"))
+	assert.ErrorIs(t, err, fs.ErrNotExist, "resume redoes the temp copy and renames it away")
+
+	// The legacy tree is still intact — copy, never move.
+	data, err = afero.ReadFile(fsys, filepath.Join(home, ".config", "google-cli", "config.json"))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"default_accounts":{"google":"work"}}`, string(data))
+
+	// A third run is a no-op: the new dir now exists without a marker, so
+	// it is treated as the user's own and left alone.
+	_, err = NewStore(fsys, "")
+	require.NoError(t, err)
+	_, err = fsys.Stat(filepath.Join(newRoot, migrationMarker))
+	assert.ErrorIs(t, err, fs.ErrNotExist)
 }
 
 // TestCopyLegacyDirHardensPermissions verifies migrated entries get private

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -29,8 +30,13 @@ const dirPermPrivate fs.FileMode = 0o700
 // accounts/<name>.json files load as google accounts and are rewritten to
 // the nested layout on the next Save.
 type Store struct {
-	fs   afero.Fs
-	root string
+	fs afero.Fs
+	// envRoot is true when root came from $EVERYTHING_CLI_CONFIG_DIR (or
+	// its legacy spelling): the user deliberately points at that dir, so a
+	// pre-existing env root's permissions are their choice and must not be
+	// chmodded — only dirs the store creates are tightened.
+	envRoot bool
+	root    string
 }
 
 // NewStore returns a Store on fs rooted at dir. An empty dir resolves via
@@ -42,16 +48,16 @@ type Store struct {
 // is copied over first, so existing accounts survive the rename with no
 // user action. The legacy dir is left intact.
 func NewStore(fs afero.Fs, dir string) (*Store, error) {
-	root, isDefault, err := resolveDir(dir)
+	root, source, err := resolveDir(dir)
 	if err != nil {
 		return nil, err
 	}
-	if isDefault {
+	if source == sourceDefault {
 		if err := copyLegacyDir(fs, root); err != nil {
 			return nil, fmt.Errorf("migrating legacy config dir: %w", err)
 		}
 	}
-	return &Store{fs: fs, root: root}, nil
+	return &Store{fs: fs, root: root, envRoot: source == sourceEnv}, nil
 }
 
 // Dir returns the resolved config directory.
@@ -226,8 +232,10 @@ func (s *Store) GetProvider(provider, name string) (*Account, error) {
 // it, so no duplicate account is created.
 //
 // A google save also removes any legacy flat accounts/<name>.json for the
-// saved name(s), completing the migration to the nested layout. When the
-// provider has no default account yet, the saved account becomes it.
+// saved name(s), completing the migration to the nested layout — unless the
+// flat record belongs to a different identity (different non-empty email),
+// in which case it is left intact. When the provider has no default account
+// yet, the saved account becomes it.
 func (s *Store) Save(acct *Account) error {
 	if acct.Provider == "" {
 		acct.Provider = ProviderGoogle
@@ -248,14 +256,17 @@ func (s *Store) Save(acct *Account) error {
 			acct.Name = existing
 		}
 	}
-	if err := s.fs.MkdirAll(s.providerDir(acct.Provider), dirPermPrivate); err != nil {
-		return fmt.Errorf("creating accounts dir: %w", err)
-	}
-	if err := s.hardenDir(s.root); err != nil {
+	// Harden before MkdirAll: hardenDir replaces a symlinked dir with a real
+	// one, and MkdirAll must not follow a planted symlink out of the config
+	// dir.
+	if err := s.hardenRoot(); err != nil {
 		return fmt.Errorf("tightening config dir permissions: %w", err)
 	}
 	if err := s.hardenDir(s.accountsDir()); err != nil {
 		return fmt.Errorf("tightening accounts dir permissions: %w", err)
+	}
+	if err := s.fs.MkdirAll(s.providerDir(acct.Provider), dirPermPrivate); err != nil {
+		return fmt.Errorf("creating accounts dir: %w", err)
 	}
 	if err := s.hardenDir(s.providerDir(acct.Provider)); err != nil {
 		return fmt.Errorf("tightening provider dir permissions: %w", err)
@@ -269,12 +280,13 @@ func (s *Store) Save(acct *Account) error {
 		return fmt.Errorf("writing account %q: %w", acct.Name, err)
 	}
 	if acct.Provider == ProviderGoogle {
-		// Rewrite legacy flat files to the nested layout: Remove unlinks
-		// the flat file (or a symlink at that path — Remove never follows
-		// it) now that the nested file holds the account.
+		// Rewrite legacy flat files to the nested layout: the flat file (or
+		// a symlink at that path — Remove never follows it) is unlinked now
+		// that the nested file holds the account, unless the flat record
+		// belongs to a different identity.
 		for _, name := range []string{origName, acct.Name} {
-			if err := s.fs.Remove(s.legacyAccountPath(name)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("removing legacy account file %q: %w", name, err)
+			if err := s.removeLegacyFile(name, acct.Email); err != nil {
+				return err
 			}
 		}
 	}
@@ -333,15 +345,69 @@ func (s *Store) writePrivate(path string, data []byte) error {
 	return nil
 }
 
+// removeLegacyFile unlinks the legacy flat accounts/<name>.json now that
+// the nested file holds the account. The flat record is loaded first: when
+// it parses and carries a different non-empty email than the saved account,
+// it is an un-migrated account of a DIFFERENT identity that happens to share
+// the name — deleting it would destroy that identity's only copy, so it is
+// left intact. (A legacy account of the same identity surfaces through
+// Save's findByEmail dedup, which reuses the flat record's name, so the
+// emails match on that path.)
+func (s *Store) removeLegacyFile(name, email string) error {
+	path := s.legacyAccountPath(name)
+	data, err := afero.ReadFile(s.fs, path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("reading legacy account file %q: %w", name, err)
+	}
+	var legacy Account
+	if err := json.Unmarshal(data, &legacy); err == nil &&
+		legacy.Email != "" && legacy.Email != email {
+		return nil // different identity — never destroy its un-migrated record
+	}
+	if err := s.fs.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("removing legacy account file %q: %w", name, err)
+	}
+	return nil
+}
+
+// hardenRoot tightens the config root like hardenDir — except for an
+// env-pointed root: the user deliberately shared that dir via
+// $EVERYTHING_CLI_CONFIG_DIR, so chmodding a pre-existing env root to 0700
+// could break whatever else they keep there. Roots the store creates land
+// at 0700 via MkdirAll, so skipping the chmod loses nothing.
+func (s *Store) hardenRoot() error {
+	if s.envRoot {
+		return nil
+	}
+	return s.hardenDir(s.root)
+}
+
 // hardenDir tightens an existing directory to 0700 when it pre-exists wider.
 // Missing directories are left to the caller's MkdirAll.
+//
+// The path is Lstat'd, never followed: a symlink planted at the path would
+// otherwise redirect the chmod (and later writes) to the link target
+// outside the config dir. A symlink is unlinked and recreated as a real
+// private directory — the link itself is removed, never its target.
 func (s *Store) hardenDir(path string) error {
-	info, err := s.fs.Stat(path)
+	info, err := lstat(s.fs, path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		if err := s.fs.Remove(path); err != nil {
+			return fmt.Errorf("unlinking symlinked dir %s: %w", path, err)
+		}
+		if err := s.fs.MkdirAll(path, dirPermPrivate); err != nil {
+			return fmt.Errorf("recreating symlinked dir %s: %w", path, err)
+		}
+		return nil
 	}
 	if info.IsDir() && info.Mode().Perm() != dirPermPrivate {
 		if err := s.fs.Chmod(path, dirPermPrivate); err != nil {
@@ -349,6 +415,16 @@ func (s *Store) hardenDir(path string) error {
 		}
 	}
 	return nil
+}
+
+// lstat stats path without following a trailing symlink when the
+// filesystem supports it, falling back to Stat otherwise.
+func lstat(fsys afero.Fs, path string) (fs.FileInfo, error) {
+	if l, ok := fsys.(afero.Lstater); ok {
+		info, _, err := l.LstatIfPossible(path)
+		return info, err
+	}
+	return fsys.Stat(path)
 }
 
 // Remove deletes the named Google account, clearing it as the default if it

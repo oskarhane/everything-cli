@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -90,6 +91,46 @@ func TestResolveDir(t *testing.T) {
 				assert.Contains(t, warning, "deprecated")
 			} else {
 				assert.Empty(t, stderrBuf.String())
+			}
+		})
+	}
+}
+
+// TestResolveDirRelativeEnvAbsolutized: a relative env config dir would
+// silently make the token store's location depend on the caller's CWD — the
+// same value resolving to different directories from different invocations.
+// Resolution instead anchors it to the CWD and warns on stderr.
+func TestResolveDirRelativeEnvAbsolutized(t *testing.T) {
+	tests := []struct {
+		name      string
+		envVar    string
+		extraWarn string // also expected in the warning output, if any
+	}{
+		{name: "new env var", envVar: EnvConfigDir},
+		{name: "legacy env var", envVar: LegacyEnvConfigDir, extraWarn: "deprecated"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cwd, err := os.Getwd()
+			require.NoError(t, err)
+			// Guarantee a clean slate regardless of the host's env.
+			t.Setenv(EnvConfigDir, "")
+			t.Setenv(LegacyEnvConfigDir, "")
+			t.Setenv(tc.envVar, filepath.Join("relative", "cfg"))
+			stderrBuf := captureStderr(t)
+
+			got, err := ResolveDir("")
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(cwd, "relative", "cfg"), got)
+			assert.True(t, filepath.IsAbs(got), "resolved env dir must be absolute")
+
+			warning := stderrBuf.String()
+			assert.Contains(t, warning, tc.envVar)
+			assert.Contains(t, warning, "relative")
+			assert.Contains(t, warning, got)
+			if tc.extraWarn != "" {
+				assert.Contains(t, warning, tc.extraWarn)
 			}
 		})
 	}
