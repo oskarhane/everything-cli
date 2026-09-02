@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/oskarhane/everything-cli/internal/cmdtree"
 )
 
 // kebabRe is the required shape for input identifiers: command names
@@ -54,7 +56,7 @@ func inputViolations(cmd *cobra.Command) []string {
 func TestInputIdentifiers_AreKebabCase(t *testing.T) {
 	_, commands, _ := mountAndCheck(t)
 	var violations []string
-	walkTree(newWholeTree(), func(cmd *cobra.Command) {
+	cmdtree.WalkTree(newWholeTree(), func(cmd *cobra.Command) {
 		violations = append(violations, inputViolations(cmd)...)
 	})
 	if commands < minTreeCommands {

@@ -1,7 +1,8 @@
 // Package gates holds repo-wide WHOLE-TREE gate tests. They mount the full
-// everything-cli command tree exactly the way main.go does (main itself cannot be
-// imported) and walk it with cobra, so every current and future subtree is
-// covered automatically without executing anything — hermetic by design.
+// everything-cli command tree through cmdtree.New — the same assembly
+// main.go consumes (main itself cannot be imported) — and walk it with
+// cobra, so every current and future subtree is covered automatically
+// without executing anything — hermetic by design.
 package gates
 
 import (
@@ -15,32 +16,29 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	googleprovider "github.com/oskarhane/everything-cli/internal/providers/google"
-	"github.com/oskarhane/everything-cli/internal/subcommands/account"
-	"github.com/oskarhane/everything-cli/internal/subcommands/skill"
-	"github.com/oskarhane/everything-cli/internal/subcommands/update"
+	"github.com/oskarhane/everything-cli/internal/cmdtree"
+	"github.com/oskarhane/everything-cli/internal/provider"
+
+	// Provider side-effect imports mirror main.go exactly — keep this
+	// list in sync with main.go's import block so the mounted tree and
+	// the registry match the shipped binary.
+	_ "github.com/oskarhane/everything-cli/internal/providers/google"
+	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
+	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
 )
 
-// newWholeTree mounts the complete command tree the same way main.go does —
-// provider trees under their provider command, CLI-own commands top-level —
-// with an in-memory FS so nothing touches real credential paths.
+// newWholeTree mounts the complete command tree through the shared
+// registry-driven assembly (cmdtree.New — the one main.go consumes), with
+// an in-memory FS so nothing touches real credential paths.
 func newWholeTree() *cobra.Command {
-	cfg := &app.Config{Fs: afero.NewMemMapFs()}
-	root := app.NewRootCommand(cfg)
-	root.AddCommand(
-		googleprovider.Provider{}.NewCmd(cfg),
-		account.NewCmd(cfg),
-		skill.NewCmd(cfg),
-		update.NewCmd(cfg),
-	)
-	return root
+	return cmdtree.New(&app.Config{Fs: afero.NewMemMapFs()})
 }
 
-// expectedTopLevel is the set of subtrees main.go mounts on the root: the
-// registered providers plus the CLI-own commands. The mount guard asserts
-// the walk finds each of these, so losing an entire top-level subtree fails
-// loudly naming it, not silently.
-var expectedTopLevel = []string{"account", "google", "skill", "update"}
+// expectedTopLevel is the pinned set of subtrees on the root: the
+// registered providers plus the CLI-own commands. It is a literal (not
+// derived from the registry) so a registration added or removed without
+// updating this list fails the mount guard loudly.
+var expectedTopLevel = []string{"account", "google", "granola", "linear", "skill", "update"}
 
 // autoAddedTopLevel are commands cobra may inject into the root (at walk
 // time or on Execute); they are tolerated as top-level children but never
@@ -49,12 +47,13 @@ var autoAddedTopLevel = map[string]bool{"help": true, "completion": true}
 
 // mountAndCheck mounts the whole tree, asserts every expected top-level
 // resource subtree is present (and no unexpected one besides cobra's own),
+// asserts the mounted provider commands equal the registered providers,
 // and returns the root plus the walked command and runnable-leaf counts.
 // Failure messages name the missing or unexpected top-level command.
 func mountAndCheck(t *testing.T) (root *cobra.Command, commands, leaves int) {
 	t.Helper()
 	root = newWholeTree()
-	walkTree(root, func(cmd *cobra.Command) {
+	cmdtree.WalkTree(root, func(cmd *cobra.Command) {
 		commands++
 		if isRunnableLeaf(cmd) {
 			leaves++
@@ -74,15 +73,16 @@ func mountAndCheck(t *testing.T) (root *cobra.Command, commands, leaves int) {
 			t.Errorf("mounted tree has unexpected top-level command: %s", name)
 		}
 	}
-	return root, commands, leaves
-}
-
-// walkTree visits cmd and every descendant, depth-first.
-func walkTree(cmd *cobra.Command, visit func(*cobra.Command)) {
-	visit(cmd)
-	for _, sub := range cmd.Commands() {
-		walkTree(sub, visit)
+	// Registry guard: the mounted provider commands must equal the
+	// registered providers — a registration added to or removed from the
+	// registry without the tree (or the pinned set above) following fails
+	// here, naming the drifted provider.
+	for _, p := range provider.List() {
+		if !found[p.ID()] {
+			t.Errorf("registered provider %q is not mounted on the root", p.ID())
+		}
 	}
+	return root, commands, leaves
 }
 
 // isRunnableLeaf reports whether cmd is a leaf with an action to run.

@@ -11,11 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/cmdtree"
 	"github.com/oskarhane/everything-cli/internal/provider"
 	skillapi "github.com/oskarhane/everything-cli/internal/skill"
-	"github.com/oskarhane/everything-cli/internal/subcommands/account"
-	skillsub "github.com/oskarhane/everything-cli/internal/subcommands/skill"
-	"github.com/oskarhane/everything-cli/internal/subcommands/update"
 
 	// Provider side-effect imports mirror main.go exactly — keep this
 	// list in sync with main.go's import block so the mounted tree and
@@ -26,10 +24,10 @@ import (
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
-// everything-cli command tree (built exactly as main.go builds it —
-// provider trees from the registry, CLI-own commands top-level) must be
-// documented in the embedded skill bundle, so the shipped SKILL.md can
-// never silently fall behind the actual command surface.
+// everything-cli command tree (built through cmdtree.New — the same
+// registry-driven assembly main.go consumes) must be documented in the
+// embedded skill bundle, so the shipped SKILL.md can never silently fall
+// behind the actual command surface.
 //
 // It is fully hermetic: the bundle is an embedded FS, the tree is mounted
 // on an in-memory FS, and no environment is read.
@@ -38,7 +36,7 @@ func TestTreeDrift(t *testing.T) {
 
 	root := newMountedTree()
 	leafCount := 0
-	walkTree(root, func(cmd *cobra.Command) {
+	cmdtree.WalkTree(root, func(cmd *cobra.Command) {
 		if len(cmd.Commands()) != 0 || (cmd.Run == nil && cmd.RunE == nil) {
 			return
 		}
@@ -98,29 +96,11 @@ func TestProviderDocsDrift(t *testing.T) {
 	}
 }
 
-// newMountedTree mounts the complete command tree the same way main.go
-// does: every registered provider's tree under its provider command,
-// CLI-own commands top-level.
+// newMountedTree mounts the complete command tree through the shared
+// registry-driven assembly (cmdtree.New — the one main.go consumes), on an
+// in-memory FS so nothing touches real credential paths.
 func newMountedTree() *cobra.Command {
-	cfg := &app.Config{Fs: afero.NewMemMapFs()}
-	root := app.NewRootCommand(cfg)
-	for _, p := range provider.List() {
-		root.AddCommand(p.NewCmd(cfg))
-	}
-	root.AddCommand(
-		account.NewCmd(cfg),
-		skillsub.NewCmd(cfg),
-		update.NewCmd(cfg),
-	)
-	return root
-}
-
-// walkTree visits cmd and every descendant, depth-first.
-func walkTree(cmd *cobra.Command, visit func(*cobra.Command)) {
-	visit(cmd)
-	for _, sub := range cmd.Commands() {
-		walkTree(sub, visit)
-	}
+	return cmdtree.New(&app.Config{Fs: afero.NewMemMapFs()})
 }
 
 // bundleText renders the embedded bundle through the single owner of the
