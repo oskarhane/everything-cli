@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/afero"
 	"golang.org/x/oauth2"
 )
 
@@ -115,17 +114,6 @@ var fetchEmail = func(ctx context.Context, url string, tok *oauth2.Token) (strin
 		return "", errors.New("userinfo response carried no email")
 	}
 	return out.Email, nil
-}
-
-// RunFlow performs the installed-app OAuth flow for Google: it parses the
-// credentials file once into ClientCredentials and runs RunFlowWith with
-// the GoogleOAuth profile.
-func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
-	creds, err := ReadClientCredentials(fs, credentialsPath)
-	if err != nil {
-		return nil, "", err
-	}
-	return RunFlowWith(creds, scopes, GoogleOAuth)
 }
 
 // RunFlowWith performs the installed-app OAuth flow for any provider

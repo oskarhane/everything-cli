@@ -30,7 +30,7 @@ func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 
 	assert.Equal(t, "test-client-id", gotCreds.ID,
 		"the client credentials from the auto-resolved file must reach the flow")
-	assert.Equal(t, defaultScopes(), gotScopes, "no --scopes flag means the default scope set")
+	assert.Equal(t, auth.GoogleOAuth.DefaultScopes, gotScopes, "no --scopes flag means the default scope set")
 	assert.Contains(t, outStr, "work")
 	assert.Contains(t, outStr, "user@example.com")
 
@@ -38,12 +38,13 @@ func TestAddRunsFlowAndSavesAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "google", saved.Provider, "the account persists under the google provider")
 	assert.Equal(t, "user@example.com", saved.Email)
-	assert.Equal(t, defaultScopes(), saved.Scopes)
+	assert.Equal(t, auth.GoogleOAuth.DefaultScopes, saved.Scopes)
 	assert.Equal(t, "secret-access-work", saved.Token.AccessToken, "the token is cached on disk")
 }
 
-// TestDefaultScopes pins the exact default scope set: full Gmail, Calendar,
-// Drive, Docs, Sheets and Slides access, plus userinfo.email.
+// TestDefaultScopes pins the exact default scope set the profile falls back
+// to: full Gmail, Calendar, Drive, Docs, Sheets and Slides access, plus
+// userinfo.email.
 func TestDefaultScopes(t *testing.T) {
 	assert.Equal(t, []string{
 		"https://www.googleapis.com/auth/gmail.modify",
@@ -55,7 +56,7 @@ func TestDefaultScopes(t *testing.T) {
 		"https://www.googleapis.com/auth/spreadsheets",
 		"https://www.googleapis.com/auth/presentations",
 		"https://www.googleapis.com/auth/userinfo.email",
-	}, defaultScopes())
+	}, auth.GoogleOAuth.DefaultScopes)
 }
 
 // TestAddScopesFlag: --scopes overrides the default set, splitting on commas

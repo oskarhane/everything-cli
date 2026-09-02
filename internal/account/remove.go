@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // NewRemoveCmd builds account remove for the provider described by spec:
@@ -29,7 +28,7 @@ everything-cli ` + spec.ProviderID + ` account remove old --force`,
 					"refusing to remove account %q; pass --force to delete it and its %s",
 					args[0], spec.Credential)
 			}
-			store, err := config.NewStore(cfg.Fs, "")
+			store, err := cfg.Store()
 			if err != nil {
 				return err
 			}

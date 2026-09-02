@@ -15,33 +15,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
-// flowResult carries RunFlow's outcome from its goroutine to the test.
+// flowResult carries RunFlowWith's outcome from its goroutine to the test.
 type flowResult struct {
 	token *oauth2.Token
 	email string
 	err   error
 }
 
-// startFlow runs RunFlow in the background and returns its result channel.
-func startFlow(fs afero.Fs, credentialsPath string, scopes []string) chan flowResult {
+// startFlow runs RunFlowWith against the GoogleOAuth profile in the
+// background and returns its result channel.
+func startFlow(scopes []string) chan flowResult {
 	res := make(chan flowResult, 1)
 	go func() {
-		token, email, err := RunFlow(fs, credentialsPath, scopes)
+		token, email, err := RunFlowWith(testClientCredentials, scopes, GoogleOAuth)
 		res <- flowResult{token: token, email: email, err: err}
 	}()
 	return res
 }
 
-func TestRunFlow(t *testing.T) {
+func TestRunFlowWith(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 
 	var mu sync.Mutex
 	var gotCode, gotRedirect, gotVerifier string
@@ -66,7 +64,7 @@ func TestRunFlow(t *testing.T) {
 		return "user@example.com", nil
 	}
 
-	res := startFlow(fs, credentialsPath, []string{"scope-a"})
+	res := startFlow([]string{"scope-a"})
 
 	// Act as the browser: take the printed URL, then hit the redirect URI.
 	authURL := waitAuthURL(t, hooks.output)
@@ -110,11 +108,10 @@ func TestRunFlow(t *testing.T) {
 		"exchanged verifier must hash to the auth-URL code_challenge")
 }
 
-func TestRunFlowStateMismatch(t *testing.T) {
+func TestRunFlowWithStateMismatch(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
@@ -132,62 +129,13 @@ func TestRunFlowStateMismatch(t *testing.T) {
 	assert.Nil(t, got.token)
 }
 
-func TestRunFlowMissingCredentialsFile(t *testing.T) {
-	stubFlowSeams(t)
-
-	got := <-startFlow(afero.NewMemMapFs(), "/definitely/not/here/credentials.json", nil)
-
-	require.Error(t, got.err)
-	assert.Contains(t, got.err.Error(), "reading credentials")
-}
-
-// TestRunFlowPinsEndpoints: RunFlow must build its config with Google's
-// endpoints even when the credentials file claims attacker-controlled
-// auth_uri/token_uri — the file supplies only client_id/secret.
-func TestRunFlowPinsEndpoints(t *testing.T) {
+func TestRunFlowWithExchangeError(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs := afero.NewMemMapFs()
-	credentialsPath := "/planted/credentials.json"
-	require.NoError(t, afero.WriteFile(fs, credentialsPath, []byte(`{
-	  "installed": {
-	    "client_id": "test-client-id",
-	    "client_secret": "test-client-secret",
-	    "auth_uri": "https://evil.example/auth",
-	    "token_uri": "https://evil.example/token",
-	    "redirect_uris": ["http://localhost"]
-	  }
-	}`), 0o600))
-
-	var conf *oauth2.Config
-	hooks.exchangeFn = func(c *oauth2.Config, _ string, _ string) (*oauth2.Token, error) {
-		conf = c
-		return &oauth2.Token{AccessToken: "access-1", Expiry: time.Now().Add(time.Hour)}, nil
-	}
-
-	res := startFlow(fs, credentialsPath, nil)
-	authURL := waitAuthURL(t, hooks.output)
-	u, err := url.Parse(authURL)
-	require.NoError(t, err)
-	callback := u.Query().Get("redirect_uri") + "?" +
-		url.Values{"code": {"test-code"}, "state": {"state-123"}}.Encode()
-	resp, err := http.Get(callback)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-
-	require.NoError(t, (<-res).err)
-	require.NotNil(t, conf)
-	assert.Equal(t, google.Endpoint.AuthURL, conf.Endpoint.AuthURL)
-	assert.Equal(t, google.Endpoint.TokenURL, conf.Endpoint.TokenURL)
-}
-
-func TestRunFlowExchangeError(t *testing.T) {
-	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 	hooks.exchangeFn = func(*oauth2.Config, string, string) (*oauth2.Token, error) {
 		return nil, errors.New("bad code")
 	}
 
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -202,14 +150,13 @@ func TestRunFlowExchangeError(t *testing.T) {
 	assert.Contains(t, got.err.Error(), "exchanging authorization code")
 }
 
-func TestRunFlowUserinfoError(t *testing.T) {
+func TestRunFlowWithUserinfoError(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 	hooks.emailFn = func(*oauth2.Token) (string, error) {
 		return "", errors.New("userinfo unreachable")
 	}
 
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -224,12 +171,11 @@ func TestRunFlowUserinfoError(t *testing.T) {
 	assert.Contains(t, got.err.Error(), "userinfo unreachable")
 }
 
-func TestRunFlowPrintsURLWhenBrowserUnavailable(t *testing.T) {
+func TestRunFlowWithPrintsURLWhenBrowserUnavailable(t *testing.T) {
 	hooks := stubFlowSeams(t) // stubFlowSeams' cleanup restores the browser seam
 	openBrowser = func(string) error { return errors.New("no browser") }
 
-	fs, credentialsPath := writeCredentialsFile(t)
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -246,7 +192,7 @@ func TestRunFlowPrintsURLWhenBrowserUnavailable(t *testing.T) {
 }
 
 // TestNewStateFailsClosed: when randomness is unavailable, state generation
-// must fail and RunFlow must abort — never fall back to a predictable state.
+// must fail and the flow must abort — never fall back to a predictable state.
 func TestNewStateFailsClosed(t *testing.T) {
 	savedRand := randRead
 	t.Cleanup(func() { randRead = savedRand })
@@ -257,9 +203,8 @@ func TestNewStateFailsClosed(t *testing.T) {
 
 	hooks := stubFlowSeams(t)
 	newState = func() (string, error) { return "", errors.New("entropy exhausted") }
-	fs, credentialsPath := writeCredentialsFile(t)
 
-	got := <-startFlow(fs, credentialsPath, nil)
+	got := <-startFlow(nil)
 
 	require.Error(t, got.err)
 	assert.Contains(t, got.err.Error(), "entropy exhausted")
@@ -268,11 +213,10 @@ func TestNewStateFailsClosed(t *testing.T) {
 		"no authorization URL may be printed when state generation fails")
 }
 
-// TestRunFlowAppliesDeadlines: the code exchange and userinfo fetch contexts
+// TestRunFlowWithAppliesDeadlines: the code exchange and userinfo fetch contexts
 // must each carry a deadline, so hung endpoints cannot stall the flow.
-func TestRunFlowAppliesDeadlines(t *testing.T) {
+func TestRunFlowWithAppliesDeadlines(t *testing.T) {
 	hooks := stubFlowSeams(t)
-	fs, credentialsPath := writeCredentialsFile(t)
 
 	var mu sync.Mutex
 	var exDeadline, emDeadline bool
@@ -291,7 +235,7 @@ func TestRunFlowAppliesDeadlines(t *testing.T) {
 		return "user@example.com", nil
 	}
 
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -308,21 +252,20 @@ func TestRunFlowAppliesDeadlines(t *testing.T) {
 	assert.True(t, emDeadline, "the userinfo context must carry a deadline")
 }
 
-// TestRunFlowExchangeTimesOut: a token endpoint that never answers must fail
+// TestRunFlowWithExchangeTimesOut: a token endpoint that never answers must fail
 // the flow within the exchange deadline, not hang forever.
-func TestRunFlowExchangeTimesOut(t *testing.T) {
+func TestRunFlowWithExchangeTimesOut(t *testing.T) {
 	hooks := stubFlowSeams(t)
 	savedTimeout := networkTimeout
 	networkTimeout = 100 * time.Millisecond
 	t.Cleanup(func() { networkTimeout = savedTimeout })
 
-	fs, credentialsPath := writeCredentialsFile(t)
 	exchangeCode = func(ctx context.Context, _ *oauth2.Config, _, _ string) (*oauth2.Token, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
 
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 	authURL := waitAuthURL(t, hooks.output)
 	u, err := url.Parse(authURL)
 	require.NoError(t, err)
@@ -341,10 +284,10 @@ func TestRunFlowExchangeTimesOut(t *testing.T) {
 	}
 }
 
-// TestRunFlowPKCEOnTheWire drives the real exchangeCode (with its
+// TestRunFlowWithPKCEOnTheWire drives the real exchangeCode (with its
 // code_verifier auth option) against a local token endpoint, proving the
 // verifier presented on the wire hashes to the auth-URL code_challenge.
-func TestRunFlowPKCEOnTheWire(t *testing.T) {
+func TestRunFlowWithPKCEOnTheWire(t *testing.T) {
 	savedConf, savedOutput, savedBrowser, savedEmail, savedState := oauthConfigFor, flowOutput, openBrowser, fetchEmail, newState
 	t.Cleanup(func() {
 		oauthConfigFor, flowOutput, openBrowser, fetchEmail, newState = savedConf, savedOutput, savedBrowser, savedEmail, savedState
@@ -379,8 +322,7 @@ func TestRunFlowPKCEOnTheWire(t *testing.T) {
 	newState = func() (string, error) { return "wire-state", nil }
 	fetchEmail = func(_ context.Context, _ string, _ *oauth2.Token) (string, error) { return "user@example.com", nil }
 
-	fs, credentialsPath := writeCredentialsFile(t)
-	res := startFlow(fs, credentialsPath, nil)
+	res := startFlow(nil)
 
 	authURL := waitAuthURL(t, out)
 	u, err := url.Parse(authURL)

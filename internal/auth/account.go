@@ -70,7 +70,7 @@ func ResolveAccountFor(cfg *app.Config, store *config.Store, providerID string) 
 // a scope guardrail need the account's granted scopes, which the name alone
 // does not carry. Same chain, one extra store read.
 func DialAccount(cfg *app.Config) (*config.Account, oauth2.TokenSource, error) {
-	store, err := config.NewStore(cfg.Fs, "")
+	store, err := cfg.Store()
 	if err != nil {
 		return nil, nil, err
 	}

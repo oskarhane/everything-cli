@@ -63,6 +63,14 @@ func TestNewValidatesConfig(t *testing.T) {
 	}
 }
 
+// TestMustPanicsOnMisconfig: Must is the panic-on-misconfig idiom for
+// compile-time-constant provider configs — valid configs build, invalid
+// ones panic with New's error.
+func TestMustPanicsOnMisconfig(t *testing.T) {
+	assert.NotNil(t, Must(linearConfig))
+	assert.Panics(t, func() { Must(Config{}) })
+}
+
 // TestStrategySatisfiesSeam pins the compile-time contract: an apikey
 // Strategy is an auth.Strategy, configurable per provider.
 func TestStrategySatisfiesSeam(t *testing.T) {

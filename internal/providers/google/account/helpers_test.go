@@ -106,11 +106,15 @@ type fakeStrategy struct {
 }
 
 func (f fakeStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
-	tok, email, err := f.fn(opts.Credentials, opts.Scopes)
+	scopes := opts.Scopes
+	if len(scopes) == 0 {
+		scopes = auth.GoogleOAuth.DefaultScopes
+	}
+	tok, email, err := f.fn(opts.Credentials, scopes)
 	if err != nil {
 		return nil, err
 	}
-	saved, err := auth.SaveAccount(store, opts.Name, email, opts.Scopes, tok)
+	saved, err := auth.SaveAccount(store, opts.Name, email, scopes, tok)
 	if err != nil {
 		return nil, err
 	}

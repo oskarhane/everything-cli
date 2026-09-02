@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
 )
 
@@ -39,6 +40,13 @@ func NewConfig() *Config {
 	return &Config{
 		Fs: afero.NewOsFs(),
 	}
+}
+
+// Store opens the CLI's account store on the configured filesystem. Every
+// command needing the store gets it from here, so the store-root
+// resolution lives in exactly one place.
+func (c *Config) Store() (*config.Store, error) {
+	return config.NewStore(c.Fs, "")
 }
 
 // NewRootCommand builds the everything-cli root command with persistent flags bound to cfg.

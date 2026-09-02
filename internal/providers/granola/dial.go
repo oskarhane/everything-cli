@@ -5,7 +5,6 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
-	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // dialNotes is the service seam handed to the note leaves: it resolves the
@@ -14,7 +13,7 @@ import (
 // service to the public API base URL. Leaves call it from RunE, so tests
 // substitute an httptest-backed service.
 var dialNotes = func(ctx context.Context, cfg *app.Config) (NoteService, error) {
-	store, err := config.NewStore(cfg.Fs, "")
+	store, err := cfg.Store()
 	if err != nil {
 		return nil, err
 	}
