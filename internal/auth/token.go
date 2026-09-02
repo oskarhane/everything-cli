@@ -117,13 +117,11 @@ func (p *persistingSource) changed(tok *oauth2.Token) bool {
 		!tok.Expiry.Equal(p.last.Expiry)
 }
 
+// persist writes the refreshed token through SaveToken — token-only, with
+// no dedup or default management: a background refresh must never change
+// which account bare commands resolve to.
 func (p *persistingSource) persist(tok *oauth2.Token) error {
-	acct, err := p.store.GetProvider(p.provider, p.name)
-	if err != nil {
-		return err
-	}
-	acct.Token = tok
-	if err := p.store.Save(acct); err != nil {
+	if err := p.store.SaveToken(p.provider, p.name, tok); err != nil {
 		return fmt.Errorf("persisting refreshed token for account %q: %w", p.name, err)
 	}
 	return nil

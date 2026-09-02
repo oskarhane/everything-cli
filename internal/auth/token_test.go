@@ -171,6 +171,62 @@ func TestTokenSourceForProvider(t *testing.T) {
 		"the refresh must persist to accounts/other/, not the google dir")
 }
 
+// TestTokenSourceRefreshKeepsClearedDefault: a provider with an account
+// but NO default (settings cleared, e.g. the default account was removed)
+// must still have no default after a refresh persists the new token — a
+// background refresh must never silently switch which account bare
+// commands resolve to. Pinned for both OAuth refresh paths: google
+// (TokenSource) and linear (TokenSourceForProvider).
+func TestTokenSourceRefreshKeepsClearedDefault(t *testing.T) {
+	stubTokenEndpoint(t)
+	expired := `{"access_token":"old-access","refresh_token":"old-refresh","token_type":"Bearer","expiry":"2000-01-01T00:00:00Z"}`
+
+	t.Run("google", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		store, err := config.NewStore(fs, "/config")
+		require.NoError(t, err)
+		// Write the account file directly so no default is ever recorded.
+		require.NoError(t, fs.MkdirAll(store.AccountPath("work")[:len(store.AccountPath("work"))-len("/work.json")], 0o700))
+		require.NoError(t, afero.WriteFile(fs, store.AccountPath("work"), []byte(
+			`{"name":"work","email":"user@example.com","scopes":["scope-a"],"token":`+expired+`}`), 0o600))
+		require.NoError(t, afero.WriteFile(fs, "/config/credentials.json", []byte(installedAppCredentials), 0o600))
+
+		ts, err := TokenSource(fs, store, "/config/credentials.json", "work")
+		require.NoError(t, err)
+		_, err = ts.Token()
+		require.NoError(t, err)
+
+		def, err := store.DefaultAccountFor(config.ProviderGoogle)
+		require.NoError(t, err)
+		assert.Empty(t, def, "a refresh must not re-default the provider")
+		got, err := store.Get("work")
+		require.NoError(t, err)
+		assert.Equal(t, "new-access", got.Token.AccessToken, "the refreshed token must persist")
+	})
+
+	t.Run("linear", func(t *testing.T) {
+		fs := afero.NewMemMapFs()
+		store, err := config.NewStore(fs, "/config")
+		require.NoError(t, err)
+		path := store.AccountPathFor("linear", "work")
+		require.NoError(t, fs.MkdirAll(path[:len(path)-len("/work.json")], 0o700))
+		require.NoError(t, afero.WriteFile(fs, path, []byte(
+			`{"name":"work","provider":"linear","email":"user@example.com","token":`+expired+`}`), 0o600))
+
+		ts, err := TokenSourceForProvider(store, testClientCredentials, "linear", "work", GoogleOAuth)
+		require.NoError(t, err)
+		_, err = ts.Token()
+		require.NoError(t, err)
+
+		def, err := store.DefaultAccountFor("linear")
+		require.NoError(t, err)
+		assert.Empty(t, def, "a refresh must not re-default the provider")
+		got, err := store.GetProvider("linear", "work")
+		require.NoError(t, err)
+		assert.Equal(t, "new-access", got.Token.AccessToken, "the refreshed token must persist")
+	})
+}
+
 func TestTokenSourceUnknownAccount(t *testing.T) {
 	stubTokenEndpoint(t)
 	store := newTestStore(t)
