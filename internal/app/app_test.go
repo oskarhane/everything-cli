@@ -2,11 +2,14 @@ package app
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/oskarhane/everything-cli/internal/redact"
 )
 
 func TestNewRootCommand(t *testing.T) {
@@ -75,4 +78,16 @@ func TestNewConfigDefaults(t *testing.T) {
 	assert.False(t, cfg.Debug)
 	assert.Empty(t, cfg.Credentials)
 	assert.NotNil(t, cfg.Fs)
+}
+
+// TestPrintErrorRedactsSecrets: the top-level error print (wired in main in
+// place of cobra's default, which root.SilenceErrors disables) scrubs
+// registered secrets before the message reaches stderr.
+func TestPrintErrorRedactsSecrets(t *testing.T) {
+	redact.RegisterSecret("canary-secret-error-4b8d")
+
+	var buf bytes.Buffer
+	PrintError(&buf, errors.New("token canary-secret-error-4b8d expired"))
+
+	assert.Equal(t, "Error: token *** expired\n", buf.String())
 }

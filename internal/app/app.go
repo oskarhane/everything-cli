@@ -3,12 +3,14 @@ package app
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/redact"
 )
 
 // Version is stamped at build time via ldflags (-X); "dev" is the fallback.
@@ -86,4 +88,12 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 	}
 
 	return root
+}
+
+// PrintError writes err to w in cobra's default "Error: <msg>" shape with
+// registered secrets scrubbed. main wires this in place of cobra's error
+// printing (root.SilenceErrors = true) so an error message carrying a
+// secret can never reach stderr.
+func PrintError(w io.Writer, err error) {
+	_, _ = fmt.Fprintf(w, "Error: %s\n", redact.Redact(err.Error()))
 }

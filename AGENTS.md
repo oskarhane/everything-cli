@@ -65,7 +65,8 @@ BUILD SYSTEMS: [Go toolchain, Makefile, golangci-lint].
 
 ## Secrets / Redaction
 
-- OAuth access/refresh tokens and provider API keys are secrets: never print them. `<provider> account get` shows account metadata only — never token or key values.
-- Any secret value that must appear in output is registered for redaction BEFORE printing in table/toon (the JSON field regex closes it only for `--format json`; table cells and TOON rows put the value on a different line from its header, so shape-based redaction misses them). Register at the mint/read point.
-- `--debug` output passes through redaction + control-byte stripping before emission.
-- When emitting free-text debug/log lines through the redactor, do NOT start a line with a `token:`/`secret:`-style prefix (`<secretword>:`) — its assignment regex scrubs the next word to `***`. Word prose so no secret word immediately precedes a `:`/`=`.
+- OAuth access/refresh tokens, OAuth app client_secrets, and provider API keys are secrets: never print them. `<provider> account get` shows account metadata only — never token or key values.
+- The redaction registry lives in the leaf package `internal/redact` (re-exported as `auth.RegisterSecret`/`auth.Redact` so auth and provider strategies don't import the leaf directly). It is a process-global set of exact secret values; `Redact` does whole-text substring replacement to `***` — no shape-based heuristics, so JSON fields, table cells, and TOON rows are covered alike. With no secrets registered it short-circuits and output passes through untouched.
+- Every secret is registered at its mint/read point — the moment the value enters the process (token save/load/refresh, API-key read, `ParseClientCredentials` for the Google client_secret) — never at print time.
+- Emission points that pass through the redactor: `output.writeLine` (the single chokepoint under `Print`/`PrintJSON`/`PrintTable`/`PrintToon` and `output.Debug`) and the top-level error print — main sets `root.SilenceErrors = true` and prints via `app.PrintError`, which redacts before writing stderr.
+- `--debug` output passes through control-byte stripping (`StripControl`) + redaction before emission.

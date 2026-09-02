@@ -31,7 +31,11 @@ func main() {
 	// Back-compat shim: rewrite bare pre-provider invocations (`gmail list`,
 	// `account add work`) to their provider-first form before cobra parses.
 	root.SetArgs(app.RewriteLegacyArgs(root.Use, os.Args[1:], os.Stderr))
+	// Errors print through PrintError (redacted) instead of cobra's default
+	// stderr print, so a secret inside an error message cannot leak.
+	root.SilenceErrors = true
 	if err := root.Execute(); err != nil {
+		app.PrintError(os.Stderr, err)
 		os.Exit(1)
 	}
 }

@@ -19,9 +19,10 @@ func SetDebug(on bool) {
 }
 
 // Debug writes one debug line to stderr when debug is enabled; it no-ops
-// otherwise. The caller composes msg from non-secret data only — token
-// values must never be passed. Every line passes through StripControl so
-// raw data cannot inject terminal escapes.
+// otherwise. Every line passes through StripControl so raw data cannot
+// inject terminal escapes, and through the redaction registry (via
+// writeLine) so a secret that slips into a debug line is scrubbed before
+// emission.
 func Debug(msg string) {
 	if !debugOn {
 		return
