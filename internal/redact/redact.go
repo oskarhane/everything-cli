@@ -7,6 +7,7 @@
 package redact
 
 import (
+	"sort"
 	"strings"
 	"sync"
 )
@@ -40,7 +41,17 @@ func Redact(s string) string {
 	}
 	secretsMu.Lock()
 	defer secretsMu.Unlock()
+	if len(secrets) == 0 {
+		return s
+	}
+	// Snapshot longest-first: if one secret is a prefix of another,
+	// replacing the shorter first would leak the longer's tail.
+	sorted := make([]string, 0, len(secrets))
 	for secret := range secrets {
+		sorted = append(sorted, secret)
+	}
+	sort.Slice(sorted, func(i, j int) bool { return len(sorted[i]) > len(sorted[j]) })
+	for _, secret := range sorted {
 		if strings.Contains(s, secret) {
 			s = strings.ReplaceAll(s, secret, "***")
 		}
