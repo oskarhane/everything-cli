@@ -126,3 +126,34 @@ func TestCompositeClientDispatchesOnAccountShape(t *testing.T) {
 	_ = resp.Body.Close()
 	assert.Equal(t, "Bearer still-valid", oauthAuthHeader, "OAuth accounts send the token as Bearer")
 }
+
+// TestAddPathStrategyIsFullyConstructed pins the wiring account add uses:
+// the production factory builds the composite strategy on the
+// invocation's real store, so Client is reachable on that instance — no
+// nil store to dereference inside the OAuth refresh path.
+func TestAddPathStrategyIsFullyConstructed(t *testing.T) {
+	cfg := newDialConfig(t)
+	store, err := cfg.Store()
+	require.NoError(t, err)
+
+	s, ok := newAccountStrategy(store).(*strategy)
+	require.True(t, ok)
+	require.NotNil(t, s.oauth.store, "the add-path strategy must be store-backed")
+
+	// Client is reachable on the add-path instance: an OAuth account gets
+	// its refreshing client without a nil dereference.
+	payload, err := json.Marshal(oauthAuthPayload{ClientID: "test-client-id"})
+	require.NoError(t, err)
+	require.NoError(t, store.Save(&config.Account{
+		Name: "work", Provider: ID, Email: "viewer@example.com",
+		Token: &oauth2.Token{
+			AccessToken: "still-valid", TokenType: "Bearer", Expiry: time.Now().Add(time.Hour),
+		},
+		Auth: payload,
+	}))
+	acct, err := store.GetProvider(ID, "work")
+	require.NoError(t, err)
+	client, err := s.Client(context.Background(), acct)
+	require.NoError(t, err)
+	require.NotNil(t, client)
+}

@@ -70,7 +70,7 @@ func newStore(t *testing.T, cfg *app.Config) *config.Store {
 // LINEAR_API_KEY, then a hidden prompt.
 func realStrategy(t *testing.T) StrategyFactory {
 	t.Helper()
-	return func() auth.Strategy {
+	return func(*config.Store) auth.Strategy {
 		s, err := apikey.New(apikey.Config{
 			Provider:     testProviderID,
 			HeaderName:   "Authorization",

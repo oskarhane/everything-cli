@@ -46,7 +46,9 @@ redirect URI configured. Flags:
 - `--client-secret <secret>` — OAuth app client secret (empty =
   `$LINEAR_CLIENT_SECRET`); optional under PKCE, which the flow uses
 
-`--api-key` and `--oauth` are mutually exclusive. The flow requests the
+Both flags are `--oauth`-only: passing either without `--oauth` fails
+fast with an error naming `--oauth`. `--api-key` and `--oauth` are
+mutually exclusive. The flow requests the
 `read,write` scopes (read covers teams/projects/issues reads; write
 covers issue create/update) and resolves the account identity through
 Linear's GraphQL `viewer` query. Access tokens live 24 hours; the CLI
@@ -61,7 +63,8 @@ Manage Linear accounts and their stored credentials.
 - `linear account add <name>` — onboard an account. Flags: `--api-key`
   (default method; empty = `$LINEAR_API_KEY`, then a hidden prompt),
   `--oauth` (browser flow with PKCE instead), `--client-id` and
-  `--client-secret` (`--oauth` only; env fallbacks `$LINEAR_CLIENT_ID` /
+  `--client-secret` (`--oauth` only — rejected with an error naming
+  `--oauth` when passed without it; env fallbacks `$LINEAR_CLIENT_ID` /
   `$LINEAR_CLIENT_SECRET`). Output: `name`, `provider` — the key is
   deliberately absent so no format can leak it.
 - `linear account list` — all configured Linear accounts. Fields:

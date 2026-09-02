@@ -34,7 +34,7 @@ func (r *recordingStrategy) Client(context.Context, *config.Account) (*http.Clie
 
 func TestAddOAuthPassesOAuthOptions(t *testing.T) {
 	rec := &recordingStrategy{}
-	_, root, out := newAccountEnv(t, func() auth.Strategy { return rec })
+	_, root, out := newAccountEnv(t, func(*config.Store) auth.Strategy { return rec })
 
 	stdout, err := execute(t, root, out, "account", "add", "work",
 		"--oauth", "--client-id", "cid-1", "--client-secret", "csecret-1", "--format", "json")
@@ -48,7 +48,7 @@ func TestAddOAuthPassesOAuthOptions(t *testing.T) {
 
 func TestAddWithoutOAuthKeepsAPIKeyDefault(t *testing.T) {
 	rec := &recordingStrategy{}
-	_, root, out := newAccountEnv(t, func() auth.Strategy { return rec })
+	_, root, out := newAccountEnv(t, func(*config.Store) auth.Strategy { return rec })
 
 	_, err := execute(t, root, out, "account", "add", "work", "--api-key", "test-key-123")
 	require.NoError(t, err)
@@ -59,8 +59,42 @@ func TestAddWithoutOAuthKeepsAPIKeyDefault(t *testing.T) {
 
 func TestAddAPIKeyAndOAuthAreMutuallyExclusive(t *testing.T) {
 	rec := &recordingStrategy{}
-	_, root, out := newAccountEnv(t, func() auth.Strategy { return rec })
+	_, root, out := newAccountEnv(t, func(*config.Store) auth.Strategy { return rec })
 
 	_, err := execute(t, root, out, "account", "add", "work", "--api-key", "k", "--oauth")
 	require.Error(t, err)
+}
+
+// TestAddRejectsOAuthFlagsWithoutOAuth: --client-id/--client-secret on
+// the API-key path fail fast naming --oauth instead of being silently
+// ignored.
+func TestAddRejectsOAuthFlagsWithoutOAuth(t *testing.T) {
+	for _, flag := range []string{"client-id", "client-secret"} {
+		t.Run(flag, func(t *testing.T) {
+			rec := &recordingStrategy{}
+			_, root, out := newAccountEnv(t, func(*config.Store) auth.Strategy { return rec })
+
+			_, err := execute(t, root, out, "account", "add", "work", "--"+flag, "x")
+			require.ErrorContains(t, err, "--"+flag)
+			require.ErrorContains(t, err, "--oauth")
+		})
+	}
+}
+
+// TestAddHandsFactoryTheResolvedStore pins the add-path wiring: the
+// factory receives the invocation's real store, so the strategy it
+// builds is always fully constructed — never backed by a nil store.
+func TestAddHandsFactoryTheResolvedStore(t *testing.T) {
+	var got *config.Store
+	rec := &recordingStrategy{}
+	_, root, out := newAccountEnv(t, func(store *config.Store) auth.Strategy {
+		got = store
+		return rec
+	})
+
+	_, err := execute(t, root, out, "account", "add", "work")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	_, err = got.GetProvider(testProviderID, "work")
+	require.NoError(t, err, "the factory's store is the store add persists to")
 }
