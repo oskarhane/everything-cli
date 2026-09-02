@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/spf13/afero"
+	"golang.org/x/oauth2"
 )
 
 // filePermPrivate is the permission for files under the config dir:
@@ -296,6 +297,55 @@ func (s *Store) Save(acct *Account) error {
 	}
 	if def == "" {
 		if err := s.writeDefault(acct.Provider, acct.Name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SaveToken replaces the token of an existing provider account, writing
+// only the account file: unlike Save it performs no email dedup and never
+// touches the provider's default account. It is the persist path for
+// background token refreshes — a refresh must not silently switch which
+// account bare commands resolve to by re-running Save's default
+// management. An empty provider means google.
+func (s *Store) SaveToken(provider, name string, tok *oauth2.Token) error {
+	if provider == "" {
+		provider = ProviderGoogle
+	}
+	acct, err := s.GetProvider(provider, name) // validates provider and name
+	if err != nil {
+		return err
+	}
+	acct.Token = tok
+	// Harden before MkdirAll, mirroring Save: hardenDir replaces a
+	// symlinked dir with a real one, and MkdirAll must not follow a
+	// planted symlink out of the config dir.
+	if err := s.hardenRoot(); err != nil {
+		return fmt.Errorf("tightening config dir permissions: %w", err)
+	}
+	if err := s.hardenDir(s.accountsDir()); err != nil {
+		return fmt.Errorf("tightening accounts dir permissions: %w", err)
+	}
+	if err := s.fs.MkdirAll(s.providerDir(provider), dirPermPrivate); err != nil {
+		return fmt.Errorf("creating accounts dir: %w", err)
+	}
+	if err := s.hardenDir(s.providerDir(provider)); err != nil {
+		return fmt.Errorf("tightening provider dir permissions: %w", err)
+	}
+	data, err := json.MarshalIndent(acct, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encoding account %q: %w", name, err)
+	}
+	data = append(data, '\n')
+	if err := s.writePrivate(s.AccountPathFor(provider, name), data); err != nil {
+		return fmt.Errorf("writing account %q: %w", name, err)
+	}
+	if provider == ProviderGoogle {
+		// Keep Save's migration: once the nested file holds the account,
+		// the legacy flat file is unlinked unless it belongs to a
+		// different identity.
+		if err := s.removeLegacyFile(name, acct.Email); err != nil {
 			return err
 		}
 	}
