@@ -1,9 +1,8 @@
 #!/bin/sh
-# everything-cli installer: curl -fsSL https://oskarhane.github.io/google-cli/install.sh | sh
-# (pages URL still uses the google-cli repo slug until the GitHub repo is renamed)
+# everything-cli installer: curl -fsSL https://oskarhane.github.io/everything-cli/install.sh | sh
 set -eu
 
-REPO=oskarhane/google-cli
+REPO=oskarhane/everything-cli
 ASSET_PREFIX=everything-cli
 BIN_NAME=everything-cli
 INSTALL_DIR="$HOME/.local/bin"

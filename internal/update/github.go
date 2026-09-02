@@ -13,12 +13,9 @@ import (
 
 const (
 	defaultGitHubBase = "https://api.github.com"
-	// defaultRepo is the GitHub repo hosting the releases. The GitHub repo
-	// has NOT been renamed yet — it is still oskarhane/google-cli today
-	// (scripts/install.sh agrees). Flip this to oskarhane/everything-cli
-	// when the repo is renamed on GitHub; the module/binary rename is
-	// independent of that.
-	defaultRepo  = "oskarhane/google-cli"
+	// defaultRepo is the GitHub repo hosting the releases
+	// (scripts/install.sh's REPO agrees).
+	defaultRepo  = "oskarhane/everything-cli"
 	acceptHeader = "application/vnd.github+json"
 
 	// maxBodyBytes caps how many bytes are read from any single response
