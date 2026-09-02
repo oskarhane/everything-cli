@@ -24,17 +24,6 @@ func TestProviderRegistersItself(t *testing.T) {
 	require.Equal(t, "linear", p.ID())
 }
 
-func TestAuthStrategyShape(t *testing.T) {
-	s := Provider{}.Auth()
-	require.NotNil(t, s)
-	require.Equal(t, []string{
-		"auth.api_key",
-		"auth.client_secret",
-		"token.access_token",
-		"token.refresh_token",
-	}, s.SecretFields())
-}
-
 func TestNewCmdExposesResourceTrees(t *testing.T) {
 	cmd := Provider{}.NewCmd(nil)
 	names := map[string]bool{}

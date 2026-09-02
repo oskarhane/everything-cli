@@ -11,10 +11,9 @@ import (
 )
 
 // Strategy is the per-provider authentication seam: how a provider onboards
-// a new account, how an authenticated HTTP client is built for a stored
-// account, and which account fields are secrets. Providers implement it
-// (or reuse OAuthStrategy) so the rest of the CLI never branches on auth
-// mechanics.
+// a new account and how an authenticated HTTP client is built for a stored
+// account. Providers implement it (or reuse OAuthStrategy) so the rest of
+// the CLI never branches on auth mechanics.
 type Strategy interface {
 	// Add runs the onboarding for a new account — interactive or not —
 	// and persists the result in store, returning the saved record. The
@@ -26,9 +25,6 @@ type Strategy interface {
 	// oauth2.TokenSource) is the seam so non-OAuth strategies (API key,
 	// bearer token) can implement it with a plain RoundTripper.
 	Client(ctx context.Context, acct *config.Account) (*http.Client, error)
-	// SecretFields names the account JSON fields whose values are secrets
-	// to register for redaction at the mint/read point (AGENTS.md rule).
-	SecretFields() []string
 }
 
 // AddOptions carries the onboarding inputs a Strategy may need. Fields not
@@ -118,10 +114,4 @@ func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http
 		return nil, err
 	}
 	return oauth2.NewClient(ctx, ts), nil
-}
-
-// SecretFields names the token fields of the account document: both token
-// values are as sensitive as a Google refresh token and must never print.
-func (s *OAuthStrategy) SecretFields() []string {
-	return []string{"token.access_token", "token.refresh_token"}
 }

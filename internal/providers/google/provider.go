@@ -6,14 +6,9 @@
 package google
 
 import (
-	"fmt"
-	"sync"
-
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/provider"
 	"github.com/oskarhane/everything-cli/internal/providers/google/account"
@@ -42,32 +37,6 @@ func init() {
 // ID returns the provider identifier — also the store's per-provider
 // account directory.
 func (Provider) ID() string { return config.ProviderGoogle }
-
-// strategy is Google's auth strategy, built lazily on first use: a Strategy
-// needs the account store, and resolving the store is I/O that must not
-// happen at init time. The panic on store failure mirrors the registry's
-// duplicate-ID panic: a config dir that cannot resolve is a startup
-// misconfiguration, not a runtime condition.
-var (
-	strategyMu sync.Mutex
-	strategy   *Strategy
-)
-
-// Auth returns Google's auth strategy: the installed-app OAuth flow behind
-// the auth.Strategy seam (see auth.go).
-func (Provider) Auth() auth.Strategy {
-	strategyMu.Lock()
-	defer strategyMu.Unlock()
-	if strategy == nil {
-		fs := afero.NewOsFs()
-		store, err := config.NewStore(fs, "")
-		if err != nil {
-			panic(fmt.Sprintf("google: opening account store for auth strategy: %v", err))
-		}
-		strategy = NewStrategy(fs, store, "")
-	}
-	return strategy
-}
 
 // NewCmd builds the `google` command tree: every Google resource subtree
 // plus the provider-scoped account subtree. The --credentials flag is

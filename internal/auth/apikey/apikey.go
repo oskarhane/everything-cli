@@ -76,8 +76,7 @@ func New(cfg Config) (*Strategy, error) {
 }
 
 // authPayload is the provider-shaped JSON stored in Account.Auth. The key
-// field is snake_case per the casing rule and is the field SecretFields
-// names.
+// field is snake_case per the casing rule.
 type authPayload struct {
 	APIKey string `json:"api_key"`
 }
@@ -175,11 +174,6 @@ func (s *Strategy) Client(_ context.Context, acct *config.Account) (*http.Client
 		base:  base,
 	}
 	return &client, nil
-}
-
-// SecretFields names the Auth JSON field holding the key.
-func (s *Strategy) SecretFields() []string {
-	return []string{"auth.api_key"}
 }
 
 // headerTransport sets one header on every request, cloning the request so

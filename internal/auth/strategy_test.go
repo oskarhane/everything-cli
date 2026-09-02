@@ -48,13 +48,6 @@ func TestParseCredentialsPinsProfileEndpoint(t *testing.T) {
 	assert.Equal(t, "test-client-id", conf.ClientID)
 }
 
-func TestOAuthStrategySecretFields(t *testing.T) {
-	s := NewOAuthStrategy(GoogleOAuth, afero.NewMemMapFs(), nil, "")
-	fields := s.SecretFields()
-	assert.Contains(t, fields, "token.access_token")
-	assert.Contains(t, fields, "token.refresh_token")
-}
-
 // TestOAuthStrategyClientReturnsHTTPClient: Client must hand back an
 // *http.Client (the seam), whose transport reuses the account's valid
 // stored token without hitting the token endpoint.

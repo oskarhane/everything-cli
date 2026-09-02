@@ -203,11 +203,6 @@ func TestClientRejectsUnusableAccount(t *testing.T) {
 	assert.Error(t, err, "payload without a key")
 }
 
-func TestSecretFields(t *testing.T) {
-	s := newTestStrategy(t, linearConfig)
-	assert.Equal(t, []string{"auth.api_key"}, s.SecretFields())
-}
-
 // TestKeyRegisteredForRedaction pins the AGENTS.md mint/read-point rule at
 // the strategy level: after Add captures a key (and after Client reads it
 // back from disk), the redactor scrubs that key from any output — so an

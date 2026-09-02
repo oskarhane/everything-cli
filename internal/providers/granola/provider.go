@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/provider"
 )
 
@@ -31,10 +30,6 @@ func init() {
 
 // ID returns the provider identifier.
 func (Provider) ID() string { return providerID }
-
-// Auth returns the API-key strategy: Bearer grn_<key> in the Authorization
-// header, captured via --api-key / GRANOLA_API_KEY / hidden prompt.
-func (Provider) Auth() auth.Strategy { return strategy }
 
 // NewCmd builds the `granola` command tree: the note resource subtree and
 // the provider-scoped account subtree. Every leaf lives in its own file,
