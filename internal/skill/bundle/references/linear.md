@@ -73,7 +73,8 @@ Manage Linear accounts and their stored credentials.
   account. Every command also accepts the global `--account <name>`
   override.
 - `linear account remove <name> [--force]` — remove an account and its
-  stored credential. Refuses without `--force`.
+  stored credential. Refuses without `--force`. Removing the default
+  promotes another Linear account and announces the new default.
 
 ```sh
 everything-cli linear account add work                                  # hidden prompt

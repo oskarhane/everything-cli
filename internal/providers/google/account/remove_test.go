@@ -25,7 +25,9 @@ func TestRemoveRequiresForce(t *testing.T) {
 }
 
 // TestRemoveWithForceDeletesTokenFile: --force removes the account's token
-// file, clears a default that pointed at it, and leaves other accounts.
+// file and leaves other accounts. Removing the default follows the unified
+// policy: another Google account is promoted and the new default is
+// announced.
 func TestRemoveWithForceDeletesTokenFile(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	seedAccount(t, cfg, "personal", "me@example.com")
@@ -34,7 +36,9 @@ func TestRemoveWithForceDeletesTokenFile(t *testing.T) {
 
 	outStr, err := execute(t, root, out, "account", "remove", "work", "--force")
 	require.NoError(t, err)
-	assert.Contains(t, outStr, "work")
+	assert.Contains(t, outStr, "removed account work")
+	assert.Contains(t, outStr, "default account is now personal",
+		"the promotion must be announced")
 
 	exists, err := afero.Exists(cfg.Fs, newStore(t, cfg).AccountPath("work"))
 	require.NoError(t, err)
@@ -42,7 +46,8 @@ func TestRemoveWithForceDeletesTokenFile(t *testing.T) {
 
 	def, err := newStore(t, cfg).DefaultAccount()
 	require.NoError(t, err)
-	assert.Empty(t, def, "removing the default account must clear the default")
+	assert.Equal(t, "personal", def,
+		"removing the default account must promote another Google account")
 
 	accounts, err := newStore(t, cfg).List()
 	require.NoError(t, err)
@@ -51,15 +56,16 @@ func TestRemoveWithForceDeletesTokenFile(t *testing.T) {
 }
 
 // TestRemoveWithForceKeepsOtherDefault: removing a non-default account
-// leaves the default in place.
+// leaves the default in place and announces nothing.
 func TestRemoveWithForceKeepsOtherDefault(t *testing.T) {
 	cfg, root, out := newAccountEnv(t)
 	seedAccount(t, cfg, "personal", "me@example.com")
 	seedAccount(t, cfg, "work", "work@example.com")
 	require.NoError(t, newStore(t, cfg).SetDefaultAccount("work"))
 
-	_, err := execute(t, root, out, "account", "remove", "personal", "--force")
+	outStr, err := execute(t, root, out, "account", "remove", "personal", "--force")
 	require.NoError(t, err)
+	assert.NotContains(t, outStr, "default account is now")
 
 	def, err := newStore(t, cfg).DefaultAccount()
 	require.NoError(t, err)
