@@ -81,7 +81,7 @@ func (v viewer) identity() map[string]string {
 // oauthAuthPayload is the provider-shaped JSON stored in Account.Auth for
 // OAuth accounts: the app credentials the refreshing token source needs.
 // client_id is non-secret metadata; client_secret is a secret, registered
-// for redaction at mint/read and named in SecretFields.
+// for redaction at mint/read.
 type oauthAuthPayload struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret,omitempty"`
@@ -222,44 +222,16 @@ func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http
 	if payload.ClientSecret != "" {
 		auth.RegisterSecret(payload.ClientSecret)
 	}
-	fs, store, err := s.fsStore()
-	if err != nil {
-		return nil, err
-	}
-	credentialsPath, cleanup, err := writeClientCredentials(fs, payload.ClientID, payload.ClientSecret)
+	credentialsPath, cleanup, err := writeClientCredentials(s.fs, payload.ClientID, payload.ClientSecret)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
-	ts, err := auth.TokenSourceForProvider(fs, store, credentialsPath, ID, acct.Name, s.profile)
+	ts, err := auth.TokenSourceForProvider(s.fs, s.store, credentialsPath, ID, acct.Name, s.profile)
 	if err != nil {
 		return nil, err
 	}
 	return oauth2.NewClient(ctx, ts), nil
-}
-
-// SecretFields names the secret-bearing fields of an OAuth-variant linear
-// account document.
-func (s *OAuthStrategy) SecretFields() []string {
-	return []string{"auth.client_secret", "token.access_token", "token.refresh_token"}
-}
-
-// fsStore resolves the strategy's fs/store, defaulting to the real config
-// dir when the strategy was built without them (Provider.Auth()).
-func (s *OAuthStrategy) fsStore() (afero.Fs, *config.Store, error) {
-	fs := s.fs
-	if fs == nil {
-		fs = afero.NewOsFs()
-	}
-	store := s.store
-	if store == nil {
-		var err error
-		store, err = config.NewStore(fs, "")
-		if err != nil {
-			return nil, nil, err
-		}
-	}
-	return fs, store, nil
 }
 
 // writeClientCredentials renders the installed-app credentials document

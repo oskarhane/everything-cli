@@ -9,16 +9,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
-// fakeProvider is the minimal stub the registry tests need: NewCmd and Auth
-// are never exercised, so they return placeholders.
+// fakeProvider is the minimal stub the registry tests need: NewCmd is
+// never exercised, so it returns a placeholder.
 type fakeProvider struct{ id string }
 
 func (f fakeProvider) ID() string                          { return f.id }
 func (f fakeProvider) NewCmd(_ *app.Config) *cobra.Command { return &cobra.Command{Use: f.id} }
-func (f fakeProvider) Auth() auth.Strategy                 { return nil }
 
 // Compile-time proof the stub satisfies the contract under test.
 var _ Provider = fakeProvider{}

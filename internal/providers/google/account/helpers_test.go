@@ -120,8 +120,6 @@ func (f fakeStrategy) Client(context.Context, *config.Account) (*http.Client, er
 	return nil, errors.New("fakeStrategy has no client")
 }
 
-func (f fakeStrategy) SecretFields() []string { return nil }
-
 // writeCredentials writes a credentials file on the in-memory FS.
 func writeCredentials(t *testing.T, cfg *app.Config, path string) {
 	t.Helper()

@@ -61,9 +61,3 @@ func (s *strategy) Client(ctx context.Context, acct *config.Account) (*http.Clie
 	}
 	return s.apiKey.Client(ctx, acct)
 }
-
-// SecretFields names the union of both variants' secret account fields.
-func (s *strategy) SecretFields() []string {
-	fields := append([]string{}, s.apiKey.SecretFields()...)
-	return append(fields, s.oauth.SecretFields()...)
-}

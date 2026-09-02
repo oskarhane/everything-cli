@@ -138,5 +138,3 @@ func (f *fakePromptStrategy) Add(_ context.Context, _ afero.Fs, store *config.St
 func (f *fakePromptStrategy) Client(context.Context, *config.Account) (*http.Client, error) {
 	return nil, errors.New("fakePromptStrategy has no client")
 }
-
-func (f *fakePromptStrategy) SecretFields() []string { return []string{"auth.api_key"} }

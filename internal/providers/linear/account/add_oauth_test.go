@@ -32,8 +32,6 @@ func (r *recordingStrategy) Client(context.Context, *config.Account) (*http.Clie
 	return nil, errors.New("recordingStrategy has no client")
 }
 
-func (r *recordingStrategy) SecretFields() []string { return nil }
-
 func TestAddOAuthPassesOAuthOptions(t *testing.T) {
 	rec := &recordingStrategy{}
 	_, root, out := newAccountEnv(t, func() auth.Strategy { return rec })

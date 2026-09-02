@@ -2,14 +2,13 @@
 // linear, granola, …) implements, plus the registry the root command uses
 // to discover them. The seam exists so the root command and the account
 // machinery never branch on provider specifics: a provider is a command
-// tree plus an auth strategy, nothing more.
+// tree, nothing more.
 package provider
 
 import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
 // Provider is the contract between a provider package (e.g.
@@ -26,11 +25,4 @@ type Provider interface {
 	// filesystem); the returned command's Use should be the provider ID so
 	// invocation is `<cli> <provider> <resource> <action>`.
 	NewCmd(cfg *app.Config) *cobra.Command
-
-	// Auth returns the provider's authentication strategy: how accounts are
-	// onboarded, how authenticated HTTP clients are built, and which
-	// account fields are secrets. Returning it here (rather than letting
-	// the provider call into auth directly) lets the account machinery stay
-	// provider-agnostic.
-	Auth() auth.Strategy
 }
