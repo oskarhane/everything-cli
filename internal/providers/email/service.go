@@ -58,17 +58,18 @@ type Envelope struct {
 	Flags   []string  `json:"flags"`
 }
 
-// Message is a fully fetched message: the decoded plain-text body plus
-// attachment metadata. Attachment bytes are never exposed here — leaves
-// download them separately if needed.
+// Message is a fully fetched message: every decoded header field, the
+// decoded plain-text body, and attachment metadata. Attachment bytes are
+// never exposed here — leaves download them separately if needed.
 type Message struct {
-	UID         uint32       `json:"uid"`
-	From        string       `json:"from"`
-	To          []string     `json:"to"`
-	Subject     string       `json:"subject"`
-	Date        time.Time    `json:"date"`
-	BodyText    string       `json:"body_text"`
-	Attachments []Attachment `json:"attachments"`
+	UID         uint32              `json:"uid"`
+	Headers     map[string][]string `json:"headers"`
+	From        string              `json:"from"`
+	To          []string            `json:"to"`
+	Subject     string              `json:"subject"`
+	Date        time.Time           `json:"date"`
+	BodyText    string              `json:"body_text"`
+	Attachments []Attachment        `json:"attachments"`
 }
 
 // Attachment is the metadata of one MIME attachment part.

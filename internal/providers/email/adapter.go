@@ -227,7 +227,7 @@ func parseMessage(uid uint32, raw []byte) (*Message, error) {
 	if mr == nil {
 		return nil, fmt.Errorf("parsing message: %w", err)
 	}
-	msg := &Message{UID: uid}
+	msg := &Message{UID: uid, Headers: readHeaders(mr.Header)}
 	if subject, err := mr.Header.Subject(); err == nil {
 		msg.Subject = subject
 	}
@@ -333,6 +333,21 @@ func parseAddresses(raw []string) ([]*mail.Address, []string, error) {
 		}
 	}
 	return addrs, rcpts, nil
+}
+
+// readHeaders decodes every header field to UTF-8 text, preserving
+// multi-valued headers (Received, ...) as repeated entries.
+func readHeaders(h mail.Header) map[string][]string {
+	out := make(map[string][]string)
+	fields := h.Fields()
+	for fields.Next() {
+		text, err := fields.Text()
+		if err != nil {
+			text = fields.Value()
+		}
+		out[fields.Key()] = append(out[fields.Key()], text)
+	}
+	return out
 }
 
 func hasMailboxAttr(attrs []imap.MailboxAttr, want imap.MailboxAttr) bool {

@@ -175,6 +175,10 @@ func TestGetMessage(t *testing.T) {
 			assert.Equal(t, tt.from, msg.From)
 			assert.Equal(t, []string{"bob@example.com"}, msg.To)
 			assert.Contains(t, msg.BodyText, tt.body)
+			// The headers map carries the full decoded header set.
+			assert.Equal(t, []string{tt.subject}, msg.Headers["Subject"])
+			assert.Equal(t, []string{tt.from}, msg.Headers["From"])
+			assert.Equal(t, []string{"bob@example.com"}, msg.Headers["To"])
 		})
 	}
 }
