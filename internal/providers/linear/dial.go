@@ -23,7 +23,7 @@ func dial(ctx context.Context, cfg *app.Config) (*service.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	client, err := newStrategy(cfg.Fs, store).Client(ctx, acct)
+	client, err := newStrategy(store).Client(ctx, acct)
 	if err != nil {
 		return nil, err
 	}

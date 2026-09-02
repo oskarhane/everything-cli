@@ -33,6 +33,6 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(project.NewCmd(cfg, func(ctx context.Context) (service.ProjectService, error) {
 		return service.As[service.ProjectService](dial(ctx, cfg))
 	}))
-	cmd.AddCommand(account.NewCmd(cfg, ID, func() auth.Strategy { return newStrategy(cfg.Fs, nil) }))
+	cmd.AddCommand(account.NewCmd(cfg, ID, func() auth.Strategy { return newStrategy(nil) }))
 	return cmd
 }

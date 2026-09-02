@@ -36,7 +36,7 @@ func newCompositeTestStrategy(t *testing.T) (*strategy, afero.Fs, *config.Store)
 	fs := afero.NewMemMapFs()
 	store, err := config.NewStore(fs, "/config")
 	require.NoError(t, err)
-	return newStrategy(fs, store), fs, store
+	return newStrategy(store), fs, store
 }
 
 // TestCompositeAddDefaultsToAPIKey: without UseOAuth, Add captures the API
@@ -66,7 +66,7 @@ func TestCompositeAddDispatchesOAuth(t *testing.T) {
 	s.oauth.profile = fake.profileOver(s.oauth.profile)
 	s.oauth.graphqlURL = fake.graphqlURL
 	s.oauth.getenv = func(string) string { return "" }
-	s.oauth.runFlow = func(afero.Fs, string, []string, auth.OAuthProfile) (*oauth2.Token, string, error) {
+	s.oauth.runFlow = func(auth.ClientCredentials, []string, auth.OAuthProfile) (*oauth2.Token, string, error) {
 		return &oauth2.Token{AccessToken: "fake-access", Expiry: time.Now().Add(time.Hour)},
 			"viewer@example.com", nil
 	}

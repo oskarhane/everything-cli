@@ -15,42 +15,42 @@ import (
 // Var so tests can shrink it.
 var refreshTimeout = 60 * time.Second
 
-// credentialsConfig parses installed-app credentials JSON into an OAuth
-// config. Seam for tests, which point the endpoints at a local server.
-// Production resolves to parseGoogleCredentials, which pins the endpoints to
-// Google's regardless of what the credentials file claims.
-var credentialsConfig = parseGoogleCredentials
-
-// credentialsConfigFor parses credentials for a profile. The Google profile
-// routes through the credentialsConfig seam so the existing dialing path
-// behaves exactly as before; any other profile is parsed with its own
-// pinned endpoint, never with endpoints from the credentials file.
-func credentialsConfigFor(profile OAuthProfile, data []byte, scopes ...string) (*oauth2.Config, error) {
-	if profile.Endpoint == GoogleOAuth.Endpoint {
-		return credentialsConfig(data, scopes...)
+// oauthConfigFor builds the OAuth2 config for a flow or token refresh:
+// the client credentials are taken directly (never from a file) and the
+// endpoints are pinned to the profile's. Seam for tests, which point the
+// endpoints at a local server.
+var oauthConfigFor = func(profile OAuthProfile, creds ClientCredentials, scopes ...string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     creds.ID,
+		ClientSecret: creds.Secret,
+		Endpoint:     profile.Endpoint,
+		Scopes:       scopes,
 	}
-	return parseCredentials(data, profile.Endpoint, scopes...)
 }
 
 // TokenSource returns an oauth2.TokenSource for the named stored account.
 // Valid tokens are reused; expired tokens are refreshed against Google, and
 // a refreshed token is persisted back to the account file (0600).
 func TokenSource(fs afero.Fs, store *config.Store, credentialsPath, name string) (oauth2.TokenSource, error) {
-	return TokenSourceWith(fs, store, credentialsPath, name, GoogleOAuth)
+	creds, err := ReadClientCredentials(fs, credentialsPath)
+	if err != nil {
+		return nil, err
+	}
+	return TokenSourceWith(store, creds, name, GoogleOAuth)
 }
 
-// TokenSourceWith is TokenSource generalized to any OAuth profile: the
-// refresh targets the profile's pinned token endpoint, taken from the
-// profile rather than from the credentials file.
-func TokenSourceWith(fs afero.Fs, store *config.Store, credentialsPath, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
-	return TokenSourceForProvider(fs, store, credentialsPath, config.ProviderGoogle, name, profile)
+// TokenSourceWith is TokenSource generalized to any OAuth profile and any
+// client credentials: the refresh targets the profile's pinned token
+// endpoint, taken from the profile rather than from any file.
+func TokenSourceWith(store *config.Store, creds ClientCredentials, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
+	return TokenSourceForProvider(store, creds, config.ProviderGoogle, name, profile)
 }
 
 // TokenSourceForProvider is TokenSourceWith scoped to a provider's account
 // directory: the account is read from (and refreshes persisted back to)
 // accounts/<provider>/<name>.json. Non-Google OAuth providers (Linear)
 // onboard through it so their token cache refreshes exactly like Google's.
-func TokenSourceForProvider(fs afero.Fs, store *config.Store, credentialsPath, provider, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
+func TokenSourceForProvider(store *config.Store, creds ClientCredentials, provider, name string, profile OAuthProfile) (oauth2.TokenSource, error) {
 	acct, err := store.GetProvider(provider, name)
 	if err != nil {
 		return nil, err
@@ -65,14 +65,7 @@ func TokenSourceForProvider(fs afero.Fs, store *config.Store, credentialsPath, p
 	}
 	// Read point: register the stored token's secrets for redaction.
 	registerTokenSecrets(acct.Token)
-	data, err := afero.ReadFile(fs, credentialsPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
-	}
-	conf, err := credentialsConfigFor(profile, data, acct.Scopes...)
-	if err != nil {
-		return nil, fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
-	}
+	conf := oauthConfigFor(profile, creds, acct.Scopes...)
 	return oauth2.ReuseTokenSource(acct.Token, &persistingSource{
 		store:    store,
 		provider: provider,

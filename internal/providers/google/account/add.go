@@ -8,7 +8,6 @@ import (
 	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 )
 
@@ -18,8 +17,8 @@ import (
 // provider package's NewStrategy wraps — imported directly here because the
 // account tree living inside the google provider may not import its parent);
 // tests stub it so no test ever starts a real browser authorization.
-var newAddStrategy = func(fs afero.Fs, store *config.Store, credentialsPath string) auth.Strategy {
-	return auth.NewOAuthStrategy(auth.GoogleOAuth, fs, store, credentialsPath)
+var newAddStrategy = func(store *config.Store, creds auth.ClientCredentials) auth.Strategy {
+	return auth.NewOAuthStrategy(auth.GoogleOAuth, store, creds)
 }
 
 // addedAccount is the rendered shape of a successful account add.
@@ -55,13 +54,17 @@ everything-cli google account add work --credentials ~/google/credentials.json -
 			if err != nil {
 				return err
 			}
+			creds, err := auth.ReadClientCredentials(cfg.Fs, resolved)
+			if err != nil {
+				return err
+			}
 
 			scopes := parseScopes(scopesFlag)
-			strategy := newAddStrategy(cfg.Fs, store, resolved)
+			strategy := newAddStrategy(store, creds)
 			acct, err := strategy.Add(cmd.Context(), cfg.Fs, store, auth.AddOptions{
-				Name:            args[0],
-				CredentialsPath: resolved,
-				Scopes:          scopes,
+				Name:        args[0],
+				Credentials: creds,
+				Scopes:      scopes,
 			})
 			if err != nil {
 				return fmt.Errorf("adding account %q: %w", args[0], err)

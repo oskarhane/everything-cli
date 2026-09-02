@@ -32,10 +32,10 @@ type Strategy interface {
 type AddOptions struct {
 	// Name is the requested account name.
 	Name string
-	// CredentialsPath is the OAuth installed-app credentials JSON (OAuth
-	// strategies only), already resolved from flag or config dir — never
-	// the working directory.
-	CredentialsPath string
+	// Credentials carries the OAuth app's client credentials (OAuth
+	// strategies only), already resolved from the provider's source — a
+	// credentials file parsed once (Google) or flags/env (Linear).
+	Credentials ClientCredentials
 	// Scopes is the requested OAuth scope set; empty means the provider's
 	// default scopes.
 	Scopes []string
@@ -62,36 +62,42 @@ type AddOptions struct {
 // one pinned OAuthProfile, so adding an OAuth provider is configuration,
 // not new machinery.
 type OAuthStrategy struct {
-	profile         OAuthProfile
-	fs              afero.Fs
-	store           *config.Store
-	credentialsPath string
+	profile OAuthProfile
+	store   *config.Store
+	creds   ClientCredentials
 }
 
 // Compile-time proof that OAuthStrategy satisfies the seam.
 var _ Strategy = (*OAuthStrategy)(nil)
 
-// NewOAuthStrategy returns a Strategy for profile. fs, store and
-// credentialsPath back Client's token refresh and persistence; Add uses the
-// fs/store it is handed per call.
-func NewOAuthStrategy(profile OAuthProfile, fs afero.Fs, store *config.Store, credentialsPath string) *OAuthStrategy {
+// NewOAuthStrategy returns a Strategy for profile. store and creds back
+// Client's token refresh and persistence; Add uses the fs/store it is
+// handed per call.
+func NewOAuthStrategy(profile OAuthProfile, store *config.Store, creds ClientCredentials) *OAuthStrategy {
 	return &OAuthStrategy{
-		profile:         profile,
-		fs:              fs,
-		store:           store,
-		credentialsPath: credentialsPath,
+		profile: profile,
+		store:   store,
+		creds:   creds,
 	}
 }
 
 // Add runs the installed-app OAuth flow for the strategy's profile and
 // saves the resulting account, exactly like `account add` does today for
-// Google. Empty opts.Scopes falls back to the profile's default scopes.
-func (s *OAuthStrategy) Add(_ context.Context, fs afero.Fs, store *config.Store, opts AddOptions) (*config.Account, error) {
+// Google. Empty opts.Scopes falls back to the profile's default scopes;
+// empty opts.Credentials falls back to the strategy's credentials.
+func (s *OAuthStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts AddOptions) (*config.Account, error) {
 	scopes := opts.Scopes
 	if len(scopes) == 0 {
 		scopes = s.profile.DefaultScopes
 	}
-	tok, email, err := RunFlowWith(fs, opts.CredentialsPath, scopes, s.profile)
+	creds := opts.Credentials
+	if creds.ID == "" {
+		creds = s.creds
+	}
+	if creds.ID == "" {
+		return nil, errors.New("no OAuth client credentials")
+	}
+	tok, email, err := RunFlowWith(creds, scopes, s.profile)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +115,7 @@ func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http
 	if acct == nil {
 		return nil, errors.New("no account")
 	}
-	ts, err := TokenSourceWith(s.fs, s.store, s.credentialsPath, acct.Name, s.profile)
+	ts, err := TokenSourceWith(s.store, s.creds, acct.Name, s.profile)
 	if err != nil {
 		return nil, err
 	}

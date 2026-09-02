@@ -70,9 +70,7 @@ func TestTokenSourceRegistersStoredTokenSecrets(t *testing.T) {
 		TokenType:    "Bearer",
 		Expiry:       time.Now().Add(time.Hour),
 	})
-	fs, credentialsPath := writeCredentialsFile(t)
-
-	_, err := TokenSourceWith(fs, store, credentialsPath, "work", GoogleOAuth)
+	_, err := TokenSourceWith(store, testClientCredentials, "work", GoogleOAuth)
 	require.NoError(t, err)
 	assert.Equal(t, "***", Redact("stored-access-abc"))
 	assert.Equal(t, "***", Redact("stored-refresh-abc"))
@@ -89,9 +87,7 @@ func TestRefreshRegistersMintedTokenSecrets(t *testing.T) {
 		TokenType:    "Bearer",
 		Expiry:       time.Now().Add(-time.Hour),
 	})
-	fs, credentialsPath := writeCredentialsFile(t)
-
-	ts, err := TokenSourceWith(fs, store, credentialsPath, "work", GoogleOAuth)
+	ts, err := TokenSourceWith(store, testClientCredentials, "work", GoogleOAuth)
 	require.NoError(t, err)
 	tok, err := ts.Token()
 	require.NoError(t, err)

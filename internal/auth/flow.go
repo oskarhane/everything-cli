@@ -117,27 +117,26 @@ var fetchEmail = func(ctx context.Context, url string, tok *oauth2.Token) (strin
 	return out.Email, nil
 }
 
-// RunFlow performs the installed-app OAuth flow for Google: it is
-// RunFlowWith with the GoogleOAuth profile.
+// RunFlow performs the installed-app OAuth flow for Google: it parses the
+// credentials file once into ClientCredentials and runs RunFlowWith with
+// the GoogleOAuth profile.
 func RunFlow(fs afero.Fs, credentialsPath string, scopes []string) (*oauth2.Token, string, error) {
-	return RunFlowWith(fs, credentialsPath, scopes, GoogleOAuth)
+	creds, err := ReadClientCredentials(fs, credentialsPath)
+	if err != nil {
+		return nil, "", err
+	}
+	return RunFlowWith(creds, scopes, GoogleOAuth)
 }
 
 // RunFlowWith performs the installed-app OAuth flow for any provider
-// described by profile: parses the credentials file (endpoints pinned to
-// profile's, never the file's), starts a localhost listener on a random
-// port as the redirect URI, prints the authorization URL (and tries to open
-// a browser), waits for the code callback, exchanges it, and resolves the
-// account email from the profile's userinfo endpoint.
-func RunFlowWith(fs afero.Fs, credentialsPath string, scopes []string, profile OAuthProfile) (*oauth2.Token, string, error) {
-	data, err := afero.ReadFile(fs, credentialsPath)
-	if err != nil {
-		return nil, "", fmt.Errorf("reading credentials %s: %w", credentialsPath, err)
-	}
-	conf, err := credentialsConfigFor(profile, data, ensureScope(scopes, profile.EmailScope)...)
-	if err != nil {
-		return nil, "", fmt.Errorf("parsing credentials %s: %w", credentialsPath, err)
-	}
+// described by profile, with the app's client credentials carried directly
+// (endpoints pinned to the profile's, never read from any file): starts a
+// localhost listener on a random port as the redirect URI, prints the
+// authorization URL (and tries to open a browser), waits for the code
+// callback, exchanges it, and resolves the account email from the
+// profile's userinfo endpoint.
+func RunFlowWith(creds ClientCredentials, scopes []string, profile OAuthProfile) (*oauth2.Token, string, error) {
+	conf := oauthConfigFor(profile, creds, ensureScope(scopes, profile.EmailScope)...)
 
 	ln, err := listenLoopback()
 	if err != nil {

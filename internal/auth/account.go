@@ -82,11 +82,15 @@ func DialAccount(cfg *app.Config) (*config.Account, oauth2.TokenSource, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	creds, err := ReadClientCredentials(cfg.Fs, credentials)
+	if err != nil {
+		return nil, nil, err
+	}
 	acct, err := store.Get(account)
 	if err != nil {
 		return nil, nil, err
 	}
-	ts, err := TokenSource(cfg.Fs, store, credentials, account)
+	ts, err := TokenSourceWith(store, creds, account, GoogleOAuth)
 	if err != nil {
 		return nil, nil, fmt.Errorf("account %q: %w", account, err)
 	}

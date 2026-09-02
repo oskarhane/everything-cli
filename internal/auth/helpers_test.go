@@ -49,6 +49,10 @@ func writeCredentialsFile(t *testing.T) (afero.Fs, string) {
 	return fs, path
 }
 
+// testClientCredentials is the ClientCredentials shape of
+// installedAppCredentials, for tests that bypass the file.
+var testClientCredentials = ClientCredentials{ID: "test-client-id", Secret: "test-client-secret"}
+
 // syncBuffer is a goroutine-safe bytes.Buffer: RunFlow writes the
 // authorization URL from its own goroutine while the test reads it.
 type syncBuffer struct {
@@ -80,11 +84,11 @@ func stubFlowSeams(t *testing.T) *flowHooks {
 	t.Helper()
 	h := &flowHooks{output: &syncBuffer{}}
 	savedOutput, savedBrowser, savedListen, savedState := flowOutput, openBrowser, listenLoopback, newState
-	savedExchange, savedEmail, savedCreds := exchangeCode, fetchEmail, credentialsConfig
+	savedExchange, savedEmail, savedConf := exchangeCode, fetchEmail, oauthConfigFor
 	savedRandRead := randRead
 	t.Cleanup(func() {
 		flowOutput, openBrowser, listenLoopback, newState = savedOutput, savedBrowser, savedListen, savedState
-		exchangeCode, fetchEmail, credentialsConfig = savedExchange, savedEmail, savedCreds
+		exchangeCode, fetchEmail, oauthConfigFor = savedExchange, savedEmail, savedConf
 		randRead = savedRandRead
 	})
 
