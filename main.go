@@ -8,6 +8,7 @@ import (
 
 	// Providers self-register via init(); adding a provider is one import.
 	// cmdtree.New then discovers them through provider.List().
+	_ "github.com/oskarhane/everything-cli/internal/providers/email"
 	_ "github.com/oskarhane/everything-cli/internal/providers/google"
 	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
 	_ "github.com/oskarhane/everything-cli/internal/providers/linear"

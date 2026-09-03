@@ -9,8 +9,10 @@ description: >
   share, upload, and download Drive files; read or edit Docs, Sheets, and
   Slides); fetch YouTube video metadata and timed transcripts (any watch
   URL or video ID — no account needed); manage Linear issues, teams, and
-  projects (provider `linear`); or read Granola notes (provider
-  `granola`). Accounts are added, switched, and inspected per provider
+  projects (provider `linear`); read Granola notes (provider
+  `granola`); or read and send regular email over IMAP/SMTP (provider
+  `email`: list mailboxes and messages, read full messages, send mail).
+  Accounts are added, switched, and inspected per provider
   (`everything-cli <provider> account ...`). Skip for Meet, Chrome, or
   anything the gcloud CLI manages (projects, Cloud SDK services).
 version: dev
@@ -33,6 +35,7 @@ reference file — this document covers only the shared conventions.
 
 | Provider | What it covers | Reference |
 | --- | --- | --- |
+| `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send; username/password accounts | [references/email.md](references/email.md) |
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts; OAuth accounts | [references/google.md](references/google.md) |
 | `granola` | Granola notes via the Granola public API; API-key accounts | [references/granola.md](references/granola.md) |
 | `linear` | Linear issues, teams, projects; API key or OAuth | [references/linear.md](references/linear.md) |

@@ -18,6 +18,7 @@ import (
 	// Provider side-effect imports mirror main.go exactly — keep this
 	// list in sync with main.go's import block so the mounted tree and
 	// the registry match the shipped binary.
+	_ "github.com/oskarhane/everything-cli/internal/providers/email"
 	_ "github.com/oskarhane/everything-cli/internal/providers/google"
 	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
 	_ "github.com/oskarhane/everything-cli/internal/providers/linear"

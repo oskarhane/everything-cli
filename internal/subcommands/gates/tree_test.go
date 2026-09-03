@@ -22,6 +22,7 @@ import (
 	// Provider side-effect imports mirror main.go exactly — keep this
 	// list in sync with main.go's import block so the mounted tree and
 	// the registry match the shipped binary.
+	_ "github.com/oskarhane/everything-cli/internal/providers/email"
 	_ "github.com/oskarhane/everything-cli/internal/providers/google"
 	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
 	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
@@ -38,7 +39,7 @@ func newWholeTree() *cobra.Command {
 // registered providers plus the CLI-own commands. It is a literal (not
 // derived from the registry) so a registration added or removed without
 // updating this list fails the mount guard loudly.
-var expectedTopLevel = []string{"account", "google", "granola", "linear", "skill", "update"}
+var expectedTopLevel = []string{"account", "email", "google", "granola", "linear", "skill", "update"}
 
 // autoAddedTopLevel are commands cobra may inject into the root (at walk
 // time or on Execute); they are tolerated as top-level children but never
