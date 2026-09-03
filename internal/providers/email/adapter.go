@@ -63,6 +63,78 @@ var tlsConfigFor = func(host string) *tls.Config {
 	return &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}
 }
 
+// dialSetupTimeout bounds the connect+setup window on every dial: TCP
+// connect, the greeting wait, EHLO, the STARTTLS negotiation, and the
+// TLS handshake. It is a package var so tests can shrink it — same seam
+// style as tlsConfigFor/imapUsesImplicitTLS.
+var dialSetupTimeout = 30 * time.Second
+
+// setupConn enforces an absolute deadline over the whole connect+setup
+// window. A plain SetDeadline before the handshake does not survive:
+// go-smtp re-arms CommandTimeout (5m default) around the greeting and
+// every command, and imapclient's read loop re-arms a 30s read deadline
+// per response and clears it after each one — leaving the final TLS
+// Handshake in NewStartTLS with no deadline at all. While armed, every
+// deadline a library sets is clamped to the setup budget and "clear" is
+// re-armed to it, so no setup read or write can block past the budget.
+// disarm clears the deadline and restores pass-through so long-lived
+// reads (big message fetches) are unbounded again.
+type setupConn struct {
+	net.Conn
+	mu     sync.Mutex
+	expiry time.Time
+	armed  bool
+}
+
+func newSetupConn(conn net.Conn, budget time.Duration) *setupConn {
+	c := &setupConn{Conn: conn, expiry: time.Now().Add(budget), armed: true}
+	_ = conn.SetDeadline(c.expiry)
+	return c
+}
+
+func (c *setupConn) clamp(t time.Time) time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.armed && (t.IsZero() || t.After(c.expiry)) {
+		return c.expiry
+	}
+	return t
+}
+
+func (c *setupConn) SetDeadline(t time.Time) error      { return c.Conn.SetDeadline(c.clamp(t)) }
+func (c *setupConn) SetReadDeadline(t time.Time) error  { return c.Conn.SetReadDeadline(c.clamp(t)) }
+func (c *setupConn) SetWriteDeadline(t time.Time) error { return c.Conn.SetWriteDeadline(c.clamp(t)) }
+
+// disarm clears any deadline and stops clamping: the connection is
+// past setup and back to library-managed (or no) deadlines.
+func (c *setupConn) disarm() {
+	c.mu.Lock()
+	c.armed = false
+	c.mu.Unlock()
+	_ = c.Conn.SetDeadline(time.Time{})
+}
+
+// setupError wraps a connect+setup failure. When the setup budget fired
+// the message says so explicitly: a stalling server must read as a
+// timeout naming the server, not as a hang or a bare "i/o timeout".
+func setupError(what, addr string, err error) error {
+	if isSetupTimeout(err) {
+		return fmt.Errorf("%s %s: setup timed out after %s: %w", what, addr, dialSetupTimeout, err)
+	}
+	return fmt.Errorf("%s %s: %w", what, addr, err)
+}
+
+// isSetupTimeout reports whether err is a network timeout. imapclient
+// joins read failures with %v (no unwrapping), so the net timeout
+// sometimes survives only as its canonical text.
+func isSetupTimeout(err error) bool {
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return strings.Contains(err.Error(), "i/o timeout")
+}
+
 // mailService is the concrete MailService over the emersion IMAP/SMTP
 // libraries. The IMAP connection is dialed and logged in once at
 // construction and shared by the read operations; the send-only variant
@@ -117,7 +189,7 @@ func dialIMAPTLS(ctx context.Context, srv serverConfig) (*imapclient.Client, err
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	if imapUsesImplicitTLS(port) {
 		dialer := &tls.Dialer{
-			NetDialer: &net.Dialer{Timeout: 30 * time.Second},
+			NetDialer: &net.Dialer{Timeout: dialSetupTimeout},
 			Config:    tlsConfigFor(host),
 		}
 		conn, err := dialer.DialContext(ctx, "tcp", addr)
@@ -126,17 +198,23 @@ func dialIMAPTLS(ctx context.Context, srv serverConfig) (*imapclient.Client, err
 		}
 		return imapclient.New(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)}), nil
 	}
-	conn, err := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, "tcp", addr)
+	conn, err := (&net.Dialer{Timeout: dialSetupTimeout}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to imap server %s: %w", addr, err)
 	}
 	// NewStartTLS fails (and closes the connection) when the server
 	// refuses STARTTLS: the session never proceeds in plaintext.
-	// TLSConfig carries the split host as ServerName.
-	client, err := imapclient.NewStartTLS(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)})
+	// TLSConfig carries the split host as ServerName. setupConn bounds
+	// the greeting wait, the STARTTLS negotiation, and the TLS
+	// handshake — the handshake runs with no ctx and no deadline inside
+	// NewStartTLS, so a server that answers OK then stalls would hang
+	// forever without the clamp.
+	setup := newSetupConn(conn, dialSetupTimeout)
+	client, err := imapclient.NewStartTLS(setup, &imapclient.Options{TLSConfig: tlsConfigFor(host)})
 	if err != nil {
-		return nil, fmt.Errorf("starttls with imap server %s: %w", addr, err)
+		return nil, setupError("starttls with imap server", addr, err)
 	}
+	setup.disarm()
 	return client, nil
 }
 
@@ -325,10 +403,14 @@ func (s *mailService) SendMessage(ctx context.Context, in SendInput) error {
 // STARTTLS everywhere else. There is no plaintext path. The emersion
 // go-smtp dial helpers take no context, so the TCP connection (and TLS
 // handshake on the implicit path) is dialed with DialContext and handed
-// to smtp.NewClient/NewClientStartTLS. Once connected, the library's own
-// CommandTimeout/SubmissionTimeout (5m/12m defaults) bound the session;
-// cancellation of in-flight commands is covered by the watcher in
-// SendMessage.
+// to smtp.NewClient/NewClientStartTLS. The setup window — greeting,
+// EHLO, STARTTLS negotiation, TLS handshake — is bounded by
+// dialSetupTimeout via setupConn (go-smtp's own CommandTimeout is 5m,
+// far too long to leave a silent server on, and it overwrites any
+// deadline set from the outside). Once setup completes the deadline is
+// cleared and the library's CommandTimeout/SubmissionTimeout (5m/12m
+// defaults) bound the session; cancellation of in-flight commands is
+// covered by the watcher in SendMessage.
 func dialSMTPTLS(ctx context.Context, srv serverConfig) (*smtp.Client, error) {
 	host, port, err := resolveDialServer(srv, defaultSMTPPort)
 	if err != nil {
@@ -338,23 +420,43 @@ func dialSMTPTLS(ctx context.Context, srv serverConfig) (*smtp.Client, error) {
 	tlsCfg := tlsConfigFor(host)
 	if smtpUsesImplicitTLS(port) {
 		dialer := &tls.Dialer{
-			NetDialer: &net.Dialer{Timeout: 30 * time.Second},
+			NetDialer: &net.Dialer{Timeout: dialSetupTimeout},
 			Config:    tlsCfg,
 		}
 		conn, err := dialer.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("connecting to smtp server %s: %w", addr, err)
 		}
-		return smtp.NewClient(conn), nil
+		// tls.Dialer bounded connect+handshake; the greeting/EHLO are
+		// the remaining setup window. NewClient performs no I/O, so
+		// Hello forces the greeting into the armed budget.
+		setup := newSetupConn(conn, dialSetupTimeout)
+		client := smtp.NewClient(setup)
+		if err := client.Hello("localhost"); err != nil {
+			_ = client.Close()
+			return nil, setupError("greeting from smtp server", addr, err)
+		}
+		setup.disarm()
+		return client, nil
 	}
-	conn, err := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, "tcp", addr)
+	conn, err := (&net.Dialer{Timeout: dialSetupTimeout}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to smtp server %s: %w", addr, err)
 	}
-	client, err := smtp.NewClientStartTLS(conn, tlsCfg)
+	setup := newSetupConn(conn, dialSetupTimeout)
+	client, err := smtp.NewClientStartTLS(setup, tlsCfg)
 	if err != nil {
-		return nil, fmt.Errorf("starttls with smtp server %s: %w", addr, err)
+		return nil, setupError("starttls with smtp server", addr, err)
 	}
+	// go-smtp's upgrade is lazy: the TLS handshake and the post-upgrade
+	// EHLO run on the first command after NewClientStartTLS returns.
+	// Hello forces them into the armed budget so a server that stalls
+	// mid-upgrade fails here instead of hanging the first send command.
+	if err := client.Hello("localhost"); err != nil {
+		_ = client.Close()
+		return nil, setupError("starttls with smtp server", addr, err)
+	}
+	setup.disarm()
 	return client, nil
 }
 
