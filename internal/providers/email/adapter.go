@@ -92,20 +92,20 @@ func newSendMailService(creds *credentials) *mailService {
 // handshake) and handed to imapclient.New. In-flight commands are covered
 // by the cancellation watchers in each method (watchCancel).
 func dialIMAPTLS(ctx context.Context, srv serverConfig) (*imapclient.Client, error) {
-	port := srv.Port
-	if port == 0 {
-		port = defaultIMAPPort
+	host, port, err := resolveDialServer(srv, defaultIMAPPort)
+	if err != nil {
+		return nil, fmt.Errorf("stored imap server: %w", err)
 	}
-	addr := net.JoinHostPort(srv.Host, strconv.Itoa(port))
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	dialer := &tls.Dialer{
 		NetDialer: &net.Dialer{Timeout: 30 * time.Second},
-		Config:    tlsConfigFor(srv.Host),
+		Config:    tlsConfigFor(host),
 	}
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to imap server %s: %w", addr, err)
 	}
-	return imapclient.New(conn, &imapclient.Options{TLSConfig: tlsConfigFor(srv.Host)}), nil
+	return imapclient.New(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)}), nil
 }
 
 // watchCancel closes the client when ctx is cancelled: the emersion
@@ -298,12 +298,12 @@ func (s *mailService) SendMessage(ctx context.Context, in SendInput) error {
 // cancellation of in-flight commands is covered by the watcher in
 // SendMessage.
 func dialSMTPTLS(ctx context.Context, srv serverConfig) (*smtp.Client, error) {
-	port := srv.Port
-	if port == 0 {
-		port = defaultSMTPPort
+	host, port, err := resolveDialServer(srv, defaultSMTPPort)
+	if err != nil {
+		return nil, fmt.Errorf("stored smtp server: %w", err)
 	}
-	addr := net.JoinHostPort(srv.Host, strconv.Itoa(port))
-	tlsCfg := tlsConfigFor(srv.Host)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	tlsCfg := tlsConfigFor(host)
 	if smtpUsesImplicitTLS(port) {
 		dialer := &tls.Dialer{
 			NetDialer: &net.Dialer{Timeout: 30 * time.Second},

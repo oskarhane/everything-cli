@@ -40,6 +40,8 @@ everything-cli email account add work --imap-host imap.example.com --smtp-host s
 				return err
 			}
 			opts.Name = args[0]
+			opts.IMAPPortSet = cmd.Flags().Changed("imap-port")
+			opts.SMTPPortSet = cmd.Flags().Changed("smtp-port")
 			acct, err := addAccount(store, opts)
 			if err != nil {
 				return fmt.Errorf("adding email account %q: %w", args[0], err)
@@ -51,10 +53,10 @@ everything-cli email account add work --imap-host imap.example.com --smtp-host s
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&opts.IMAPHost, "imap-host", "", "IMAP server host (required)")
-	cmd.Flags().IntVar(&opts.IMAPPort, "imap-port", defaultIMAPPort, "IMAP server port (implicit TLS)")
-	cmd.Flags().StringVar(&opts.SMTPHost, "smtp-host", "", "SMTP server host (required)")
-	cmd.Flags().IntVar(&opts.SMTPPort, "smtp-port", defaultSMTPPort, "SMTP server port (STARTTLS submission)")
+	cmd.Flags().StringVar(&opts.IMAPHost, "imap-host", "", "IMAP server host, optionally host:port (required)")
+	cmd.Flags().IntVar(&opts.IMAPPort, "imap-port", defaultIMAPPort, "IMAP server port (implicit TLS); overrides a port embedded in --imap-host")
+	cmd.Flags().StringVar(&opts.SMTPHost, "smtp-host", "", "SMTP server host, optionally host:port (required)")
+	cmd.Flags().IntVar(&opts.SMTPPort, "smtp-port", defaultSMTPPort, "SMTP server port (STARTTLS submission); overrides a port embedded in --smtp-host")
 	cmd.Flags().StringVar(&opts.Username, "username", "", "Login username, usually the email address (required)")
 	cmd.Flags().StringVar(&opts.Password, "password", "",
 		"Login password (empty = EMAIL_PASSWORD env var, then a hidden prompt)")

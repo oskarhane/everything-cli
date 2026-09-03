@@ -2,12 +2,16 @@ package email
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/providers/emailtest"
 )
 
@@ -308,4 +312,58 @@ func TestNewMailService_BadPassword(t *testing.T) {
 	require.Error(t, err)
 	// The password must never surface in an error string, even a wrong one.
 	assert.NotContains(t, err.Error(), "wrong-"+testIMAPPassword)
+}
+
+// seedLegacyAccount persists an account in the PRE-FIX shape: the port is
+// embedded in the stored host while the stored port field holds the old
+// default. Accounts added before host:port normalization look like this.
+func seedLegacyAccount(t *testing.T, cfg *app.Config, name string, imapHost string, imapPort int) {
+	t.Helper()
+	payload, err := json.Marshal(credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: imapHost, Port: imapPort},
+		SMTP:     serverConfig{Host: "smtp.example.com", Port: defaultSMTPPort},
+	})
+	require.NoError(t, err)
+	err = newStore(t, cfg).Save(&config.Account{
+		Name:     name,
+		Provider: providerID,
+		Auth:     payload,
+	})
+	require.NoError(t, err)
+}
+
+// TestMailboxListLegacyEmbeddedPort proves a legacy account — stored
+// before the add-time fix, host "127.0.0.1:<port>" with the port field at
+// the 993 default — still dials the embedded port: the full read path
+// (real dialMail seam, loopback IMAP server on a random port) succeeds
+// only if the dial targets the embedded port, not 993.
+func TestMailboxListLegacyEmbeddedPort(t *testing.T) {
+	cfg, root, out := newEmailEnv(t)
+	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword,
+		map[string][]emailtest.SeedMessage{"INBOX": {}})
+	stubTLSRoots(t, roots)
+	seedLegacyAccount(t, cfg, "legacy",
+		host+":"+strconv.Itoa(port), defaultIMAPPort)
+
+	stdout, err := execute(t, root, out,
+		"email", "mailbox", "list", "--account", "legacy", "--format", "json")
+	require.NoError(t, err, "the dial must target the embedded port, not the stored 993")
+	assert.Contains(t, stdout, "INBOX")
+}
+
+// TestDialErrorRendersResolvedHostPort pins the dial-failure message: the
+// resolved host:port renders cleanly, never the buggy "[host:port]:port"
+// form a port-embedded host produced before the fix.
+func TestDialErrorRendersResolvedHostPort(t *testing.T) {
+	// Legacy shape, nothing listening on 127.0.0.1:1.
+	_, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: "127.0.0.1:1", Port: defaultIMAPPort},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connecting to imap server 127.0.0.1:1:")
+	assert.NotContains(t, err.Error(), "[127.0.0.1:1]")
 }

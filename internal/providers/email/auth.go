@@ -46,22 +46,59 @@ type credentials struct {
 	SMTP     serverConfig `json:"smtp"`
 }
 
-// addOptions carries the `email account add` inputs.
+// addOptions carries the `email account add` inputs. The *PortSet flags
+// record whether the port flag was explicitly passed (cobra Changed),
+// driving the port precedence in resolveServer.
 type addOptions struct {
-	Name     string
-	Username string
-	Password string // flag value; empty = EMAIL_PASSWORD, then a hidden prompt
-	IMAPHost string
-	IMAPPort int
-	SMTPHost string
-	SMTPPort int
+	Name        string
+	Username    string
+	Password    string // flag value; empty = EMAIL_PASSWORD, then a hidden prompt
+	IMAPHost    string
+	IMAPPort    int
+	IMAPPortSet bool
+	SMTPHost    string
+	SMTPPort    int
+	SMTPPortSet bool
+}
+
+// resolveServer normalizes one endpoint flag pair into the pure host and
+// integer port the auth payload stores. Port precedence: an explicitly
+// set --imap-port/--smtp-port flag wins, then a port embedded in the host
+// value ("host:1143"), then the default (993/587).
+func resolveServer(hostFlag, hostValue string, defaultPort int, portFlag string, portValue int, portSet bool) (string, int, error) {
+	host, port, err := splitHostPort(strings.TrimSpace(hostValue), defaultPort)
+	if err != nil {
+		return "", 0, fmt.Errorf("%s %w", hostFlag, err)
+	}
+	if portSet {
+		if err := validPort(portFlag, portValue); err != nil {
+			return "", 0, err
+		}
+		port = portValue
+	}
+	return host, port, nil
 }
 
 // addAccount validates opts, captures the password, and persists the
-// account under the email store directory. The password is registered for
-// redaction immediately at capture, before anything could print it.
+// account under the email store directory. Host values are normalized at
+// this mint point: a port embedded in --imap-host/--smtp-host is split
+// off so the stored payload keeps a PURE host and a resolved integer
+// port. The password is registered for redaction immediately at capture,
+// before anything could print it.
 func addAccount(store *config.Store, opts addOptions) (*config.Account, error) {
 	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+	// Endpoint resolution fails fast on a bad host:port, before the
+	// password prompt.
+	imapHost, imapPort, err := resolveServer("--imap-host", opts.IMAPHost, defaultIMAPPort,
+		"--imap-port", opts.IMAPPort, opts.IMAPPortSet)
+	if err != nil {
+		return nil, err
+	}
+	smtpHost, smtpPort, err := resolveServer("--smtp-host", opts.SMTPHost, defaultSMTPPort,
+		"--smtp-port", opts.SMTPPort, opts.SMTPPortSet)
+	if err != nil {
 		return nil, err
 	}
 	password, err := capturePassword(opts.Password)
@@ -73,8 +110,8 @@ func addAccount(store *config.Store, opts addOptions) (*config.Account, error) {
 	payload, err := json.Marshal(credentials{
 		Username: strings.TrimSpace(opts.Username),
 		Password: password,
-		IMAP:     serverConfig{Host: strings.TrimSpace(opts.IMAPHost), Port: opts.IMAPPort},
-		SMTP:     serverConfig{Host: strings.TrimSpace(opts.SMTPHost), Port: opts.SMTPPort},
+		IMAP:     serverConfig{Host: imapHost, Port: imapPort},
+		SMTP:     serverConfig{Host: smtpHost, Port: smtpPort},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encoding auth payload: %w", err)

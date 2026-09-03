@@ -17,8 +17,12 @@ username (usually the email address) and a password or app password.
    credential. Password capture order: the `--password` flag, then the
    `$EMAIL_PASSWORD` environment variable, then a hidden prompt (never
    echoed). Prefer the prompt or the env var — a literal `--password ...`
-   lands in shell history. Port flags: `--imap-port` (default `993`,
-   implicit TLS) and `--smtp-port` (default `587`, STARTTLS submission).
+   lands in shell history. Host flags accept a bare host or a `host:port`
+   value (IPv6 literals as `[::1]:1143` or bare `::1`). Port precedence:
+   an explicit `--imap-port`/`--smtp-port` flag wins, then a port embedded
+   in the host value, then the defaults (`993` implicit TLS for IMAP,
+   `587` STARTTLS submission for SMTP). The stored payload always keeps a
+   pure host (no port) plus the resolved integer port.
 2. `everything-cli email account use <name>` — set the default email
    account. Every command also accepts the global `--account <name>`
    override.
@@ -39,8 +43,11 @@ Manage email accounts and their stored IMAP/SMTP credentials.
   and credentials. Flags: `--imap-host <host>` (required), `--smtp-host
   <host>` (required), `--username <user>` (required), `--password <pw>`
   (empty = `$EMAIL_PASSWORD`, then a hidden prompt), `--imap-port <n>`
-  (default `993`), `--smtp-port <n>` (default `587`). Prints the added
-  account's `name` only — never the password.
+  (default `993`), `--smtp-port <n>` (default `587`). The host flags
+  accept `host:port` too (`--imap-host 127.0.0.1:1143`, `[::1]:1143`); an
+  explicit port flag overrides an embedded port, an embedded port
+  overrides the default. Prints the added account's `name` only — never
+  the password.
 - `email account list` — list configured email accounts. Fields: `name`,
   `default` (the default account carries `default: true` in JSON/TOON,
   `(default)` in table output).
@@ -53,6 +60,7 @@ Manage email accounts and their stored IMAP/SMTP credentials.
 
 ```sh
 everything-cli email account add work --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com
+everything-cli email account add dev --imap-host 127.0.0.1:1143 --smtp-host 127.0.0.1:1025 --username dev@example.com
 EMAIL_PASSWORD=... everything-cli email account add work --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com
 everything-cli email account list --format json
 everything-cli email account get work --format json

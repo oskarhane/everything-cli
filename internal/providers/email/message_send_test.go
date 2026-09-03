@@ -164,13 +164,15 @@ func TestMessageSendDialsSMTPOnly(t *testing.T) {
 	// Seed directly (seedAccount pins unreachable hosts): IMAP points at a
 	// refused loopback port, so any IMAP dial or login attempt fails.
 	_, err := addAccount(newStore(t, cfg), addOptions{
-		Name:     "work",
-		Username: testSMTPUser,
-		Password: testSMTPPassword,
-		IMAPHost: "127.0.0.1",
-		IMAPPort: 1, // nothing listens: refused
-		SMTPHost: server.Host,
-		SMTPPort: server.Port,
+		Name:        "work",
+		Username:    testSMTPUser,
+		Password:    testSMTPPassword,
+		IMAPHost:    "127.0.0.1",
+		IMAPPort:    1,    // nothing listens: refused
+		IMAPPortSet: true, // explicit, like a changed --imap-port flag
+		SMTPHost:    server.Host,
+		SMTPPort:    server.Port,
+		SMTPPortSet: true,
 	})
 	require.NoError(t, err)
 
