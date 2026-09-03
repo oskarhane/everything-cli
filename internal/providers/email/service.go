@@ -7,13 +7,6 @@ import (
 	"time"
 )
 
-// Dialer builds the service a leaf's RunE uses: the provider injects the
-// real dialer (dialMail); tests inject fakes so no leaf ever touches the
-// network. The type parameter is the per-concern interface the subtree
-// consumes — the concrete service implements them all, and As narrows the
-// seam. Mirrors the gmail/service seam.
-type Dialer[T any] func(context.Context) (T, error)
-
 // MailService is the whole IMAP/SMTP surface this CLI uses. Leaves never
 // consume it directly: they narrow it to one of the per-concern interfaces
 // below via As, so fakes model a single concern instead of the union.
@@ -89,16 +82,14 @@ type SendInput struct {
 	Body    io.Reader
 }
 
-// As adapts the MailService a dialer returns into any of the per-concern
-// interfaces (MailboxLister, EnvelopeLister, ...). The real service
-// implements every interface; the assertion hands a subtree its own
-// surface without growing the others. err is passed through untouched so
-// the adapter composes directly on a dial call.
-func As[T any](svc MailService, err error) (T, error) {
-	if err != nil {
-		var zero T
-		return zero, err
-	}
+// As narrows the MailService a leaf obtained from the package-var dialMail
+// seam into any of the per-concern interfaces (MailboxLister,
+// EnvelopeLister, ...). The real service implements every interface; the
+// assertion hands a subtree its own surface without growing the others.
+// Unlike the gmail seam, the dialer is not injected into constructors:
+// leaves close over dialMail directly and narrow after the fact because
+// the leaf owns the persistent IMAP connection's Close.
+func As[T any](svc MailService) (T, error) {
 	narrowed, ok := svc.(T)
 	if !ok {
 		return narrowed, fmt.Errorf("mail service does not implement the requested operations")

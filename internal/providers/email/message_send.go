@@ -65,7 +65,7 @@ printf 'hi' | everything-cli email message send --to alice@example.com --subject
 			// Close logs out of IMAP and releases the connection; the send
 			// is already submitted by then, so a Close error is not fatal.
 			defer func() { _ = svc.Close() }()
-			sender, err := As[MessageSender](svc, nil)
+			sender, err := As[MessageSender](svc)
 			if err != nil {
 				return err
 			}

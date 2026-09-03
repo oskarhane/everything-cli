@@ -34,7 +34,7 @@ everything-cli email mailbox list --format table`,
 			// Close logs out of IMAP; the connection must not outlive the
 			// command even when listing fails.
 			defer func() { _ = svc.Close() }()
-			lister, err := As[MailboxLister](svc, nil)
+			lister, err := As[MailboxLister](svc)
 			if err != nil {
 				return err
 			}
