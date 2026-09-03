@@ -24,6 +24,13 @@ username (usually the email address) and a password or app password.
    any other IMAP port means mandatory STARTTLS — `587` STARTTLS
    submission for SMTP). The stored payload always keeps a
    pure host (no port) plus the resolved integer port.
+   Transport precedence: an explicit `--imap-tls`/`--smtp-tls` flag
+   (`implicit` or `starttls`, matched exactly) wins over the port
+   heuristic — e.g. `--smtp-tls implicit` for a server doing implicit
+   TLS on a non-465 port. The flag value is stored as the payload's
+   `imap.tls`/`smtp.tls` field (omitted when unset); an empty value
+   means the port heuristic decides, which is how legacy accounts
+   behave.
 2. `everything-cli email account use <name>` — set the default email
    account. Every command also accepts the global `--account <name>`
    override.
@@ -45,7 +52,9 @@ Manage email accounts and their stored IMAP/SMTP credentials.
   <host>` (required), `--username <user>` (required), `--password <pw>`
   (empty = `$EMAIL_PASSWORD`, then a hidden prompt), `--imap-port <n>`
   (default `993`, implicit TLS; any other port uses mandatory STARTTLS),
-  `--smtp-port <n>` (default `587`). The host flags
+  `--smtp-port <n>` (default `587`), `--imap-tls <mode>` /
+  `--smtp-tls <mode>` (`implicit` or `starttls`; empty = the port
+  heuristic decides, and an explicit value always wins over it). The host flags
   accept `host:port` too (`--imap-host 127.0.0.1:1143`, `[::1]:1143`); an
   explicit port flag overrides an embedded port, an embedded port
   overrides the default. Prints the added account's `name` only — never
@@ -141,8 +150,10 @@ printf 'hi' | everything-cli email message send --to alice@example.com --subject
 - TLS only: IMAP uses implicit TLS on port 993 and mandatory STARTTLS on
   any other port — a server that doesn't advertise STARTTLS fails the
   dial and no IMAP command ever runs unencrypted. SMTP uses STARTTLS
-  submission on port 587 (or implicit TLS on 465). There is no plaintext
-  fallback.
+  submission on port 587 (or implicit TLS on 465). An explicit
+  `--imap-tls`/`--smtp-tls` account value overrides that port heuristic
+  (both values still end in TLS — the override never opens a plaintext
+  path). There is no plaintext fallback.
 - IMAP UIDs are per-mailbox: a `uid` from `message list --mailbox
   Archive` must be fetched with `message get <uid> --mailbox Archive`.
 - `message list` caps at `--limit 25` by default — pass `--limit 0` for

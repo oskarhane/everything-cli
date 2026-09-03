@@ -85,6 +85,10 @@ everything-cli email account add work \
 EMAIL_PASSWORD=... everything-cli email account add work \
     --imap-host imap.example.com --smtp-host smtp.example.com --username me@example.com  # non-interactive
 
+# TLS is mandatory: IMAP dials implicit TLS on 993 / STARTTLS otherwise, SMTP implicit TLS on 465 /
+# STARTTLS otherwise. --imap-tls implicit|starttls / --smtp-tls implicit|starttls override that port
+# heuristic at add time (e.g. a server doing implicit TLS on a non-standard port).
+
 everything-cli email mailbox list
 everything-cli email message list --limit 10
 everything-cli email message send --to alice@example.com --subject "Hi" --body "hello"

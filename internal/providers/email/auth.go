@@ -22,6 +22,14 @@ const (
 	defaultSMTPPort = 587
 )
 
+// TLS transport modes: the values of --imap-tls/--smtp-tls and of the
+// stored tls field. Matching is EXACT (lowercase only) — an enum accepts
+// precisely its documented values, never a case-variant.
+const (
+	tlsModeImplicit = "implicit"
+	tlsModeStartTLS = "starttls"
+)
+
 // getenv and prompt are seams for hermetic tests; production wiring gets
 // the defaults (os.Getenv and a hidden terminal prompt).
 var (
@@ -30,9 +38,13 @@ var (
 )
 
 // serverConfig pins one endpoint of the provider-shaped auth payload.
+// TLS is the explicit transport override ("" = the port heuristic
+// decides); it is omitted from the payload when unset so legacy accounts
+// and heuristic accounts serialize identically.
 type serverConfig struct {
 	Host string `json:"host"`
 	Port int    `json:"port"`
+	TLS  string `json:"tls,omitempty"`
 }
 
 // credentials is the provider-shaped JSON stored in Account.Auth, opaque
@@ -56,9 +68,11 @@ type addOptions struct {
 	IMAPHost    string
 	IMAPPort    int
 	IMAPPortSet bool
+	IMAPTLS     string // "" = port heuristic; "implicit" | "starttls" override
 	SMTPHost    string
 	SMTPPort    int
 	SMTPPortSet bool
+	SMTPTLS     string // "" = port heuristic; "implicit" | "starttls" override
 }
 
 // resolveServer normalizes one endpoint flag pair into the pure host and
@@ -110,8 +124,8 @@ func addAccount(store *config.Store, opts addOptions) (*config.Account, error) {
 	payload, err := json.Marshal(credentials{
 		Username: strings.TrimSpace(opts.Username),
 		Password: password,
-		IMAP:     serverConfig{Host: imapHost, Port: imapPort},
-		SMTP:     serverConfig{Host: smtpHost, Port: smtpPort},
+		IMAP:     serverConfig{Host: imapHost, Port: imapPort, TLS: opts.IMAPTLS},
+		SMTP:     serverConfig{Host: smtpHost, Port: smtpPort, TLS: opts.SMTPTLS},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encoding auth payload: %w", err)
@@ -141,7 +155,24 @@ func (o addOptions) validate() error {
 	if err := validPort("--imap-port", o.IMAPPort); err != nil {
 		return err
 	}
-	return validPort("--smtp-port", o.SMTPPort)
+	if err := validPort("--smtp-port", o.SMTPPort); err != nil {
+		return err
+	}
+	if err := validTLSMode("--imap-tls", o.IMAPTLS); err != nil {
+		return err
+	}
+	return validTLSMode("--smtp-tls", o.SMTPTLS)
+}
+
+// validTLSMode enforces the --imap-tls/--smtp-tls enum: empty (heuristic)
+// or exactly one of the two transport modes. Matching is exact — a
+// case-variant is a usage error, not a silent alias.
+func validTLSMode(flag, value string) error {
+	switch value {
+	case "", tlsModeImplicit, tlsModeStartTLS:
+		return nil
+	}
+	return fmt.Errorf(`%s must be "implicit" or "starttls", got %q`, flag, value)
 }
 
 func validPort(flag string, port int) error {

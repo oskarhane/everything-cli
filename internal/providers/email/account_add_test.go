@@ -46,6 +46,9 @@ func TestAccountAddWithFlagsNeverPrintsPassword(t *testing.T) {
 	assert.Equal(t, 993, payload.IMAP.Port, "default IMAP port")
 	assert.Equal(t, "smtp.example.com", payload.SMTP.Host)
 	assert.Equal(t, 587, payload.SMTP.Port, "default SMTP port")
+	assert.Empty(t, payload.IMAP.TLS, "no --imap-tls flag: field stays empty")
+	assert.Empty(t, payload.SMTP.TLS, "no --smtp-tls flag: field stays empty")
+	assert.NotContains(t, string(raw), `"tls"`, "unset transports are omitted from the payload")
 
 	// The first add becomes the provider default.
 	def, err := newStore(t, cfg).DefaultAccountFor("email")
@@ -69,6 +72,77 @@ func TestAccountAddCustomPorts(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 143, creds.IMAP.Port)
 	assert.Equal(t, 465, creds.SMTP.Port)
+}
+
+// TestAccountAddTLSFlags pins the explicit transport contract: the
+// --imap-tls/--smtp-tls enum value lands in the stored payload's
+// imap.tls/smtp.tls field.
+func TestAccountAddTLSFlags(t *testing.T) {
+	tests := []struct {
+		name     string
+		extraArg []string
+		wantIMAP string
+		wantSMTP string
+	}{
+		{name: "smtp implicit",
+			extraArg: []string{"--smtp-tls", "implicit"},
+			wantSMTP: "implicit"},
+		{name: "imap starttls",
+			extraArg: []string{"--imap-tls", "starttls"},
+			wantIMAP: "starttls"},
+		{name: "both set",
+			extraArg: []string{"--imap-tls", "implicit", "--smtp-tls", "starttls"},
+			wantIMAP: "implicit", wantSMTP: "starttls"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, root, out := newEmailEnv(t)
+			args := append([]string{"email", "account", "add", "work",
+				"--imap-host", "imap.example.com", "--smtp-host", "smtp.example.com",
+				"--username", "me@example.com", "--password", "secret-tls-flag"}, tt.extraArg...)
+			_, err := execute(t, root, out, args...)
+			require.NoError(t, err)
+
+			acct, err := newStore(t, cfg).GetProvider("email", "work")
+			require.NoError(t, err)
+			creds, err := loadCredentials(acct)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantIMAP, creds.IMAP.TLS)
+			assert.Equal(t, tt.wantSMTP, creds.SMTP.TLS)
+		})
+	}
+}
+
+// TestAccountAddInvalidTLSMode rejects anything outside the
+// implicit|starttls enum with a usage error at add time, for both flags.
+// "Implicit" pins the deliberate choice: matching is EXACT — case
+// variants are rejected, not silently accepted.
+func TestAccountAddInvalidTLSMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		flag    string
+		value   string
+		wantErr string
+	}{
+		{name: "imap bogus", flag: "--imap-tls", value: "bogus",
+			wantErr: `--imap-tls must be "implicit" or "starttls", got "bogus"`},
+		{name: "smtp bogus", flag: "--smtp-tls", value: "bogus",
+			wantErr: `--smtp-tls must be "implicit" or "starttls", got "bogus"`},
+		{name: "case variant rejected", flag: "--imap-tls", value: "Implicit",
+			wantErr: `--imap-tls must be "implicit" or "starttls", got "Implicit"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, root, out := newEmailEnv(t)
+			_, err := execute(t, root, out,
+				"email", "account", "add", "work",
+				"--imap-host", "imap.example.com", "--smtp-host", "smtp.example.com",
+				"--username", "me@example.com", "--password", "secret-tls-invalid",
+				tt.flag, tt.value)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }
 
 // TestAccountAddHostPortSyntax proves the bug fix: a port embedded in

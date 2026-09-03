@@ -413,6 +413,34 @@ func TestDialIMAPStartTLS(t *testing.T) {
 	assert.ElementsMatch(t, []string{"INBOX", "Archive"}, names)
 }
 
+// TestDialIMAPExplicitStartTLSOverridesHeuristic proves the explicit
+// transport wins over the port heuristic: the stored account carries
+// imap.tls == "starttls" on a port the heuristic maps to IMPLICIT TLS
+// (the seam pins the loopback port as if it were 993), yet the dial must
+// still take the STARTTLS path — the server listens in plaintext and
+// only upgrades on STARTTLS, so a successful login and list can only
+// have happened over an upgraded connection.
+func TestDialIMAPExplicitStartTLSOverridesHeuristic(t *testing.T) {
+	host, port, roots := emailtest.StartIMAPStartTLS(t, testIMAPUser, testIMAPPassword,
+		map[string][]emailtest.SeedMessage{
+			"INBOX": {{Raw: simpleRawMessage(), Flags: []string{`\Seen`}, Time: testSimpleDate}},
+		})
+	stubTLSRoots(t, roots)
+	stubIMAPImplicitTLS(t, port) // heuristic says implicit, as on 993
+
+	svc, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: host, Port: port, TLS: tlsModeStartTLS},
+	})
+	require.NoError(t, err, "explicit starttls must override the implicit-TLS heuristic")
+	t.Cleanup(func() { _ = svc.Close() })
+
+	names, err := svc.ListMailboxes(t.Context())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"INBOX"}, names)
+}
+
 // TestDialIMAPStartTLS_Mandatory proves STARTTLS is mandatory on the
 // non-993 path: a server that refuses STARTTLS fails the dial, and the
 // only command that ever crossed the plaintext connection is STARTTLS
