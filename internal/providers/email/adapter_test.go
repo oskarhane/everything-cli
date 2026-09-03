@@ -1,8 +1,6 @@
 package email
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/base64"
 	"testing"
 	"time"
@@ -57,19 +55,6 @@ func multipartRawMessage() string {
 		"\r\n" +
 		base64.StdEncoding.EncodeToString(attachmentBytes) + "\r\n" +
 		"--mix-boundary--\r\n"
-}
-
-// stubTLSRoots points the adapter's TLS config seam at the test CA for the
-// test's lifetime, keeping full verification against the loopback server.
-func stubTLSRoots(t *testing.T, roots *x509.CertPool) {
-	t.Helper()
-	saved := tlsConfigFor
-	tlsConfigFor = func(host string) *tls.Config {
-		cfg := saved(host)
-		cfg.RootCAs = roots
-		return cfg
-	}
-	t.Cleanup(func() { tlsConfigFor = saved })
 }
 
 // newSeededIMAP starts an in-process IMAP server with INBOX (one simple

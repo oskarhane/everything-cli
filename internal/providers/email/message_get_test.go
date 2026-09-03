@@ -1,66 +1,20 @@
 package email
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
 // getFixtureDate is the fixed Date of the test fixture message.
 var getFixtureDate = time.Date(2026, 7, 1, 9, 15, 0, 0, time.UTC)
-
-// fakeGetService is a MailService fake for message-get tests: GetMessage is
-// the only live method; the rest exist to satisfy the union interface the
-// dialMail seam returns. gotMailbox/gotUID record the call so tests prove
-// flag plumbing; closed proves the leaf's deferred Close ran.
-type fakeGetService struct {
-	msg        *Message
-	err        error
-	gotMailbox string
-	gotUID     uint32
-	closed     bool
-}
-
-func (f *fakeGetService) ListMailboxes(context.Context) ([]string, error) {
-	return nil, errors.New("fakeGetService: ListMailboxes not implemented")
-}
-
-func (f *fakeGetService) ListEnvelopes(context.Context, string, int) ([]Envelope, error) {
-	return nil, errors.New("fakeGetService: ListEnvelopes not implemented")
-}
-
-func (f *fakeGetService) GetMessage(_ context.Context, mailbox string, uid uint32) (*Message, error) {
-	f.gotMailbox, f.gotUID = mailbox, uid
-	return f.msg, f.err
-}
-
-func (f *fakeGetService) SendMessage(context.Context, SendInput) error {
-	return errors.New("fakeGetService: SendMessage not implemented")
-}
-
-func (f *fakeGetService) Close() error {
-	f.closed = true
-	return nil
-}
-
-// stubGetDial swaps the dialMail seam for the test's lifetime so leaves run
-// against the fake service instead of a real IMAP dial.
-func stubGetDial(t *testing.T, svc MailService, err error) {
-	t.Helper()
-	saved := dialMail
-	dialMail = func(context.Context, *app.Config) (MailService, error) { return svc, err }
-	t.Cleanup(func() { dialMail = saved })
-}
 
 // multipartGetFixture models a decoded multipart/mixed message: BodyText is
 // the decoded text part and the attachment carries metadata only.
@@ -78,23 +32,12 @@ func multipartGetFixture() *Message {
 	}
 }
 
-// mountGetLeaf mounts the leaf on a minimal message parent under the env's
-// root: the real message parent (message.go) is wired by a later change, so
-// tests build their own rather than depend on the sibling-owned file. The
-// root comes from newEmailEnv so stdout capture stays in place.
-func mountGetLeaf(cfg *app.Config, root *cobra.Command) {
-	parent := &cobra.Command{Use: "message"}
-	parent.AddCommand(newMessageGetCmd(cfg))
-	root.AddCommand(parent)
-}
-
 func TestMessageGet_JSON(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
-	fake := &fakeGetService{msg: multipartGetFixture()}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	_, root, out := newEmailEnv(t)
+	fake := getFake(multipartGetFixture(), nil)
+	stubDial(t, &dialMail, fake, nil)
 
-	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "json")
+	stdout, err := execute(t, root, out, "email", "message", "get", "7", "--format", "json")
 	require.NoError(t, err)
 
 	// Flag and positional plumbing reached the service.
@@ -122,24 +65,22 @@ func TestMessageGet_JSON(t *testing.T) {
 }
 
 func TestMessageGet_MailboxFlag(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
-	fake := &fakeGetService{msg: multipartGetFixture()}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	_, root, out := newEmailEnv(t)
+	fake := getFake(multipartGetFixture(), nil)
+	stubDial(t, &dialMail, fake, nil)
 
-	_, err := execute(t, root, out, "message", "get", "42", "--mailbox", "Archive", "--format", "json")
+	_, err := execute(t, root, out, "email", "message", "get", "42", "--mailbox", "Archive", "--format", "json")
 	require.NoError(t, err)
 	assert.Equal(t, "Archive", fake.gotMailbox)
 	assert.Equal(t, uint32(42), fake.gotUID)
 }
 
 func TestMessageGet_Table(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
-	fake := &fakeGetService{msg: multipartGetFixture()}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	_, root, out := newEmailEnv(t)
+	fake := getFake(multipartGetFixture(), nil)
+	stubDial(t, &dialMail, fake, nil)
 
-	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "table")
+	stdout, err := execute(t, root, out, "email", "message", "get", "7", "--format", "table")
 	require.NoError(t, err)
 	// go-pretty StyleLight upper-cases header cells.
 	for _, header := range []string{"UID", "FROM", "TO", "SUBJECT", "DATE"} {
@@ -151,16 +92,14 @@ func TestMessageGet_Table(t *testing.T) {
 }
 
 func TestMessageGet_Toon_ControlBytesInBody(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
+	_, root, out := newEmailEnv(t)
 	fixture := multipartGetFixture()
 	fixture.BodyText = "before\x1b[31m red\x07 after\x7f"
-	fake := &fakeGetService{msg: fixture}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	stubDial(t, &dialMail, getFake(fixture, nil), nil)
 
 	// C0 control bytes must not break the TOON marshal: PrintToon deep-strips
 	// them (falling back to JSON on residual error) — never a panic.
-	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "toon")
+	stdout, err := execute(t, root, out, "email", "message", "get", "7", "--format", "toon")
 	require.NoError(t, err)
 	assert.NotContains(t, stdout, "\x1b")
 	assert.NotContains(t, stdout, "\x07")
@@ -179,33 +118,32 @@ func TestMessageGet_Errors(t *testing.T) {
 	}{
 		{
 			name:    "non-numeric uid is a usage error",
-			args:    []string{"message", "get", "abc", "--format", "json"},
+			args:    []string{"email", "message", "get", "abc", "--format", "json"},
 			wantErr: `invalid uid "abc"`,
 		},
 		{
 			name:    "negative uid is a usage error",
-			args:    []string{"message", "get", "--format", "json", "--", "-1"},
+			args:    []string{"email", "message", "get", "--format", "json", "--", "-1"},
 			wantErr: `invalid uid "-1"`,
 		},
 		{
 			name:    "dial failure propagates",
-			args:    []string{"message", "get", "7", "--format", "json"},
+			args:    []string{"email", "message", "get", "7", "--format", "json"},
 			dialErr: errors.New("dial refused"),
 			wantErr: "dial refused",
 		},
 		{
 			name:    "service failure propagates",
-			args:    []string{"message", "get", "7", "--format", "json"},
+			args:    []string{"email", "message", "get", "7", "--format", "json"},
 			svcErr:  errors.New("no such message"),
 			wantErr: "no such message",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, root, out := newEmailEnv(t)
-			fake := &fakeGetService{msg: multipartGetFixture(), err: tt.svcErr}
-			stubGetDial(t, fake, tt.dialErr)
-			mountGetLeaf(cfg, root)
+			_, root, out := newEmailEnv(t)
+			fake := getFake(multipartGetFixture(), tt.svcErr)
+			stubDial(t, &dialMail, fake, tt.dialErr)
 
 			_, err := execute(t, root, out, tt.args...)
 			require.Error(t, err)
@@ -218,14 +156,13 @@ func TestMessageGet_Errors(t *testing.T) {
 }
 
 func TestMessageGet_ArgCount(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
-	stubGetDial(t, &fakeGetService{msg: multipartGetFixture()}, nil)
-	mountGetLeaf(cfg, root)
+	_, root, out := newEmailEnv(t)
+	stubDial(t, &dialMail, getFake(multipartGetFixture(), nil), nil)
 
-	_, err := execute(t, root, out, "message", "get", "--format", "json")
+	_, err := execute(t, root, out, "email", "message", "get", "--format", "json")
 	require.Error(t, err)
 
-	_, err = execute(t, root, out, "message", "get", "1", "2", "--format", "json")
+	_, err = execute(t, root, out, "email", "message", "get", "1", "2", "--format", "json")
 	require.Error(t, err)
 }
 
@@ -235,23 +172,21 @@ func TestMessageGet_ArgCount(t *testing.T) {
 // (JSON/TOON already pass through the central redactor; this pins the
 // table path.)
 func TestMessageGet_TableRedactsSecret(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
+	_, root, out := newEmailEnv(t)
 	const secret = "table-redact-distinctive-secret-7e1"
 	auth.RegisterSecret(secret)
 	fixture := multipartGetFixture()
 	fixture.BodyText = "Your new password is " + secret + " — keep it safe."
-	fake := &fakeGetService{msg: fixture}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	stubDial(t, &dialMail, getFake(fixture, nil), nil)
 
-	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "table")
+	stdout, err := execute(t, root, out, "email", "message", "get", "7", "--format", "table")
 	require.NoError(t, err)
 	assert.NotContains(t, stdout, secret, "the secret must never reach table output")
 	assert.Contains(t, stdout, "***")
 	assert.Contains(t, stdout, "Your new password is")
 
 	// JSON redaction (via the central output chokepoint) is unchanged.
-	stdout, err = execute(t, root, out, "message", "get", "7", "--format", "json")
+	stdout, err = execute(t, root, out, "email", "message", "get", "7", "--format", "json")
 	require.NoError(t, err)
 	assert.NotContains(t, stdout, secret)
 	assert.Contains(t, stdout, "***")
@@ -260,14 +195,12 @@ func TestMessageGet_TableRedactsSecret(t *testing.T) {
 // TestMessageGet_ToonControlBytesInSubject proves stripping applies to
 // header-shaped strings too, not just the body.
 func TestMessageGet_ToonControlBytesInSubject(t *testing.T) {
-	cfg, root, out := newEmailEnv(t)
+	_, root, out := newEmailEnv(t)
 	fixture := multipartGetFixture()
 	fixture.Subject = "sneaky\x1b[0m subject"
-	fake := &fakeGetService{msg: fixture}
-	stubGetDial(t, fake, nil)
-	mountGetLeaf(cfg, root)
+	stubDial(t, &dialMail, getFake(fixture, nil), nil)
 
-	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "toon")
+	stdout, err := execute(t, root, out, "email", "message", "get", "7", "--format", "toon")
 	require.NoError(t, err)
 	assert.NotContains(t, stdout, "\x1b")
 	assert.True(t, strings.Contains(stdout, "sneaky"))

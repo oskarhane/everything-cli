@@ -1,81 +1,14 @@
 package email
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"testing"
 	"time"
 
-	"github.com/spf13/afero"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/oskarhane/everything-cli/internal/app"
 )
-
-// fakeListService is a hermetic EnvelopeLister (plus the no-op rest of
-// MailService) injected through the dialMail seam: no test ever touches
-// the network. It records the arguments the leaf passed and whether the
-// leaf closed the connection.
-type fakeListService struct {
-	envelopes  []Envelope
-	listErr    error
-	gotMailbox string
-	gotLimit   int
-	closed     bool
-}
-
-func (f *fakeListService) ListEnvelopes(_ context.Context, mailbox string, limit int) ([]Envelope, error) {
-	f.gotMailbox, f.gotLimit = mailbox, limit
-	return f.envelopes, f.listErr
-}
-
-func (f *fakeListService) ListMailboxes(context.Context) ([]string, error) {
-	return nil, errors.New("fakeListService: not implemented")
-}
-
-func (f *fakeListService) GetMessage(context.Context, string, uint32) (*Message, error) {
-	return nil, errors.New("fakeListService: not implemented")
-}
-
-func (f *fakeListService) SendMessage(context.Context, SendInput) error {
-	return errors.New("fakeListService: not implemented")
-}
-
-func (f *fakeListService) Close() error {
-	f.closed = true
-	return nil
-}
-
-// stubListDial swaps the dialMail seam for the test's lifetime so the leaf
-// dials the fake instead of IMAP.
-func stubListDial(t *testing.T, svc MailService, err error) {
-	t.Helper()
-	saved := dialMail
-	dialMail = func(context.Context, *app.Config) (MailService, error) { return svc, err }
-	t.Cleanup(func() { dialMail = saved })
-}
-
-// newMessageListEnv mounts the message subtree on a fresh root directly
-// rather than via Provider.NewCmd: the provider wiring is another node's
-// file, and this test must be hermetic to this node's files. The dial seam
-// is stubbed, so no account or config dir is ever read.
-func newMessageListEnv(t *testing.T) (*cobra.Command, *bytes.Buffer) {
-	t.Helper()
-	cfg := &app.Config{Fs: afero.NewMemMapFs()}
-	root := app.NewRootCommand(cfg)
-	emailCmd := &cobra.Command{Use: "email"}
-	emailCmd.AddCommand(newMessageCmd(cfg))
-	root.AddCommand(emailCmd)
-	out := &bytes.Buffer{}
-	root.SetOut(out)
-	root.SetErr(io.Discard)
-	return root, out
-}
 
 // listEnvelopesFixture is two envelopes, newest first, with distinct
 // values per field so a swapped or dropped field fails an assertion.
@@ -142,9 +75,9 @@ func TestMessageListFormats(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fake := &fakeListService{envelopes: listEnvelopesFixture()}
-			stubListDial(t, fake, nil)
-			root, out := newMessageListEnv(t)
+			fake := listFake(listEnvelopesFixture(), nil)
+			stubDial(t, &dialMail, fake, nil)
+			_, root, out := newEmailEnv(t)
 
 			stdout, err := execute(t, root, out, "email", "message", "list", "--format", tt.format)
 			require.NoError(t, err)
@@ -155,8 +88,8 @@ func TestMessageListFormats(t *testing.T) {
 }
 
 func TestMessageListEmptyMailboxRendersEmptyArray(t *testing.T) {
-	stubListDial(t, &fakeListService{}, nil)
-	root, out := newMessageListEnv(t)
+	stubDial(t, &dialMail, listFake(nil, nil), nil)
+	_, root, out := newEmailEnv(t)
 
 	stdout, err := execute(t, root, out, "email", "message", "list", "--format", "json")
 	require.NoError(t, err)
@@ -180,9 +113,9 @@ func TestMessageListFlagDefaultsAndPassThrough(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fake := &fakeListService{}
-			stubListDial(t, fake, nil)
-			root, out := newMessageListEnv(t)
+			fake := listFake(nil, nil)
+			stubDial(t, &dialMail, fake, nil)
+			_, root, out := newEmailEnv(t)
 
 			args := append([]string{"email", "message", "list"}, tt.args...)
 			_, err := execute(t, root, out, args...)
@@ -195,8 +128,8 @@ func TestMessageListFlagDefaultsAndPassThrough(t *testing.T) {
 
 func TestMessageListErrors(t *testing.T) {
 	t.Run("dial failure surfaces and nothing is closed", func(t *testing.T) {
-		stubListDial(t, nil, errors.New("dial boom"))
-		root, out := newMessageListEnv(t)
+		stubDial(t, &dialMail, nil, errors.New("dial boom"))
+		_, root, out := newEmailEnv(t)
 
 		_, err := execute(t, root, out, "email", "message", "list")
 		require.Error(t, err)
@@ -204,9 +137,9 @@ func TestMessageListErrors(t *testing.T) {
 	})
 
 	t.Run("list failure surfaces", func(t *testing.T) {
-		fake := &fakeListService{listErr: errors.New("list boom")}
-		stubListDial(t, fake, nil)
-		root, out := newMessageListEnv(t)
+		fake := listFake(nil, errors.New("list boom"))
+		stubDial(t, &dialMail, fake, nil)
+		_, root, out := newEmailEnv(t)
 
 		_, err := execute(t, root, out, "email", "message", "list")
 		require.Error(t, err)
@@ -215,8 +148,8 @@ func TestMessageListErrors(t *testing.T) {
 	})
 
 	t.Run("positional args are rejected", func(t *testing.T) {
-		stubListDial(t, &fakeListService{}, nil)
-		root, out := newMessageListEnv(t)
+		stubDial(t, &dialMail, listFake(nil, nil), nil)
+		_, root, out := newEmailEnv(t)
 
 		_, err := execute(t, root, out, "email", "message", "list", "INBOX")
 		require.Error(t, err)

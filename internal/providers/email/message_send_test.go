@@ -1,10 +1,7 @@
 package email
 
 import (
-	"bytes"
-	"context"
 	"errors"
-	"io"
 	"strings"
 	"testing"
 
@@ -14,69 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/app"
-	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/providers/emailtest"
 )
-
-// sendFakeService is a MailService fake narrowed to the send concern: it
-// captures the SendInput (body eagerly drained, since the reader is
-// single-use) and records whether Close ran. The other MailService methods
-// only satisfy the interface; the send leaf never calls them.
-type sendFakeService struct {
-	in      SendInput
-	body    string
-	sendErr error
-	closed  bool
-}
-
-func (s *sendFakeService) SendMessage(_ context.Context, in SendInput) error {
-	s.in = in
-	if in.Body != nil {
-		content, err := io.ReadAll(in.Body)
-		if err == nil {
-			s.body = string(content)
-		}
-	}
-	return s.sendErr
-}
-
-func (s *sendFakeService) ListMailboxes(context.Context) ([]string, error) { return nil, nil }
-func (s *sendFakeService) ListEnvelopes(context.Context, string, int) ([]Envelope, error) {
-	return nil, nil
-}
-func (s *sendFakeService) GetMessage(context.Context, string, uint32) (*Message, error) {
-	return nil, nil
-}
-func (s *sendFakeService) Close() error { s.closed = true; return nil }
-
-// stubSendDial swaps the dialSendMail seam so the send leaf returns the
-// fake service instead of touching the network.
-func stubSendDial(t *testing.T, svc MailService, err error) {
-	t.Helper()
-	saved := dialSendMail
-	dialSendMail = func(context.Context, *app.Config) (MailService, error) { return svc, err }
-	t.Cleanup(func() { dialSendMail = saved })
-}
-
-// newSendEnv returns a hermetic tree mounting only the send leaf
-// (email → message → send), independent of sibling-owned parent files. The
-// config FS is in-memory and the config dir is pinned, mirroring newEmailEnv.
-func newSendEnv(t *testing.T) (*app.Config, *cobra.Command, *bytes.Buffer) {
-	t.Helper()
-	t.Setenv(config.EnvConfigDir, "/config")
-	t.Setenv(passwordEnvVar, "")
-	cfg := &app.Config{Fs: afero.NewMemMapFs()}
-	root := &cobra.Command{Use: "everything-cli", SilenceErrors: true, SilenceUsage: true}
-	msg := &cobra.Command{Use: "message"}
-	msg.AddCommand(newMessageSendCmd(cfg))
-	emailCmd := &cobra.Command{Use: "email"}
-	emailCmd.AddCommand(msg)
-	root.AddCommand(emailCmd)
-	out := &bytes.Buffer{}
-	root.SetOut(out)
-	root.SetErr(io.Discard)
-	return cfg, root, out
-}
 
 func TestMessageSend(t *testing.T) {
 	tests := []struct {
@@ -166,27 +102,27 @@ func TestMessageSend(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, root, out := newSendEnv(t)
+			cfg, root, out := newEmailEnv(t)
 			if tt.setup != nil {
 				tt.setup(t, cfg, root)
 			}
-			svc := &sendFakeService{}
-			stubSendDial(t, svc, nil)
+			svc := sendFake(nil)
+			stubDial(t, &dialSendMail, svc, nil)
 
 			got, err := execute(t, root, out, append([]string{"email", "message", "send"}, tt.args...)...)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
-				assert.Empty(t, svc.body, "rejected input must not reach the service")
+				assert.Empty(t, svc.gotBody, "rejected input must not reach the service")
 				assert.False(t, svc.closed, "usage errors must not dial")
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantTo, svc.in.To)
-			assert.Equal(t, tt.wantCc, svc.in.Cc)
-			assert.Equal(t, tt.wantSubject, svc.in.Subject)
-			assert.Equal(t, tt.wantBody, svc.body)
+			assert.Equal(t, tt.wantTo, svc.gotSend.To)
+			assert.Equal(t, tt.wantCc, svc.gotSend.Cc)
+			assert.Equal(t, tt.wantSubject, svc.gotSend.Subject)
+			assert.Equal(t, tt.wantBody, svc.gotBody)
 			assert.True(t, svc.closed, "the leaf must close the service after a successful dial")
 			assert.Contains(t, got, `"sent": true`)
 		})
@@ -198,11 +134,11 @@ func TestMessageSend(t *testing.T) {
 // account password — even though the account is seeded with a distinctive
 // one, output must carry nothing credential-shaped.
 func TestMessageSendConfirmationShape(t *testing.T) {
-	cfg, root, out := newSendEnv(t)
+	cfg, root, out := newEmailEnv(t)
 	const password = "send-leaf-distinctive-password-9f2"
 	seedAccount(t, cfg, "work", password)
-	svc := &sendFakeService{}
-	stubSendDial(t, svc, nil)
+	svc := sendFake(nil)
+	stubDial(t, &dialSendMail, svc, nil)
 
 	got, err := execute(t, root, out,
 		"email", "message", "send",
@@ -222,9 +158,9 @@ func TestMessageSendConfirmationShape(t *testing.T) {
 // before this fix the leaf dialed IMAP first and the command failed.
 func TestMessageSendDialsSMTPOnly(t *testing.T) {
 	server := emailtest.StartSMTP(t, testSMTPUser, testSMTPPassword, false)
-	stubSMTPTLSRoots(t, server.Roots)
+	stubTLSRoots(t, server.Roots)
 
-	cfg, root, out := newSendEnv(t)
+	cfg, root, out := newEmailEnv(t)
 	// Seed directly (seedAccount pins unreachable hosts): IMAP points at a
 	// refused loopback port, so any IMAP dial or login attempt fails.
 	_, err := addAccount(newStore(t, cfg), addOptions{
@@ -250,9 +186,9 @@ func TestMessageSendDialsSMTPOnly(t *testing.T) {
 }
 
 func TestMessageSendPropagatesSendError(t *testing.T) {
-	_, root, out := newSendEnv(t)
-	svc := &sendFakeService{sendErr: errors.New("smtp: 550 mailbox unavailable")}
-	stubSendDial(t, svc, nil)
+	_, root, out := newEmailEnv(t)
+	svc := sendFake(errors.New("smtp: 550 mailbox unavailable"))
+	stubDial(t, &dialSendMail, svc, nil)
 
 	_, err := execute(t, root, out,
 		"email", "message", "send",
@@ -263,8 +199,8 @@ func TestMessageSendPropagatesSendError(t *testing.T) {
 }
 
 func TestMessageSendPropagatesDialError(t *testing.T) {
-	_, root, out := newSendEnv(t)
-	stubSendDial(t, nil, errors.New("no account configured"))
+	_, root, out := newEmailEnv(t)
+	stubDial(t, &dialSendMail, nil, errors.New("no account configured"))
 
 	_, err := execute(t, root, out,
 		"email", "message", "send",

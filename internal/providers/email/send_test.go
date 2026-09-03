@@ -1,8 +1,6 @@
 package email
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"strings"
 	"testing"
 
@@ -16,19 +14,6 @@ const (
 	testSMTPUser     = "sender@example.com"
 	testSMTPPassword = "send-test-secret"
 )
-
-// stubSMTPTLSRoots points the adapter's TLS config seam at the test CA.
-// (adapter_test.go has the IMAP twin; both swap the same package seam.)
-func stubSMTPTLSRoots(t *testing.T, roots *x509.CertPool) {
-	t.Helper()
-	saved := tlsConfigFor
-	tlsConfigFor = func(host string) *tls.Config {
-		cfg := saved(host)
-		cfg.RootCAs = roots
-		return cfg
-	}
-	t.Cleanup(func() { tlsConfigFor = saved })
-}
 
 // TestSendMessage proves the adapter submits a composed RFC 5322 message
 // over both TLS transports: STARTTLS (submission, 587) and implicit TLS
@@ -44,7 +29,7 @@ func TestSendMessage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := emailtest.StartSMTP(t, testSMTPUser, testSMTPPassword, tt.implicitTLS)
-			stubSMTPTLSRoots(t, server.Roots)
+			stubTLSRoots(t, server.Roots)
 			if tt.implicitTLS {
 				// Pin the port→transport mapping onto the loopback port
 				// (production maps exactly 465 to implicit TLS).
