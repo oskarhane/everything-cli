@@ -2,42 +2,26 @@ package email
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 )
 
-// MailService is the whole IMAP/SMTP surface this CLI uses. Leaves never
-// consume it directly: they narrow it to one of the per-concern interfaces
-// below via As, so fakes model a single concern instead of the union.
+// MailService is the whole IMAP/SMTP surface this CLI uses. Leaves call
+// its methods directly on the value returned by the package-var dial
+// seams; per-leaf surface discipline is enforced by the test fake's
+// unexpected-call guards, not by type narrowing.
 type MailService interface {
-	MailboxLister
-	EnvelopeLister
-	MessageGetter
-	MessageSender
+	// ListMailboxes lists the account's mailbox (folder) names.
+	ListMailboxes(ctx context.Context) ([]string, error)
+	// ListEnvelopes lists message envelopes in one mailbox, newest first.
+	// limit caps the result count (<= 0 means all).
+	ListEnvelopes(ctx context.Context, mailbox string, limit int) ([]Envelope, error)
+	// GetMessage fetches one full message by IMAP UID.
+	GetMessage(ctx context.Context, mailbox string, uid uint32) (*Message, error)
+	// SendMessage submits a composed message over SMTP.
+	SendMessage(ctx context.Context, in SendInput) error
 	// Close logs out of IMAP and releases the connection.
 	Close() error
-}
-
-// MailboxLister lists the account's mailbox (folder) names.
-type MailboxLister interface {
-	ListMailboxes(ctx context.Context) ([]string, error)
-}
-
-// EnvelopeLister lists message envelopes in one mailbox, newest first.
-// limit caps the result count (<= 0 means all).
-type EnvelopeLister interface {
-	ListEnvelopes(ctx context.Context, mailbox string, limit int) ([]Envelope, error)
-}
-
-// MessageGetter fetches one full message by IMAP UID.
-type MessageGetter interface {
-	GetMessage(ctx context.Context, mailbox string, uid uint32) (*Message, error)
-}
-
-// MessageSender submits a composed message over SMTP.
-type MessageSender interface {
-	SendMessage(ctx context.Context, in SendInput) error
 }
 
 // Envelope is one entry of a mailbox listing: just the headers a list view
@@ -80,19 +64,4 @@ type SendInput struct {
 	Cc      []string
 	Subject string
 	Body    io.Reader
-}
-
-// As narrows the MailService a leaf obtained from the package-var dialMail
-// seam into any of the per-concern interfaces (MailboxLister,
-// EnvelopeLister, ...). The real service implements every interface; the
-// assertion hands a subtree its own surface without growing the others.
-// Unlike the gmail seam, the dialer is not injected into constructors:
-// leaves close over dialMail directly and narrow after the fact because
-// the leaf owns the persistent IMAP connection's Close.
-func As[T any](svc MailService) (T, error) {
-	narrowed, ok := svc.(T)
-	if !ok {
-		return narrowed, fmt.Errorf("mail service does not implement the requested operations")
-	}
-	return narrowed, nil
 }

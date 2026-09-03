@@ -55,14 +55,10 @@ everything-cli email message get 42 --mailbox Archive`,
 			if err != nil {
 				return err
 			}
-			// Close on the full service (not the narrowed interface, which
-			// hides it) so the IMAP logout always runs, error or not.
+			// Close on the full service so the IMAP logout always runs,
+			// error or not.
 			defer func() { _ = svc.Close() }()
-			getter, err := As[MessageGetter](svc)
-			if err != nil {
-				return err
-			}
-			msg, err := getter.GetMessage(cmd.Context(), mailbox, uint32(uid))
+			msg, err := svc.GetMessage(cmd.Context(), mailbox, uint32(uid))
 			if err != nil {
 				return err
 			}

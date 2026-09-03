@@ -13,9 +13,9 @@ import (
 var mailboxFields = []string{"name"}
 
 // newMailboxListCmd returns `email mailbox list`: every mailbox on the
-// acting account, in the server's sorted order. The leaf consumes only the
-// MailboxLister surface of the dialed MailService so tests fake one method
-// instead of the whole IMAP/SMTP union.
+// acting account, in the server's sorted order. The leaf calls only
+// ListMailboxes on the dialed MailService; the test fake's
+// unexpected-call guards prove it stays within that surface.
 func newMailboxListCmd(cfg *app.Config) *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",
@@ -34,11 +34,7 @@ everything-cli email mailbox list --format table`,
 			// Close logs out of IMAP; the connection must not outlive the
 			// command even when listing fails.
 			defer func() { _ = svc.Close() }()
-			lister, err := As[MailboxLister](svc)
-			if err != nil {
-				return err
-			}
-			names, err := lister.ListMailboxes(cmd.Context())
+			names, err := svc.ListMailboxes(cmd.Context())
 			if err != nil {
 				return err
 			}

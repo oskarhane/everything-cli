@@ -84,7 +84,7 @@ func stubTLSRoots(t *testing.T, roots *x509.CertPool) {
 // fakeMailService is the one shared MailService fake for the leaf tests.
 // Each concern is a func field: a test sets only the field its leaf
 // consumes, and a call through any unset method fails the test with an
-// "unexpected call" error, proving the leaf stays inside its narrowed
+// "unexpected call" error, proving the leaf stays inside its own concern's
 // surface. The got* fields record call arguments for flag-plumbing
 // assertions; closed proves the leaf's deferred Close ran.
 type fakeMailService struct {

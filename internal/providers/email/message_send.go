@@ -66,11 +66,7 @@ printf 'hi' | everything-cli email message send --to alice@example.com --subject
 			// connection), but run it to honor the leaf's ownership of the
 			// seam's lifecycle.
 			defer func() { _ = svc.Close() }()
-			sender, err := As[MessageSender](svc)
-			if err != nil {
-				return err
-			}
-			if err := sender.SendMessage(cmd.Context(), SendInput{
+			if err := svc.SendMessage(cmd.Context(), SendInput{
 				To:      to,
 				Cc:      cc,
 				Subject: subject,

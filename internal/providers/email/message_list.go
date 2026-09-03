@@ -41,11 +41,7 @@ everything-cli email message list --mailbox Archive --limit 10 --format json`,
 			// Close releases the IMAP connection; dial succeeded, so the
 			// leaf owns it until RunE returns.
 			defer func() { _ = svc.Close() }()
-			lister, err := As[EnvelopeLister](svc)
-			if err != nil {
-				return err
-			}
-			envelopes, err := lister.ListEnvelopes(cmd.Context(), mailbox, limit)
+			envelopes, err := svc.ListEnvelopes(cmd.Context(), mailbox, limit)
 			if err != nil {
 				return err
 			}
