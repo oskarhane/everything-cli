@@ -85,7 +85,7 @@ func newSeededIMAP(t *testing.T) *mailService {
 		"Archive": {},
 	})
 	stubTLSRoots(t, roots)
-	svc, err := newMailService(&credentials{
+	svc, err := newMailService(t.Context(), &credentials{
 		Username: testIMAPUser,
 		Password: testIMAPPassword,
 		IMAP:     serverConfig{Host: host, Port: port},
@@ -192,7 +192,121 @@ func TestGetMessage_Attachment(t *testing.T) {
 	att := msg.Attachments[0]
 	assert.Equal(t, "report.pdf", att.Filename)
 	assert.Equal(t, "application/pdf", att.ContentType)
-	assert.Equal(t, int64(len(attachmentBytes)), att.Size)
+	// Size comes from BODYSTRUCTURE metadata (the attachment body is never
+	// fetched), so it is the server-declared encoded octet count: the raw
+	// message carries the payload base64-encoded.
+	encodedLen := int64(len(base64.StdEncoding.EncodeToString(attachmentBytes)))
+	assert.Equal(t, encodedLen, att.Size)
+	assert.NotEqual(t, int64(len(attachmentBytes)), att.Size,
+		"BODYSTRUCTURE size counts the encoded octets, not the decoded bytes")
+}
+
+// oversizedRawMessage builds a multipart message whose attachment is an
+// 8 MiB base64 payload (11 MiB on the wire): big enough that buffering it
+// to compute Size would be wasteful, and catastrophic at hostile sizes.
+func oversizedRawMessage() string {
+	big := make([]byte, 8<<20)
+	for i := range big {
+		big[i] = byte(i)
+	}
+	return "MIME-Version: 1.0\r\n" +
+		"From: Alice <alice@example.com>\r\n" +
+		"To: bob@example.com\r\n" +
+		"Subject: Big attachment\r\n" +
+		"Date: " + testSimpleDate.Format(time.RFC1123Z) + "\r\n" +
+		"Content-Type: multipart/mixed; boundary=\"big-boundary\"\r\n" +
+		"\r\n" +
+		"--big-boundary\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"\r\n" +
+		"Small body, huge attachment.\r\n" +
+		"--big-boundary\r\n" +
+		"Content-Type: application/octet-stream; name=\"big.bin\"\r\n" +
+		"Content-Disposition: attachment; filename=\"big.bin\"\r\n" +
+		"Content-Transfer-Encoding: base64\r\n" +
+		"\r\n" +
+		base64.StdEncoding.EncodeToString(big) + "\r\n" +
+		"--big-boundary--\r\n"
+}
+
+// TestGetMessage_OversizedAttachmentNotBuffered proves the adapter derives
+// attachment metadata from BODYSTRUCTURE and never transfers (let alone
+// buffers) the attachment body: the result carries the server-declared
+// size and the small text body, and the fetch of an 11 MiB message returns
+// promptly because only the header and the text part cross the wire.
+func TestGetMessage_OversizedAttachmentNotBuffered(t *testing.T) {
+	raw := oversizedRawMessage()
+	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
+		"INBOX": {{Raw: raw, Time: testSimpleDate}},
+	})
+	stubTLSRoots(t, roots)
+	svc, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: host, Port: port},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = svc.Close() })
+
+	start := time.Now()
+	msg, err := svc.GetMessage(t.Context(), "INBOX", 1)
+	elapsed := time.Since(start)
+	require.NoError(t, err)
+
+	assert.Contains(t, msg.BodyText, "Small body, huge attachment.")
+	require.Len(t, msg.Attachments, 1)
+	att := msg.Attachments[0]
+	assert.Equal(t, "big.bin", att.Filename)
+	assert.Equal(t, "application/octet-stream", att.ContentType)
+	// The size is the BODYSTRUCTURE-encoded octet count: exact metadata
+	// without a single attachment byte in process memory.
+	wantSize := int64(len(base64.StdEncoding.EncodeToString(make([]byte, 8<<20))))
+	assert.Equal(t, wantSize, att.Size)
+	assert.Less(t, elapsed, 10*time.Second,
+		"the attachment body must not be fetched or buffered")
+}
+
+// TestGetMessage_AttachmentBodyNeverRead pins the same guarantee
+// deterministically: the fixture's attachment declares base64 but carries
+// invalid base64. Any code path that read and decoded the attachment body
+// would fail; the BODYSTRUCTURE path never touches it.
+func TestGetMessage_AttachmentBodyNeverRead(t *testing.T) {
+	raw := "MIME-Version: 1.0\r\n" +
+		"From: Alice <alice@example.com>\r\n" +
+		"To: bob@example.com\r\n" +
+		"Subject: Corrupt attachment\r\n" +
+		"Date: " + testSimpleDate.Format(time.RFC1123Z) + "\r\n" +
+		"Content-Type: multipart/mixed; boundary=\"corrupt-boundary\"\r\n" +
+		"\r\n" +
+		"--corrupt-boundary\r\n" +
+		"Content-Type: text/plain; charset=utf-8\r\n" +
+		"\r\n" +
+		"Body is fine.\r\n" +
+		"--corrupt-boundary\r\n" +
+		"Content-Type: application/pdf; name=\"broken.pdf\"\r\n" +
+		"Content-Disposition: attachment; filename=\"broken.pdf\"\r\n" +
+		"Content-Transfer-Encoding: base64\r\n" +
+		"\r\n" +
+		"%%%not-valid-base64!!!%%%\r\n" +
+		"--corrupt-boundary--\r\n"
+	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
+		"INBOX": {{Raw: raw, Time: testSimpleDate}},
+	})
+	stubTLSRoots(t, roots)
+	svc, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: host, Port: port},
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = svc.Close() })
+
+	msg, err := svc.GetMessage(t.Context(), "INBOX", 1)
+	require.NoError(t, err, "the corrupt attachment body is never read")
+	assert.Contains(t, msg.BodyText, "Body is fine.")
+	require.Len(t, msg.Attachments, 1)
+	assert.Equal(t, "broken.pdf", msg.Attachments[0].Filename)
+	assert.Equal(t, int64(len("%%%not-valid-base64!!!%%%")), msg.Attachments[0].Size)
 }
 
 func TestGetMessage_UnknownUID(t *testing.T) {
@@ -208,7 +322,7 @@ func TestNewMailService_BadPassword(t *testing.T) {
 	})
 	stubTLSRoots(t, roots)
 
-	_, err := newMailService(&credentials{
+	_, err := newMailService(t.Context(), &credentials{
 		Username: testIMAPUser,
 		Password: "wrong-" + testIMAPPassword,
 		IMAP:     serverConfig{Host: host, Port: port},

@@ -58,12 +58,13 @@ printf 'hi' | everything-cli email message send --to alice@example.com --subject
 			if err != nil {
 				return err
 			}
-			svc, err := dialMail(cmd.Context(), cfg)
+			svc, err := dialSendMail(cmd.Context(), cfg)
 			if err != nil {
 				return err
 			}
-			// Close logs out of IMAP and releases the connection; the send
-			// is already submitted by then, so a Close error is not fatal.
+			// Close on the SMTP-only service is a no-op (there is no IMAP
+			// connection), but run it to honor the leaf's ownership of the
+			// seam's lifecycle.
 			defer func() { _ = svc.Close() }()
 			sender, err := As[MessageSender](svc)
 			if err != nil {

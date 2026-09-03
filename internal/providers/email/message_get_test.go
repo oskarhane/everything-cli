@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
 )
 
 // getFixtureDate is the fixed Date of the test fixture message.
@@ -226,6 +227,34 @@ func TestMessageGet_ArgCount(t *testing.T) {
 
 	_, err = execute(t, root, out, "message", "get", "1", "2", "--format", "json")
 	require.Error(t, err)
+}
+
+// TestMessageGet_TableRedactsSecret: the table-mode body print bypasses
+// the output.Print chokepoint, so it must redact on its own — a reset
+// email quoting the account password must render `***`, never the value.
+// (JSON/TOON already pass through the central redactor; this pins the
+// table path.)
+func TestMessageGet_TableRedactsSecret(t *testing.T) {
+	cfg, root, out := newEmailEnv(t)
+	const secret = "table-redact-distinctive-secret-7e1"
+	auth.RegisterSecret(secret)
+	fixture := multipartGetFixture()
+	fixture.BodyText = "Your new password is " + secret + " — keep it safe."
+	fake := &fakeGetService{msg: fixture}
+	stubGetDial(t, fake, nil)
+	mountGetLeaf(cfg, root)
+
+	stdout, err := execute(t, root, out, "message", "get", "7", "--format", "table")
+	require.NoError(t, err)
+	assert.NotContains(t, stdout, secret, "the secret must never reach table output")
+	assert.Contains(t, stdout, "***")
+	assert.Contains(t, stdout, "Your new password is")
+
+	// JSON redaction (via the central output chokepoint) is unchanged.
+	stdout, err = execute(t, root, out, "message", "get", "7", "--format", "json")
+	require.NoError(t, err)
+	assert.NotContains(t, stdout, secret)
+	assert.Contains(t, stdout, "***")
 }
 
 // TestMessageGet_ToonControlBytesInSubject proves stripping applies to

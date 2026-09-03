@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/output"
 )
 
@@ -83,14 +84,17 @@ func printMessageGet(cmd *cobra.Command, cfg *app.Config, msg *Message) {
 		"from":    msg.From,
 		"to":      strings.Join(msg.To, ", "),
 		"subject": msg.Subject,
-		"date":    msg.Date.Format(time.RFC3339),
+		"date":    msg.Date.UTC().Format(time.RFC3339), // UTC-normalized, same as message list
 	}
 	if format == output.FormatTable {
 		output.PrintTable(cmd.OutOrStdout(), messageGetFields, []map[string]any{row})
-		// The body bypasses output.Print, so strip control bytes here
-		// (same rule as gmail's --raw path): a hostile message must not
-		// inject ANSI/OSC escapes into the terminal. "\t\n\r" survive.
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), output.StripControl(msg.BodyText))
+		// The body bypasses output.Print, so sanitize here: StripControl
+		// blocks ANSI/OSC escape injection from a hostile message, and
+		// Redact scrubs registered secrets — a reset email quoting the
+		// account password must not print it verbatim.
+		// Deliberate deviation from gmail's --raw precedent, which strips
+		// control bytes but skips redaction (it has the same leak).
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), auth.Redact(output.StripControl(msg.BodyText)))
 		return
 	}
 	view := messageGetView{

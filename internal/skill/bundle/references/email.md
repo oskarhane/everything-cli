@@ -100,7 +100,8 @@ everything-cli email message list --mailbox Archive --limit 10 --format json
   Flag: `--mailbox <name>` (default `INBOX`). JSON/TOON output: `uid`,
   `from`, `to`, `subject`, `date`, `body_text` (decoded plain-text
   body), `attachments` (array of `{filename, content_type, size}` —
-  metadata only; attachment bytes are never fetched). Table output is a
+  metadata only from BODYSTRUCTURE, `size` the server-declared encoded
+  octet count; attachment bytes are never fetched). Table output is a
   header row (`uid`, `from`, `to`, `subject`, `date`) with the body
   printed as plain text below it, control bytes stripped.
 

@@ -94,7 +94,7 @@ func TestAddNoPasswordAvailable(t *testing.T) {
 		cfg, _, _ := newEmailEnv(t)
 		stubCapture(t,
 			func(string) string { return "" },
-			func() (string, error) { return "  ", nil })
+			func() (string, error) { return "", nil })
 		_, err := addAccount(newStore(t, cfg), testAddOptions("work", ""))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "EMAIL_PASSWORD",
@@ -135,6 +135,42 @@ func TestAddValidatesEndpoints(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+// TestPasswordWhitespaceRoundTrips: leading/trailing whitespace is a
+// meaningful part of a password, so every capture source (flag, env,
+// hidden prompt) must hand the value through byte-exact — never trimmed.
+func TestPasswordWhitespaceRoundTrips(t *testing.T) {
+	const padded = "  pad ded  "
+
+	t.Run("flag", func(t *testing.T) {
+		stubCapture(t, func(string) string { return "" }, nil)
+		got, err := capturePassword(padded)
+		require.NoError(t, err)
+		assert.Equal(t, padded, got)
+	})
+	t.Run("env", func(t *testing.T) {
+		stubCapture(t, func(string) string { return padded }, nil)
+		got, err := capturePassword("")
+		require.NoError(t, err)
+		assert.Equal(t, padded, got)
+	})
+	t.Run("prompt", func(t *testing.T) {
+		stubCapture(t,
+			func(string) string { return "" },
+			func() (string, error) { return padded, nil })
+		got, err := capturePassword("")
+		require.NoError(t, err)
+		assert.Equal(t, padded, got)
+	})
+	t.Run("stored byte-exact", func(t *testing.T) {
+		cfg, _, _ := newEmailEnv(t)
+		stubCapture(t, func(string) string { return "" }, nil)
+		acct, err := addAccount(newStore(t, cfg), testAddOptions("padded", padded))
+		require.NoError(t, err)
+		assert.Contains(t, string(acct.Auth), `"password": "  pad ded  "`,
+			"the persisted payload carries the password byte-exact")
+	})
 }
 
 func TestLoadCredentialsRejectsUnusableAccount(t *testing.T) {

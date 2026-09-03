@@ -15,6 +15,7 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/providers/emailtest"
 )
 
 // sendFakeService is a MailService fake narrowed to the send concern: it
@@ -48,13 +49,13 @@ func (s *sendFakeService) GetMessage(context.Context, string, uint32) (*Message,
 }
 func (s *sendFakeService) Close() error { s.closed = true; return nil }
 
-// stubSendDial swaps the dialMail seam so the send leaf returns the fake
-// service instead of touching the network.
+// stubSendDial swaps the dialSendMail seam so the send leaf returns the
+// fake service instead of touching the network.
 func stubSendDial(t *testing.T, svc MailService, err error) {
 	t.Helper()
-	saved := dialMail
-	dialMail = func(context.Context, *app.Config) (MailService, error) { return svc, err }
-	t.Cleanup(func() { dialMail = saved })
+	saved := dialSendMail
+	dialSendMail = func(context.Context, *app.Config) (MailService, error) { return svc, err }
+	t.Cleanup(func() { dialSendMail = saved })
 }
 
 // newSendEnv returns a hermetic tree mounting only the send leaf
@@ -212,6 +213,40 @@ func TestMessageSendConfirmationShape(t *testing.T) {
 	assert.JSONEq(t, `{"sent": true, "to": ["alice@example.com", "bob@example.com"]}`,
 		strings.TrimSpace(got))
 	assert.NotContains(t, got, password)
+}
+
+// TestMessageSendDialsSMTPOnly runs the send leaf against the REAL
+// dialSendMail seam (no stub) with an account whose IMAP endpoint refuses
+// connections and whose SMTP endpoint is the in-process test server. The
+// send must succeed without any IMAP dial or login being attempted —
+// before this fix the leaf dialed IMAP first and the command failed.
+func TestMessageSendDialsSMTPOnly(t *testing.T) {
+	server := emailtest.StartSMTP(t, testSMTPUser, testSMTPPassword, false)
+	stubSMTPTLSRoots(t, server.Roots)
+
+	cfg, root, out := newSendEnv(t)
+	// Seed directly (seedAccount pins unreachable hosts): IMAP points at a
+	// refused loopback port, so any IMAP dial or login attempt fails.
+	_, err := addAccount(newStore(t, cfg), addOptions{
+		Name:     "work",
+		Username: testSMTPUser,
+		Password: testSMTPPassword,
+		IMAPHost: "127.0.0.1",
+		IMAPPort: 1, // nothing listens: refused
+		SMTPHost: server.Host,
+		SMTPPort: server.Port,
+	})
+	require.NoError(t, err)
+
+	got, err := execute(t, root, out,
+		"email", "message", "send",
+		"--to", "alice@example.com", "--subject", "s", "--body", "b")
+	require.NoError(t, err, "send must not depend on IMAP reachability")
+	assert.Contains(t, got, `"sent": true`)
+
+	msgs := server.Messages()
+	require.Len(t, msgs, 1, "the message reached the SMTP server")
+	assert.Contains(t, string(msgs[0].Data), "Subject: s")
 }
 
 func TestMessageSendPropagatesSendError(t *testing.T) {

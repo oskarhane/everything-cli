@@ -115,18 +115,21 @@ func validPort(flag string, port int) error {
 }
 
 // capturePassword resolves the password from the flag value, then
-// EMAIL_PASSWORD, then the hidden prompt.
+// EMAIL_PASSWORD, then the hidden prompt. The value is taken byte-exact —
+// never trimmed: leading/trailing whitespace can be a meaningful part of a
+// password, and silently altering it would break logins (usernames and
+// hosts above are trimmed, passwords are not).
 func capturePassword(flagValue string) (string, error) {
-	password := strings.TrimSpace(flagValue)
+	password := flagValue
 	if password == "" {
-		password = strings.TrimSpace(getenv(passwordEnvVar))
+		password = getenv(passwordEnvVar)
 	}
 	if password == "" {
 		prompted, err := prompt()
 		if err != nil {
 			return "", err
 		}
-		password = strings.TrimSpace(prompted)
+		password = prompted
 	}
 	if password != "" {
 		return password, nil
