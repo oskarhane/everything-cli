@@ -493,6 +493,15 @@ func flagStrings(flags []imap.Flag) []string {
 	return out
 }
 
+// formatAddress renders "Name <addr>", or the bare address when there is
+// no display name.
+func formatAddress(name, addr string) string {
+	if name != "" {
+		return fmt.Sprintf("%s <%s>", name, addr)
+	}
+	return addr
+}
+
 // formatIMAPAddress renders the first envelope address as
 // "Name <mailbox@host>" (or bare "mailbox@host" when there is no display
 // name), matching how the mail package renders addresses.
@@ -502,10 +511,7 @@ func formatIMAPAddress(addrs []imap.Address) string {
 		if addr == "" {
 			continue
 		}
-		if a.Name != "" {
-			return fmt.Sprintf("%s <%s>", a.Name, addr)
-		}
-		return addr
+		return formatAddress(a.Name, addr)
 	}
 	return ""
 }
@@ -533,8 +539,5 @@ func addressStrings(h mail.Header, key string) []string {
 // formatMailAddress renders "Name <addr>" without net/mail's quoting, or
 // the bare address when there is no display name.
 func formatMailAddress(a *mail.Address) string {
-	if a.Name != "" {
-		return fmt.Sprintf("%s <%s>", a.Name, a.Address)
-	}
-	return a.Address
+	return formatAddress(a.Name, a.Address)
 }

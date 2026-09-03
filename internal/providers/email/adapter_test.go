@@ -57,27 +57,41 @@ func multipartRawMessage() string {
 		"--mix-boundary--\r\n"
 }
 
-// newSeededIMAP starts an in-process IMAP server with INBOX (one simple
-// and one multipart message, the first flagged \Seen) and Archive (empty),
-// and returns an adapter connected to it.
+// startIMAP starts an in-process IMAP server seeded with seed and stubs
+// the TLS roots so the adapter verifies against the test CA.
+func startIMAP(t *testing.T, seed map[string][]emailtest.SeedMessage) serverConfig {
+	t.Helper()
+	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, seed)
+	stubTLSRoots(t, roots)
+	return serverConfig{Host: host, Port: port}
+}
+
+// connectIMAP starts a seeded in-process IMAP server, connects an adapter
+// to it with the test credentials, and closes it at test cleanup.
+func connectIMAP(t *testing.T, seed map[string][]emailtest.SeedMessage) *mailService {
+	t.Helper()
+	svc, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     startIMAP(t, seed),
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = svc.Close() })
+	return svc
+}
+
+// newSeededIMAP connects an adapter to an in-process IMAP server with
+// INBOX (one simple and one multipart message, the first flagged \Seen)
+// and Archive (empty).
 func newSeededIMAP(t *testing.T) *mailService {
 	t.Helper()
-	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
+	return connectIMAP(t, map[string][]emailtest.SeedMessage{
 		"INBOX": {
 			{Raw: simpleRawMessage(), Flags: []string{`\Seen`}, Time: testSimpleDate},
 			{Raw: multipartRawMessage(), Time: testMultipartDate},
 		},
 		"Archive": {},
 	})
-	stubTLSRoots(t, roots)
-	svc, err := newMailService(t.Context(), &credentials{
-		Username: testIMAPUser,
-		Password: testIMAPPassword,
-		IMAP:     serverConfig{Host: host, Port: port},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
-	return svc
 }
 
 func TestListMailboxes(t *testing.T) {
@@ -221,17 +235,9 @@ func oversizedRawMessage() string {
 // promptly because only the header and the text part cross the wire.
 func TestGetMessage_OversizedAttachmentNotBuffered(t *testing.T) {
 	raw := oversizedRawMessage()
-	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
+	svc := connectIMAP(t, map[string][]emailtest.SeedMessage{
 		"INBOX": {{Raw: raw, Time: testSimpleDate}},
 	})
-	stubTLSRoots(t, roots)
-	svc, err := newMailService(t.Context(), &credentials{
-		Username: testIMAPUser,
-		Password: testIMAPPassword,
-		IMAP:     serverConfig{Host: host, Port: port},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
 
 	start := time.Now()
 	msg, err := svc.GetMessage(t.Context(), "INBOX", 1)
@@ -274,17 +280,9 @@ func TestGetMessage_AttachmentBodyNeverRead(t *testing.T) {
 		"\r\n" +
 		"%%%not-valid-base64!!!%%%\r\n" +
 		"--corrupt-boundary--\r\n"
-	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
+	svc := connectIMAP(t, map[string][]emailtest.SeedMessage{
 		"INBOX": {{Raw: raw, Time: testSimpleDate}},
 	})
-	stubTLSRoots(t, roots)
-	svc, err := newMailService(t.Context(), &credentials{
-		Username: testIMAPUser,
-		Password: testIMAPPassword,
-		IMAP:     serverConfig{Host: host, Port: port},
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = svc.Close() })
 
 	msg, err := svc.GetMessage(t.Context(), "INBOX", 1)
 	require.NoError(t, err, "the corrupt attachment body is never read")
@@ -302,15 +300,10 @@ func TestGetMessage_UnknownUID(t *testing.T) {
 }
 
 func TestNewMailService_BadPassword(t *testing.T) {
-	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, map[string][]emailtest.SeedMessage{
-		"INBOX": {},
-	})
-	stubTLSRoots(t, roots)
-
 	_, err := newMailService(t.Context(), &credentials{
 		Username: testIMAPUser,
 		Password: "wrong-" + testIMAPPassword,
-		IMAP:     serverConfig{Host: host, Port: port},
+		IMAP:     startIMAP(t, map[string][]emailtest.SeedMessage{"INBOX": {}}),
 	})
 	require.Error(t, err)
 	// The password must never surface in an error string, even a wrong one.
