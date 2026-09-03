@@ -29,8 +29,10 @@ import (
 //
 // TLS is mandatory: IMAP uses implicit TLS on the imaps port (993) and
 // mandatory STARTTLS on any other port; SMTP uses implicit TLS on the
-// submissions port, STARTTLS otherwise. There is no plaintext path by
-// design — a refused connection beats a leaked password.
+// submissions port, STARTTLS otherwise. An explicit stored transport
+// (account add --imap-tls/--smtp-tls) overrides that port heuristic.
+// There is no plaintext path by design — a refused connection beats a
+// leaked password.
 
 // smtpImplicitTLSPort switches SMTP from STARTTLS (submission, 587) to
 // implicit TLS (submissions, 465).
@@ -54,6 +56,21 @@ var smtpUsesImplicitTLS = func(port int) bool {
 // loopback port.
 var imapUsesImplicitTLS = func(port int) bool {
 	return port == imapImplicitTLSPort
+}
+
+// usesImplicitTLS resolves the transport for one endpoint: an explicit
+// stored tls value (from --imap-tls/--smtp-tls) wins over the port
+// heuristic; an empty value (unset flag, legacy account) falls back to
+// the heuristic exactly as before.
+func usesImplicitTLS(explicit string, port int, heuristic func(int) bool) bool {
+	switch explicit {
+	case tlsModeImplicit:
+		return true
+	case tlsModeStartTLS:
+		return false
+	default:
+		return heuristic(port)
+	}
 }
 
 // tlsConfigFor builds the client TLS config for a server host. It is a
@@ -187,7 +204,7 @@ func dialIMAPTLS(ctx context.Context, srv serverConfig) (*imapclient.Client, err
 		return nil, fmt.Errorf("stored imap server: %w", err)
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	if imapUsesImplicitTLS(port) {
+	if usesImplicitTLS(srv.TLS, port, imapUsesImplicitTLS) {
 		dialer := &tls.Dialer{
 			NetDialer: &net.Dialer{Timeout: dialSetupTimeout},
 			Config:    tlsConfigFor(host),
@@ -418,7 +435,7 @@ func dialSMTPTLS(ctx context.Context, srv serverConfig) (*smtp.Client, error) {
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	tlsCfg := tlsConfigFor(host)
-	if smtpUsesImplicitTLS(port) {
+	if usesImplicitTLS(srv.TLS, port, smtpUsesImplicitTLS) {
 		dialer := &tls.Dialer{
 			NetDialer: &net.Dialer{Timeout: dialSetupTimeout},
 			Config:    tlsCfg,

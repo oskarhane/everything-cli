@@ -70,6 +70,38 @@ func TestSendMessage(t *testing.T) {
 	}
 }
 
+// TestSendMessageExplicitImplicitTLSOverridesHeuristic proves the
+// explicit transport wins over the port heuristic: the stored account
+// carries smtp.tls == "implicit" on a port the heuristic maps to
+// STARTTLS (the seam is pinned to never pick implicit), yet the send
+// must still succeed against an implicit-TLS server — the TLS listener
+// would reject a plaintext-then-STARTTLS client.
+func TestSendMessageExplicitImplicitTLSOverridesHeuristic(t *testing.T) {
+	server := emailtest.StartSMTP(t, testSMTPUser, testSMTPPassword, true)
+	stubTLSRoots(t, server.Roots)
+	// Heuristic pinned to STARTTLS for every port: only the explicit
+	// stored value can select implicit TLS.
+	saved := smtpUsesImplicitTLS
+	smtpUsesImplicitTLS = func(int) bool { return false }
+	t.Cleanup(func() { smtpUsesImplicitTLS = saved })
+
+	svc := &mailService{creds: &credentials{
+		Username: testSMTPUser,
+		Password: testSMTPPassword,
+		SMTP:     serverConfig{Host: server.Host, Port: server.Port, TLS: tlsModeImplicit},
+	}}
+	err := svc.SendMessage(t.Context(), SendInput{
+		To:      []string{"bob@example.com"},
+		Subject: "Explicit implicit TLS",
+		Body:    strings.NewReader("hello over explicit implicit tls"),
+	})
+	require.NoError(t, err, "explicit implicit must override the STARTTLS heuristic")
+
+	msgs := server.Messages()
+	require.Len(t, msgs, 1)
+	assert.Contains(t, string(msgs[0].Data), "hello over explicit implicit tls")
+}
+
 func TestSendMessage_NoRecipient(t *testing.T) {
 	svc := &mailService{creds: &credentials{
 		Username: testSMTPUser,
