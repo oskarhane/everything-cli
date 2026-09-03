@@ -17,6 +17,8 @@ everything-cli google drive file share 1AbCdEfGh --role reader --email a@x.com
 everything-cli google youtube transcript https://youtu.be/dQw4w9WgXcQ --lang en
 everything-cli linear issue list --team 9c1e2f3a-... --format json
 everything-cli granola note list --created-after 2026-08-01
+everything-cli email message list --mailbox INBOX --limit 10
+everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 ```
 
 ## Providers
