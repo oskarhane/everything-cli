@@ -80,7 +80,37 @@ func TLSConfigs(t *testing.T) (server *tls.Config, roots *x509.CertPool) {
 func StartIMAP(t *testing.T, username, password string, mailboxes map[string][]SeedMessage) (host string, port int, roots *x509.CertPool) {
 	t.Helper()
 	serverTLS, pool := TLSConfigs(t)
+	server := newIMAPServer(t, username, password, mailboxes, serverTLS)
+	ln, err := tls.Listen("tcp", "127.0.0.1:0", serverTLS)
+	if err != nil {
+		t.Fatalf("listening: %v", err)
+	}
+	serveIMAP(t, server, ln)
+	host, port = hostPort(t, ln.Addr())
+	return host, port, pool
+}
 
+// StartIMAPStartTLS starts the same server on a PLAINTEXT listener with
+// TLSConfig set, so it advertises STARTTLS pre-auth and upgrades the
+// connection on demand — the transport the adapter picks for non-993
+// ports. Authentication still requires the upgraded (TLS) connection:
+// the server never enables InsecureAuth.
+func StartIMAPStartTLS(t *testing.T, username, password string, mailboxes map[string][]SeedMessage) (host string, port int, roots *x509.CertPool) {
+	t.Helper()
+	serverTLS, pool := TLSConfigs(t)
+	server := newIMAPServer(t, username, password, mailboxes, serverTLS)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listening: %v", err)
+	}
+	serveIMAP(t, server, ln)
+	host, port = hostPort(t, ln.Addr())
+	return host, port, pool
+}
+
+// newIMAPServer builds the seeded in-memory server both transports share.
+func newIMAPServer(t *testing.T, username, password string, mailboxes map[string][]SeedMessage, serverTLS *tls.Config) *imapserver.Server {
+	t.Helper()
 	mem := imapmemserver.New()
 	user := imapmemserver.NewUser(username, password)
 	for name, msgs := range mailboxes {
@@ -99,7 +129,7 @@ func StartIMAP(t *testing.T, username, password string, mailboxes map[string][]S
 	}
 	mem.AddUser(user)
 
-	server := imapserver.New(&imapserver.Options{
+	return imapserver.New(&imapserver.Options{
 		NewSession: func(*imapserver.Conn) (imapserver.Session, *imapserver.GreetingData, error) {
 			return mem.NewSession(), nil, nil
 		},
@@ -109,15 +139,13 @@ func StartIMAP(t *testing.T, username, password string, mailboxes map[string][]S
 			imap.CapIMAP4rev2: {},
 		},
 	})
-	ln, err := tls.Listen("tcp", "127.0.0.1:0", serverTLS)
-	if err != nil {
-		t.Fatalf("listening: %v", err)
-	}
+}
+
+// serveIMAP runs the server on ln until test cleanup.
+func serveIMAP(t *testing.T, server *imapserver.Server, ln net.Listener) {
+	t.Helper()
 	go func() { _ = server.Serve(ln) }()
 	t.Cleanup(func() { _ = server.Close() })
-
-	host, port = hostPort(t, ln.Addr())
-	return host, port, pool
 }
 
 // DeliveredMessage is one message captured by the test SMTP server.

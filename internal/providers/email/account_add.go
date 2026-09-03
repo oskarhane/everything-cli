@@ -54,7 +54,7 @@ everything-cli email account add work --imap-host imap.example.com --smtp-host s
 		},
 	}
 	cmd.Flags().StringVar(&opts.IMAPHost, "imap-host", "", "IMAP server host, optionally host:port (required)")
-	cmd.Flags().IntVar(&opts.IMAPPort, "imap-port", defaultIMAPPort, "IMAP server port (implicit TLS); overrides a port embedded in --imap-host")
+	cmd.Flags().IntVar(&opts.IMAPPort, "imap-port", defaultIMAPPort, "IMAP server port (implicit TLS on 993, STARTTLS otherwise); overrides a port embedded in --imap-host")
 	cmd.Flags().StringVar(&opts.SMTPHost, "smtp-host", "", "SMTP server host, optionally host:port (required)")
 	cmd.Flags().IntVar(&opts.SMTPPort, "smtp-port", defaultSMTPPort, "SMTP server port (STARTTLS submission); overrides a port embedded in --smtp-host")
 	cmd.Flags().StringVar(&opts.Username, "username", "", "Login username, usually the email address (required)")

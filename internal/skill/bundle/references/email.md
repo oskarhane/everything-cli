@@ -20,8 +20,9 @@ username (usually the email address) and a password or app password.
    lands in shell history. Host flags accept a bare host or a `host:port`
    value (IPv6 literals as `[::1]:1143` or bare `::1`). Port precedence:
    an explicit `--imap-port`/`--smtp-port` flag wins, then a port embedded
-   in the host value, then the defaults (`993` implicit TLS for IMAP,
-   `587` STARTTLS submission for SMTP). The stored payload always keeps a
+   in the host value, then the defaults (`993` implicit TLS for IMAP —
+   any other IMAP port means mandatory STARTTLS — `587` STARTTLS
+   submission for SMTP). The stored payload always keeps a
    pure host (no port) plus the resolved integer port.
 2. `everything-cli email account use <name>` — set the default email
    account. Every command also accepts the global `--account <name>`
@@ -43,7 +44,8 @@ Manage email accounts and their stored IMAP/SMTP credentials.
   and credentials. Flags: `--imap-host <host>` (required), `--smtp-host
   <host>` (required), `--username <user>` (required), `--password <pw>`
   (empty = `$EMAIL_PASSWORD`, then a hidden prompt), `--imap-port <n>`
-  (default `993`), `--smtp-port <n>` (default `587`). The host flags
+  (default `993`, implicit TLS; any other port uses mandatory STARTTLS),
+  `--smtp-port <n>` (default `587`). The host flags
   accept `host:port` too (`--imap-host 127.0.0.1:1143`, `[::1]:1143`); an
   explicit port flag overrides an embedded port, an embedded port
   overrides the default. Prints the added account's `name` only — never
@@ -136,7 +138,9 @@ printf 'hi' | everything-cli email message send --to alice@example.com --subject
 
 ## Tips & gotchas (email)
 
-- TLS only: IMAP uses implicit TLS on port 993; SMTP uses STARTTLS
+- TLS only: IMAP uses implicit TLS on port 993 and mandatory STARTTLS on
+  any other port — a server that doesn't advertise STARTTLS fails the
+  dial and no IMAP command ever runs unencrypted. SMTP uses STARTTLS
   submission on port 587 (or implicit TLS on 465). There is no plaintext
   fallback.
 - IMAP UIDs are per-mailbox: a `uid` from `message list --mailbox

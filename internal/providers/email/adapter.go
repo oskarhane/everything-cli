@@ -27,13 +27,18 @@ import (
 // go-smtp, go-message, go-sasl): upstream v2-beta API churn touches exactly
 // this file, and every other email file talks to the MailService seam.
 //
-// TLS is mandatory: IMAP always uses implicit TLS (DialTLS) and SMTP uses
-// implicit TLS on the submissions port, STARTTLS otherwise. There is no
-// plaintext path by design — a refused connection beats a leaked password.
+// TLS is mandatory: IMAP uses implicit TLS on the imaps port (993) and
+// mandatory STARTTLS on any other port; SMTP uses implicit TLS on the
+// submissions port, STARTTLS otherwise. There is no plaintext path by
+// design — a refused connection beats a leaked password.
 
 // smtpImplicitTLSPort switches SMTP from STARTTLS (submission, 587) to
 // implicit TLS (submissions, 465).
 const smtpImplicitTLSPort = 465
+
+// imapImplicitTLSPort switches IMAP from STARTTLS to implicit TLS
+// (imaps, 993).
+const imapImplicitTLSPort = 993
 
 // smtpUsesImplicitTLS maps a configured port to its transport. It is a
 // package seam so tests can pin the mapping onto a loopback port; the
@@ -41,6 +46,14 @@ const smtpImplicitTLSPort = 465
 // STARTTLS".
 var smtpUsesImplicitTLS = func(port int) bool {
 	return port == smtpImplicitTLSPort
+}
+
+// imapUsesImplicitTLS is the IMAP sibling of smtpUsesImplicitTLS: the
+// production mapping is exactly "993 is implicit TLS, everything else is
+// mandatory STARTTLS". Package seam so tests can pin the mapping onto a
+// loopback port.
+var imapUsesImplicitTLS = func(port int) bool {
+	return port == imapImplicitTLSPort
 }
 
 // tlsConfigFor builds the client TLS config for a server host. It is a
@@ -63,8 +76,9 @@ type mailService struct {
 // Compile-time proof that mailService satisfies the seam.
 var _ MailService = (*mailService)(nil)
 
-// newMailService dials the account's IMAP server over implicit TLS and
-// logs in. The password is already registered for redaction by
+// newMailService dials the account's IMAP server over TLS (implicit on
+// 993, mandatory STARTTLS otherwise) and logs in. The password is
+// already registered for redaction by
 // loadCredentials; it never appears in an error string here.
 func newMailService(ctx context.Context, creds *credentials) (*mailService, error) {
 	client, err := dialIMAPTLS(ctx, creds.IMAP)
@@ -85,27 +99,45 @@ func newSendMailService(creds *credentials) *mailService {
 	return &mailService{creds: creds}
 }
 
-// dialIMAPTLS connects with implicit TLS — the only IMAP transport this
-// provider supports. The emersion imapclient API (v2.0.0-beta.8) takes no
-// context on its dial helpers or commands, so the connection is dialed
-// with DialContext (cancellation and deadlines reach the connect and TLS
-// handshake) and handed to imapclient.New. In-flight commands are covered
-// by the cancellation watchers in each method (watchCancel).
+// dialIMAPTLS connects over TLS: implicit TLS on the imaps port (993),
+// mandatory STARTTLS on any other port. There is no plaintext path — a
+// server that refuses STARTTLS fails the dial and no IMAP command ever
+// runs unencrypted. The emersion imapclient API (v2.0.0-beta.8) takes no
+// context on its dial helpers or commands, so the TCP connection (and
+// the TLS handshake on the implicit path) is dialed with DialContext and
+// handed to imapclient.New/NewStartTLS; the STARTTLS upgrade itself then
+// runs without ctx, exactly like the SMTP side's NewClientStartTLS.
+// In-flight commands are covered by the cancellation watchers in each
+// method (watchCancel).
 func dialIMAPTLS(ctx context.Context, srv serverConfig) (*imapclient.Client, error) {
 	host, port, err := resolveDialServer(srv, defaultIMAPPort)
 	if err != nil {
 		return nil, fmt.Errorf("stored imap server: %w", err)
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(port))
-	dialer := &tls.Dialer{
-		NetDialer: &net.Dialer{Timeout: 30 * time.Second},
-		Config:    tlsConfigFor(host),
+	if imapUsesImplicitTLS(port) {
+		dialer := &tls.Dialer{
+			NetDialer: &net.Dialer{Timeout: 30 * time.Second},
+			Config:    tlsConfigFor(host),
+		}
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("connecting to imap server %s: %w", addr, err)
+		}
+		return imapclient.New(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)}), nil
 	}
-	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	conn, err := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("connecting to imap server %s: %w", addr, err)
 	}
-	return imapclient.New(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)}), nil
+	// NewStartTLS fails (and closes the connection) when the server
+	// refuses STARTTLS: the session never proceeds in plaintext.
+	// TLSConfig carries the split host as ServerName.
+	client, err := imapclient.NewStartTLS(conn, &imapclient.Options{TLSConfig: tlsConfigFor(host)})
+	if err != nil {
+		return nil, fmt.Errorf("starttls with imap server %s: %w", addr, err)
+	}
+	return client, nil
 }
 
 // watchCancel closes the client when ctx is cancelled: the emersion

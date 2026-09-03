@@ -1,9 +1,15 @@
 package email
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -62,11 +68,14 @@ func multipartRawMessage() string {
 }
 
 // startIMAP starts an in-process IMAP server seeded with seed and stubs
-// the TLS roots so the adapter verifies against the test CA.
+// the TLS roots so the adapter verifies against the test CA. The port→
+// transport mapping is pinned onto the loopback port so the dial takes
+// the implicit-TLS path the server speaks.
 func startIMAP(t *testing.T, seed map[string][]emailtest.SeedMessage) serverConfig {
 	t.Helper()
 	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword, seed)
 	stubTLSRoots(t, roots)
+	stubIMAPImplicitTLS(t, port)
 	return serverConfig{Host: host, Port: port}
 }
 
@@ -344,6 +353,7 @@ func TestMailboxListLegacyEmbeddedPort(t *testing.T) {
 	host, port, roots := emailtest.StartIMAP(t, testIMAPUser, testIMAPPassword,
 		map[string][]emailtest.SeedMessage{"INBOX": {}})
 	stubTLSRoots(t, roots)
+	stubIMAPImplicitTLS(t, port)
 	seedLegacyAccount(t, cfg, "legacy",
 		host+":"+strconv.Itoa(port), defaultIMAPPort)
 
@@ -366,4 +376,90 @@ func TestDialErrorRendersResolvedHostPort(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "connecting to imap server 127.0.0.1:1:")
 	assert.NotContains(t, err.Error(), "[127.0.0.1:1]")
+}
+
+// TestIMAPUseImplicitTLS pins the IMAP port→transport mapping, the
+// sibling of the SMTP 465/587 rule: 993 is implicit TLS, every other
+// port is mandatory STARTTLS.
+func TestIMAPUseImplicitTLS(t *testing.T) {
+	assert.True(t, imapUsesImplicitTLS(993))
+	assert.False(t, imapUsesImplicitTLS(143))
+	assert.False(t, imapUsesImplicitTLS(1143))
+}
+
+// TestDialIMAPStartTLS proves the non-993 path end to end: the server
+// listens in PLAINTEXT and only upgrades on STARTTLS, so a successful
+// login and mailbox list can only have happened over a connection that
+// started cleartext and upgraded. Certificate verification is full —
+// the loopback CA goes through the RootCAs seam, nothing skipped.
+func TestDialIMAPStartTLS(t *testing.T) {
+	host, port, roots := emailtest.StartIMAPStartTLS(t, testIMAPUser, testIMAPPassword,
+		map[string][]emailtest.SeedMessage{
+			"INBOX":   {{Raw: simpleRawMessage(), Flags: []string{`\Seen`}, Time: testSimpleDate}},
+			"Archive": {},
+		})
+	stubTLSRoots(t, roots)
+
+	svc, err := newMailService(t.Context(), &credentials{
+		Username: testIMAPUser,
+		Password: testIMAPPassword,
+		IMAP:     serverConfig{Host: host, Port: port},
+	})
+	require.NoError(t, err, "login over the STARTTLS-upgraded connection")
+	t.Cleanup(func() { _ = svc.Close() })
+
+	names, err := svc.ListMailboxes(t.Context())
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"INBOX", "Archive"}, names)
+}
+
+// TestDialIMAPStartTLS_Mandatory proves STARTTLS is mandatory on the
+// non-993 path: a server that refuses STARTTLS fails the dial, and the
+// only command that ever crossed the plaintext connection is STARTTLS
+// itself — no IMAP command (LOGIN, LIST, ...) runs unencrypted. The
+// server is a raw loopback stub (no TLSConfig at all) that records
+// every command line it receives and answers NO to STARTTLS.
+func TestDialIMAPStartTLS_Mandatory(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = ln.Close() })
+
+	var (
+		mu       sync.Mutex
+		received []string
+	)
+	hungUp := make(chan struct{})
+	go func() {
+		defer close(hungUp)
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _ = io.WriteString(conn, "* OK test server\r\n")
+		sc := bufio.NewScanner(conn)
+		for sc.Scan() {
+			line := sc.Text()
+			mu.Lock()
+			received = append(received, line)
+			mu.Unlock()
+			if strings.HasSuffix(line, "STARTTLS") {
+				_, _ = fmt.Fprintf(conn, "%s NO STARTTLS not supported\r\n", strings.Fields(line)[0])
+			}
+		}
+	}()
+
+	port, err := strconv.Atoi(strings.Split(ln.Addr().String(), ":")[1])
+	require.NoError(t, err)
+	_, err = dialIMAPTLS(t.Context(), serverConfig{Host: "127.0.0.1", Port: port})
+	require.Error(t, err, "a server without STARTTLS must fail the dial")
+	assert.Contains(t, err.Error(), "starttls with imap server")
+
+	// The refusal makes the client hang up; every line it ever sent is
+	// then recorded.
+	<-hungUp
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, received, 1, "only STARTTLS may cross the plaintext connection")
+	assert.True(t, strings.HasSuffix(received[0], "STARTTLS"), "received: %q", received[0])
 }

@@ -81,6 +81,16 @@ func stubTLSRoots(t *testing.T, roots *x509.CertPool) {
 	t.Cleanup(func() { tlsConfigFor = saved })
 }
 
+// stubIMAPImplicitTLS pins the IMAP port→transport mapping onto a
+// loopback port for the test's lifetime, as if it were 993 (production
+// maps exactly 993 to implicit TLS, everything else to STARTTLS).
+func stubIMAPImplicitTLS(t *testing.T, port int) {
+	t.Helper()
+	saved := imapUsesImplicitTLS
+	imapUsesImplicitTLS = func(p int) bool { return p == port }
+	t.Cleanup(func() { imapUsesImplicitTLS = saved })
+}
+
 // fakeMailService is the one shared MailService fake for the leaf tests.
 // Each concern is a func field: a test sets only the field its leaf
 // consumes, and a call through any unset method fails the test with an
