@@ -82,6 +82,79 @@ func TestCreateWithoutAttendeesSendsNoUpdates(t *testing.T) {
 	require.Equal(t, "none", svc.insertSend)
 }
 
+func TestCreateMeetAttachesConferenceRequest(t *testing.T) {
+	svc := &fakeEventService{}
+	out := cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+		"--summary", "Design review",
+		"--start", "2026-09-03T14:00:00Z",
+		"--end", "2026-09-03T15:00:00Z",
+		"--meet",
+	)
+
+	require.NotNil(t, svc.inserted.ConferenceData)
+	require.NotNil(t, svc.inserted.ConferenceData.CreateRequest)
+	require.Equal(t, "hangoutsMeet",
+		svc.inserted.ConferenceData.CreateRequest.ConferenceSolutionKey.Type)
+	require.NotEmpty(t, svc.inserted.ConferenceData.CreateRequest.RequestId)
+	// The fake mints a Meet link for conference-requesting bodies; it must
+	// surface in the created view, not just the outgoing request.
+	view, ok := cmdtest.DecodeJSON(t, out).(map[string]any)
+	require.True(t, ok, "expected a JSON object, got: %s", out)
+	require.Equal(t, fakeHangoutLink, view["meet_link"])
+}
+
+func TestCreateWithoutMeetOmitsConferenceData(t *testing.T) {
+	svc := &fakeEventService{}
+	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
+		"--summary", "Design review",
+		"--start", "2026-09-03T14:00:00Z",
+		"--end", "2026-09-03T15:00:00Z",
+	)
+
+	require.Nil(t, svc.inserted.ConferenceData)
+}
+
+func TestCreateMeetErrorsWhenNoLinkComesBack(t *testing.T) {
+	svc := &fakeEventService{noHangoutLink: true}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCreateCmd, svc, "json"),
+		"--summary", "Design review",
+		"--start", "2026-09-03T14:00:00Z",
+		"--end", "2026-09-03T15:00:00Z",
+		"--meet",
+	)
+
+	require.Contains(t, err.Error(), "--meet")
+	require.Contains(t, err.Error(), "no Meet link")
+}
+
+func TestCreateMeetLeavesSendUpdatesRuleAlone(t *testing.T) {
+	tests := []struct {
+		name      string
+		attendees []string
+		wantSend  string
+	}{
+		{name: "meet with a guest still notifies everyone", attendees: []string{"alice@example.com"}, wantSend: "all"},
+		{name: "meet with no guests sends none", wantSend: "none"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &fakeEventService{}
+			args := []string{
+				"--summary", "Design review",
+				"--start", "2026-09-03T14:00:00Z",
+				"--end", "2026-09-03T15:00:00Z",
+				"--meet",
+			}
+			for _, email := range tt.attendees {
+				args = append(args, "--attendee", email)
+			}
+			cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"), args...)
+
+			require.Equal(t, tt.wantSend, svc.insertSend)
+		})
+	}
+}
+
 func TestCreateReminderMinutes(t *testing.T) {
 	svc := &fakeEventService{}
 	cmdtest.RunCmd(t, newLeafCmd(newCreateCmd, svc, "json"),
