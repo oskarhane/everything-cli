@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -15,7 +16,7 @@ import (
 )
 
 // updateFlags are the update write flags; at least one must be set.
-var updateFlags = []string{"summary", "start", "end", "location", "description", "add-attendee", "remove-attendee"}
+var updateFlags = []string{"summary", "start", "end", "location", "description", "add-attendee", "remove-attendee", "meet"}
 
 // newUpdateCmd returns `calendar event update`. Patching an instance id
 // modifies only that occurrence (the server records an exception); patching
@@ -36,12 +37,15 @@ everything-cli google calendar event update kq3abc123_20260929T030000Z --start 2
 everything-cli google calendar event update kq3abc123_20260929T030000Z --this-only=false --summary "Standup moved"
 
 # Add a guest to the series master
-everything-cli google calendar event update kq3abc123 --add-attendee colleague@example.com`,
+everything-cli google calendar event update kq3abc123 --add-attendee colleague@example.com
+
+# Attach a Google Meet link (a no-op when the event already has one)
+everything-cli google calendar event update abc123 --meet`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f := cmd.Flags()
 			if !anyUpdateFlagChanged(f) {
-				return fmt.Errorf("nothing to update: pass at least one of --summary, --start, --end, --location, --description, --add-attendee, --remove-attendee")
+				return fmt.Errorf("nothing to update: pass at least one of --summary, --start, --end, --location, --description, --add-attendee, --remove-attendee, --meet")
 			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
@@ -68,6 +72,9 @@ everything-cli google calendar event update kq3abc123 --add-attendee colleague@e
 			if err != nil {
 				return err
 			}
+			if meet, _ := f.GetBool("meet"); meet && patched.HangoutLink == "" {
+				return fmt.Errorf("--meet was passed but the event carries no Meet link")
+			}
 			printEventView(cmd, cfg, patched)
 			return nil
 		},
@@ -80,6 +87,7 @@ everything-cli google calendar event update kq3abc123 --add-attendee colleague@e
 	f.String("description", "", "New description")
 	f.StringArray("add-attendee", nil, "Attendee email to add; repeatable")
 	f.StringArray("remove-attendee", nil, "Attendee email to remove; repeatable")
+	f.Bool("meet", false, "Attach a Google Meet link when the event has none")
 	f.String("calendar", "primary", "Calendar id")
 	f.Bool("this-only", true, "Patch the given id only; false with an instance id patches its master (the whole series)")
 	return cmd
@@ -146,6 +154,16 @@ func buildPatch(f *pflag.FlagSet, ev *calendar.Event, now time.Time) (*calendar.
 			attendees = append(attendees, &calendar.EventAttendee{Email: email})
 		}
 		patch.Attendees = attendees
+	}
+	// --meet requests a conference only when the event carries none: a
+	// createRequest on an already-conferenced event would mint a second link.
+	if meet, _ := f.GetBool("meet"); meet && ev.HangoutLink == "" && ev.ConferenceData == nil {
+		patch.ConferenceData = &calendar.ConferenceData{
+			CreateRequest: &calendar.CreateConferenceRequest{
+				ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},
+				RequestId:             uuid.NewString(),
+			},
+		}
 	}
 	return patch, nil
 }

@@ -89,3 +89,42 @@ func TestUpdatePropagatesAPIError(t *testing.T) {
 	require.Contains(t, err.Error(), "404")
 	require.Empty(t, svc.patches)
 }
+
+func TestUpdateMeetAttachesConferenceWhenMissing(t *testing.T) {
+	svc := &fakeEventService{events: seedSeries()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--meet")
+
+	require.Len(t, svc.patches, 1)
+	p := svc.patches[0]
+	require.NotNil(t, p.event.ConferenceData, "an event without conferencing must carry a createRequest")
+	require.NotNil(t, p.event.ConferenceData.CreateRequest)
+	require.Equal(t, "hangoutsMeet", p.event.ConferenceData.CreateRequest.ConferenceSolutionKey.Type)
+	require.NotEmpty(t, p.event.ConferenceData.CreateRequest.RequestId, "the API needs a fresh request id per createRequest")
+	require.Equal(t, "all", p.sendUpdates)
+
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
+	require.Equal(t, fakeHangoutLink, view["meet_link"])
+}
+
+func TestUpdateMeetWithExistingLinkIsNoop(t *testing.T) {
+	const seededLink = "https://meet.google.com/seeded-link"
+	events := seedSeries()
+	events[masterEventID].HangoutLink = seededLink
+	svc := &fakeEventService{events: events}
+	out := cmdtest.RunCmd(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--meet")
+
+	require.Len(t, svc.patches, 1)
+	require.Nil(t, svc.patches[0].event.ConferenceData, "an event that already has a Meet link must not carry a second createRequest")
+
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
+	require.Equal(t, seededLink, view["meet_link"], "the pre-existing link is printed unchanged")
+}
+
+func TestUpdateMeetErrorsWhenNoLinkComesBack(t *testing.T) {
+	svc := &fakeEventService{events: seedSeries(), noHangoutLink: true}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--meet")
+
+	require.Len(t, svc.patches, 1, "the error is the post-patch fallback check, not a pre-flight one")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--meet was passed but the event carries no Meet link")
+}
