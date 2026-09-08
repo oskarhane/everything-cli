@@ -59,6 +59,10 @@ func TestInsertPatchEventConferenceDataVersion(t *testing.T) {
 
 			ev := &calendar.Event{Summary: "Sync"}
 			if tt.withConference {
+				// Local copy on purpose: service sits below event at this
+				// seam, so importing event's meetConferenceData would invert
+				// the dependency; the canonical body and its fresh-request-id
+				// rule live in calendar/event/meet.go.
 				ev.ConferenceData = &calendar.ConferenceData{
 					CreateRequest: &calendar.CreateConferenceRequest{
 						ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},

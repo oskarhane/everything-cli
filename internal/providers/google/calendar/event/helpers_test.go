@@ -304,12 +304,7 @@ func TestFakeEventServiceHangoutLink(t *testing.T) {
 	newEvent := func(withConf bool) *calendar.Event {
 		ev := &calendar.Event{Summary: "Sync"}
 		if withConf {
-			ev.ConferenceData = &calendar.ConferenceData{
-				CreateRequest: &calendar.CreateConferenceRequest{
-					ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},
-					RequestId:             "req-1",
-				},
-			}
+			ev.ConferenceData = meetConferenceData()
 		}
 		return ev
 	}

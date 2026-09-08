@@ -5,6 +5,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	calendar "google.golang.org/api/calendar/v3"
+
 	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
@@ -118,6 +120,21 @@ func TestUpdateMeetWithExistingLinkIsNoop(t *testing.T) {
 
 	view := cmdtest.DecodeJSON(t, out).(map[string]any)
 	require.Equal(t, seededLink, view["meet_link"], "the pre-existing link is printed unchanged")
+}
+
+func TestUpdateMeetWithExistingConferenceButNoLink(t *testing.T) {
+	// A Zoom-style event: conferenceData set, hangoutLink empty. buildPatch
+	// must not send a createRequest for it, and the post-write guard then
+	// reports the missing link honestly instead of silently doing nothing.
+	events := seedSeries()
+	events[masterEventID].ConferenceData = &calendar.ConferenceData{ConferenceId: "zoom-conf-1"}
+	svc := &fakeEventService{events: events}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newUpdateCmd, svc, "json"), masterEventID, "--meet")
+
+	require.Len(t, svc.patches, 1, "the write still happens; the guard is post-patch, not pre-flight")
+	require.Nil(t, svc.patches[0].event.ConferenceData, "an already-conferenced event must not get a second createRequest")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--meet was passed but the event carries no Meet link")
 }
 
 func TestUpdateMeetErrorsWhenNoLinkComesBack(t *testing.T) {

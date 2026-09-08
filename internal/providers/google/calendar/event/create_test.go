@@ -123,8 +123,7 @@ func TestCreateMeetErrorsWhenNoLinkComesBack(t *testing.T) {
 		"--meet",
 	)
 
-	require.Contains(t, err.Error(), "--meet")
-	require.Contains(t, err.Error(), "no Meet link")
+	require.Contains(t, err.Error(), "--meet was passed but the event carries no Meet link")
 }
 
 func TestCreateMeetLeavesSendUpdatesRuleAlone(t *testing.T) {

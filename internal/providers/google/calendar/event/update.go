@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -72,8 +71,9 @@ everything-cli google calendar event update abc123 --meet`,
 			if err != nil {
 				return err
 			}
-			if meet, _ := f.GetBool("meet"); meet && patched.HangoutLink == "" {
-				return fmt.Errorf("--meet was passed but the event carries no Meet link")
+			meet, _ := f.GetBool("meet")
+			if err := meetLinkMissing(meet, patched); err != nil {
+				return err
 			}
 			printEventView(cmd, cfg, patched)
 			return nil
@@ -158,12 +158,7 @@ func buildPatch(f *pflag.FlagSet, ev *calendar.Event, now time.Time) (*calendar.
 	// --meet requests a conference only when the event carries none: a
 	// createRequest on an already-conferenced event would mint a second link.
 	if meet, _ := f.GetBool("meet"); meet && ev.HangoutLink == "" && ev.ConferenceData == nil {
-		patch.ConferenceData = &calendar.ConferenceData{
-			CreateRequest: &calendar.CreateConferenceRequest{
-				ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},
-				RequestId:             uuid.NewString(),
-			},
-		}
+		patch.ConferenceData = meetConferenceData()
 	}
 	return patch, nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -55,8 +54,9 @@ everything-cli google calendar event create --summary "Conference" --start 2026-
 			if err != nil {
 				return err
 			}
-			if meet, _ := f.GetBool("meet"); meet && created.HangoutLink == "" {
-				return fmt.Errorf("--meet was passed but the created event carries no Meet link")
+			meet, _ := f.GetBool("meet")
+			if err := meetLinkMissing(meet, created); err != nil {
+				return err
 			}
 			printEventView(cmd, cfg, created)
 			return nil
@@ -119,14 +119,7 @@ func buildEvent(f *pflag.FlagSet, now time.Time) (*calendar.Event, error) {
 		ev.Attendees = append(ev.Attendees, &calendar.EventAttendee{Email: email})
 	}
 	if meet, _ := f.GetBool("meet"); meet {
-		// Fresh request id per run: the CLI makes exactly one insert per
-		// invocation, and the API dedupes conference creates on it.
-		ev.ConferenceData = &calendar.ConferenceData{
-			CreateRequest: &calendar.CreateConferenceRequest{
-				RequestId:             uuid.NewString(),
-				ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},
-			},
-		}
+		ev.ConferenceData = meetConferenceData()
 	}
 	if minutes, _ := f.GetInt64("reminder-minutes"); minutes > 0 {
 		// An explicit override must also disable the calendar's default

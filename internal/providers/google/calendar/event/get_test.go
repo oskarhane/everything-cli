@@ -155,9 +155,7 @@ func TestGetRequiresExactlyOneArg(t *testing.T) {
 }
 
 // seedMeetLinkEvents returns one event with a Google Meet hangout link and
-// one without, covering both meet_link shapes the get view can emit. Seeded
-// here — not in helpers_test.go — so a concurrent node's edits there cannot
-// collide with these tests.
+// one without, covering both meet_link shapes the get view can emit.
 func seedMeetLinkEvents() map[string]*calendar.Event {
 	return map[string]*calendar.Event{
 		"meetlink1": {
