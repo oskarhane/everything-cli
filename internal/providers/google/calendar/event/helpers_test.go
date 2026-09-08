@@ -36,6 +36,10 @@ func freezeNow(t *testing.T) {
 	t.Cleanup(func() { nowFunc = original })
 }
 
+// fakeHangoutLink is the Meet link the fake mints on insert/patch responses
+// whose event body requests a conference.
+const fakeHangoutLink = "https://meet.google.com/fake-conf-link"
+
 // fakeEventService is the hermetic service.EventService double: it serves
 // seeded events and records every write for assertions.
 type fakeEventService struct {
@@ -62,6 +66,10 @@ type fakeEventService struct {
 
 	moveCalls []moveCall
 	moveErr   error
+
+	// noHangoutLink suppresses the fake's Meet link on conference-requesting
+	// insert/patch responses, simulating the API returning none.
+	noHangoutLink bool
 }
 
 // patchCall records one PatchEvent request.
@@ -84,6 +92,12 @@ type moveCall struct {
 	calendarID     string
 	eventID        string
 	destCalendarID string
+}
+
+// requestsConference reports whether an event body asks the API to create a
+// conference (a non-nil conferenceData.createRequest).
+func requestsConference(ev *calendar.Event) bool {
+	return ev != nil && ev.ConferenceData != nil && ev.ConferenceData.CreateRequest != nil
 }
 
 func (f *fakeEventService) ListEvents(_ context.Context, params service.ListEventsParams) ([]*calendar.Event, error) {
@@ -117,6 +131,10 @@ func (f *fakeEventService) InsertEvent(_ context.Context, calendarID string, ev 
 	f.insertSend = sendUpdates
 	created := *ev
 	created.Id = "created123"
+	if requestsConference(ev) && !f.noHangoutLink {
+		// The fake API mints a Meet link for conference-requesting bodies.
+		created.HangoutLink = fakeHangoutLink
+	}
 	return &created, nil
 }
 
@@ -146,6 +164,16 @@ func (f *fakeEventService) PatchEvent(_ context.Context, calendarID, eventID str
 		}
 		if ev.Description != "" {
 			resp.Description = ev.Description
+		}
+	}
+	// A conference-requesting patch gets a fresh Meet link back — or none at
+	// all when suppressed; patches that don't request one leave the base's
+	// link (seeded or empty) untouched.
+	if requestsConference(ev) {
+		if f.noHangoutLink {
+			resp.HangoutLink = ""
+		} else {
+			resp.HangoutLink = fakeHangoutLink
 		}
 	}
 	return &resp, nil
@@ -265,4 +293,63 @@ func findSelf(t *testing.T, attendees []*calendar.EventAttendee) *calendar.Event
 	}
 	t.Fatalf("no self attendee in %+v", attendees)
 	return nil
+}
+
+// TestFakeEventServiceHangoutLink pins the fake's conference modeling: the
+// fake mints a Meet link iff the request body carries a createRequest,
+// noHangoutLink suppresses it, and a seeded base link survives patches that
+// don't request a conference.
+func TestFakeEventServiceHangoutLink(t *testing.T) {
+	const seededLink = "https://meet.google.com/seeded-link"
+	newEvent := func(withConf bool) *calendar.Event {
+		ev := &calendar.Event{Summary: "Sync"}
+		if withConf {
+			ev.ConferenceData = &calendar.ConferenceData{
+				CreateRequest: &calendar.CreateConferenceRequest{
+					ConferenceSolutionKey: &calendar.ConferenceSolutionKey{Type: "hangoutsMeet"},
+					RequestId:             "req-1",
+				},
+			}
+		}
+		return ev
+	}
+	tests := []struct {
+		name      string
+		patch     bool
+		noHangout bool
+		withConf  bool
+		seedLink  string // HangoutLink on the seeded base event (patch only)
+		want      string
+	}{
+		{name: "insert requesting a conference mints the link", withConf: true, want: fakeHangoutLink},
+		{name: "insert requesting a conference suppressed", withConf: true, noHangout: true},
+		{name: "insert without a conference request has no link"},
+		{name: "patch requesting a conference mints the link", patch: true, withConf: true, want: fakeHangoutLink},
+		{name: "patch requesting a conference suppressed clears a seeded link", patch: true, withConf: true, noHangout: true, seedLink: seededLink},
+		{name: "patch without a conference request keeps a seeded link", patch: true, seedLink: seededLink, want: seededLink},
+		{name: "patch requesting a conference replaces a seeded link", patch: true, withConf: true, seedLink: seededLink, want: fakeHangoutLink},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake := &fakeEventService{noHangoutLink: tt.noHangout}
+			if tt.patch {
+				fake.events = map[string]*calendar.Event{"ev-1": {Id: "ev-1", HangoutLink: tt.seedLink}}
+			}
+			var (
+				got *calendar.Event
+				err error
+			)
+			if tt.patch {
+				got, err = fake.PatchEvent(t.Context(), "cal-1", "ev-1", newEvent(tt.withConf), "")
+			} else {
+				got, err = fake.InsertEvent(t.Context(), "cal-1", newEvent(tt.withConf), "")
+			}
+			if err != nil {
+				t.Fatalf("%s: %v", tt.name, err)
+			}
+			if got.HangoutLink != tt.want {
+				t.Errorf("HangoutLink = %q, want %q", got.HangoutLink, tt.want)
+			}
+		})
+	}
 }

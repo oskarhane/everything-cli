@@ -141,6 +141,12 @@ func (s *realCalendarService) InsertEvent(ctx context.Context, calendarID string
 	if sendUpdates != "" {
 		call = call.SendUpdates(sendUpdates)
 	}
+	// A conferenceData.createRequest body is silently ignored unless the
+	// request also carries conferenceDataVersion=1; inferring the version
+	// from the body keeps the two from drifting apart.
+	if ev != nil && ev.ConferenceData != nil {
+		call = call.ConferenceDataVersion(1)
+	}
 	created, err := call.Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("creating event: %w", err)
@@ -156,6 +162,11 @@ func (s *realCalendarService) PatchEvent(ctx context.Context, calendarID, eventI
 	call := s.svc.Events.Patch(calendarID, eventID, ev)
 	if sendUpdates != "" {
 		call = call.SendUpdates(sendUpdates)
+	}
+	// Same inference as InsertEvent: a conferenceData.createRequest body
+	// only counts when conferenceDataVersion=1 rides the request.
+	if ev != nil && ev.ConferenceData != nil {
+		call = call.ConferenceDataVersion(1)
 	}
 	patched, err := call.Context(ctx).Do()
 	if err != nil {
