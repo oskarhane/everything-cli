@@ -1,6 +1,7 @@
 package event
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ func TestGetJSONMasterView(t *testing.T) {
 	keys := cmdtest.JSONKeys(t, view)
 	require.ElementsMatch(t, []string{
 		"id", "summary", "start", "end", "status", "self_response",
-		"created", "updated", "location", "description",
+		"created", "updated", "location", "meet_link", "description",
 		"attendees", "recurring", "recurring_event_id", "recurrence",
 	}, keys)
 	cmdtest.RequireSnakeCase(t, keys)
@@ -151,4 +152,73 @@ func TestGetRequiresExactlyOneArg(t *testing.T) {
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"))
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
+}
+
+// seedMeetLinkEvents returns one event with a Google Meet hangout link and
+// one without, covering both meet_link shapes the get view can emit.
+func seedMeetLinkEvents() map[string]*calendar.Event {
+	return map[string]*calendar.Event{
+		"meetlink1": {
+			Id:          "meetlink1",
+			Summary:     "Sync call",
+			Location:    "Remote",
+			HangoutLink: "https://meet.google.com/abc-mnop-xyz",
+			Start:       &calendar.EventDateTime{DateTime: "2026-09-02T10:00:00Z"},
+			End:         &calendar.EventDateTime{DateTime: "2026-09-02T10:30:00Z"},
+		},
+		"nomeet1": {
+			Id:      "nomeet1",
+			Summary: "Desk work",
+			Start:   &calendar.EventDateTime{DateTime: "2026-09-02T12:00:00Z"},
+			End:     &calendar.EventDateTime{DateTime: "2026-09-02T13:00:00Z"},
+		},
+	}
+}
+
+func TestGetJSONMeetLink(t *testing.T) {
+	svc := &fakeEventService{events: seedMeetLinkEvents()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "meetlink1")
+
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
+	keys := cmdtest.JSONKeys(t, view)
+	cmdtest.RequireSnakeCase(t, keys)
+	require.Contains(t, keys, "meet_link")
+	require.Equal(t, "https://meet.google.com/abc-mnop-xyz", view["meet_link"])
+}
+
+func TestGetJSONMeetLinkEmptyWhenAbsent(t *testing.T) {
+	svc := &fakeEventService{events: seedMeetLinkEvents()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "nomeet1")
+
+	view := cmdtest.DecodeJSON(t, out).(map[string]any)
+	// An event with no hangout link still carries the key, as an empty string.
+	require.Contains(t, cmdtest.JSONKeys(t, view), "meet_link")
+	require.EqualValues(t, "", view["meet_link"])
+}
+
+func TestGetToonMeetLink(t *testing.T) {
+	svc := &fakeEventService{events: seedMeetLinkEvents()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "toon"), "meetlink1")
+
+	// The URL contains ':', so TOON quotes the value.
+	require.Contains(t, out, `meet_link: "https://meet.google.com/abc-mnop-xyz"`)
+}
+
+func TestGetTableMeetLink(t *testing.T) {
+	svc := &fakeEventService{events: seedMeetLinkEvents()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "table"), "meetlink1")
+
+	// go-pretty StyleLight upper-cases the snake_case field name.
+	require.Contains(t, out, "MEET_LINK")
+	require.Contains(t, out, "https://meet.google.com/abc-mnop-xyz")
+}
+
+// TestEventViewFieldsPutMeetLinkAfterLocation pins the field-order contract:
+// meet_link is a where/how-to-join field, so it sits directly after location
+// in the single-event view.
+func TestEventViewFieldsPutMeetLinkAfterLocation(t *testing.T) {
+	i := slices.Index(eventViewFields, "location")
+	require.GreaterOrEqual(t, i, 0, "eventViewFields must contain location")
+	require.Less(t, i+1, len(eventViewFields), "location must not be the last field")
+	require.Equal(t, "meet_link", eventViewFields[i+1])
 }

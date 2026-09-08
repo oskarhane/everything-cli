@@ -192,7 +192,7 @@ everything-cli google calendar create "Team Sync" --timezone Europe/Stockholm
 
 everything-cli google calendar event list --from -1d --to +7d [--recurring instances|masters|all]
 everything-cli google calendar event create --summary "Standup" --start "2026-09-01T09:00" --end "2026-09-01T09:30" \
-    --attendee a@x.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10'
+    --attendee a@x.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10' --meet  # attach a Google Meet conference (meet_link in the view)
 everything-cli google calendar event get <id>              # master or <masterId>_<time> instance id
 
 # Recurring events: respond to or delete ONE occurrence (default) or the whole series

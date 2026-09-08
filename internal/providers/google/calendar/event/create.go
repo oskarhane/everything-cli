@@ -16,13 +16,14 @@ import (
 
 // newCreateCmd returns `calendar event create`. --recurrence takes raw
 // RRULE:/RDATE:/EXDATE: values and forwards them verbatim into the event's
-// recurrence lines; --all-day switches --start/--end to YYYY-MM-DD dates.
+// recurrence lines; --all-day switches --start/--end to YYYY-MM-DD dates;
+// --meet attaches a Google Meet conference create request.
 func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.EventService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create an event",
-		Example: `# Create a one-off meeting
-everything-cli google calendar event create --summary "Design review" --start 2026-09-03T14:00:00Z --end 2026-09-03T15:00:00Z
+		Example: `# Create a one-off meeting with a Google Meet conference
+everything-cli google calendar event create --summary "Design review" --start 2026-09-03T14:00:00Z --end 2026-09-03T15:00:00Z --meet
 
 # Create a weekly recurring series with a guest, as JSON
 everything-cli google calendar event create --summary "Standup" --start 2026-09-01T09:00:00+02:00 --end 2026-09-01T09:30:00+02:00 --attendee colleague@example.com --recurrence 'RRULE:FREQ=WEEKLY;COUNT=10' --format json
@@ -53,6 +54,10 @@ everything-cli google calendar event create --summary "Conference" --start 2026-
 			if err != nil {
 				return err
 			}
+			meet, _ := f.GetBool("meet")
+			if err := meetLinkMissing(meet, created); err != nil {
+				return err
+			}
 			printEventView(cmd, cfg, created)
 			return nil
 		},
@@ -67,6 +72,7 @@ everything-cli google calendar event create --summary "Conference" --start 2026-
 	f.String("location", "", "Location")
 	f.String("description", "", "Description")
 	f.StringArray("attendee", nil, "Attendee email; repeatable")
+	f.Bool("meet", false, "Attach a Google Meet conference to the event")
 	f.Int64("reminder-minutes", 0, "Popup reminder this many minutes before (0 = calendar default)")
 	f.String("color-id", "", "Color id from the event colors endpoint")
 	f.StringArray("recurrence", nil, "Raw RRULE:/RDATE:/EXDATE: value, e.g. 'RRULE:FREQ=WEEKLY;COUNT=10'; repeatable")
@@ -111,6 +117,9 @@ func buildEvent(f *pflag.FlagSet, now time.Time) (*calendar.Event, error) {
 	}
 	for _, email := range flagStringArray(f, "attendee") {
 		ev.Attendees = append(ev.Attendees, &calendar.EventAttendee{Email: email})
+	}
+	if meet, _ := f.GetBool("meet"); meet {
+		ev.ConferenceData = meetConferenceData()
 	}
 	if minutes, _ := f.GetInt64("reminder-minutes"); minutes > 0 {
 		// An explicit override must also disable the calendar's default
