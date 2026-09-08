@@ -17,6 +17,7 @@ func TestNewRootCommand(t *testing.T) {
 
 	assert.Equal(t, "everything-cli", root.Use)
 	assert.NotEmpty(t, root.Short, "root command should have a short description")
+	assert.True(t, root.SilenceUsage, "failed runs print the error line only, not a usage block")
 }
 
 func TestRootCommandPersistentFlags(t *testing.T) {
