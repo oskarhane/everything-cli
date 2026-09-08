@@ -191,20 +191,26 @@ everything-cli google calendar delete abc123.group.calendar.google.com --force
   `masters` = raw masters plus one-offs and exceptions; `all` = both
   merged and deduped). Rows carry 12 snake_case fields — `status`,
   `self_response` (the account's RSVP), `created`, `updated`,
-  `organizer`, `description`, plus the scheduling fields; `get` adds
-  `location`, `attendees`, and `recurrence`.
+  `organizer`, `description`, plus the scheduling fields; `get` (the
+  single-event view shared by `create`/`update`) adds `location`,
+  `meet_link` (the event's Google Meet link, empty when absent),
+  `attendees`, and `recurrence`.
 - `google calendar event get <event-id>` — `--calendar`.
 - `google calendar event create` — `--summary` (required), `--start`,
   `--end` (required; RFC3339, or YYYY-MM-DD with `--all-day`),
   `--calendar`, `--all-day`, `--timezone` (required for recurring
   series), `--location`, `--description`, `--attendee` (repeatable),
   `--reminder-minutes`, `--color-id`, `--recurrence` (repeatable raw
-  `RRULE:`/`RDATE:`/`EXDATE:`).
+  `RRULE:`/`RDATE:`/`EXDATE:`), `--meet` (attach a Google Meet
+  conference to the event; the created event's view carries its
+  `meet_link`).
 - `google calendar event update <event-id>` — `--summary`, `--start`,
   `--end`, `--location`, `--description`,
   `--add-attendee`/`--remove-attendee` (repeatable), `--calendar`,
   `--this-only` (default true; false with an instance id patches its
-  master, i.e. the whole series).
+  master, i.e. the whole series), `--meet` (attach a Google Meet
+  conference when the event has none; a no-op that prints the existing
+  link when it already has one).
 - `google calendar event delete <event-id> [--force]` — `--calendar`,
   `--this-only` (default true; false with an instance id deletes its
   master). Refuses without `--force`.
@@ -232,7 +238,7 @@ everything-cli google calendar event list --from 2026-09-01T00:00:00Z --to 2026-
 everything-cli google calendar event list --calendar work@example.com --query "design review" --max 10
 everything-cli google calendar event list --updated-since -1d --format json
 everything-cli google calendar event get abc123 --format json
-everything-cli google calendar event update abc123 --summary "Design review"
+everything-cli google calendar event update abc123 --summary "Design review" --meet
 everything-cli google calendar event delete kq3abc123_20260929T030000Z --force
 everything-cli google calendar event accept kq3abc123_20260929T030000Z --all
 everything-cli google calendar event instances kq3abc123 --from now --to +14d
