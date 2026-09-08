@@ -23,7 +23,7 @@ var eventListFields = []string{
 // eventViewFields is the single-event view field order.
 var eventViewFields = []string{
 	"id", "summary", "start", "end", "status", "self_response",
-	"created", "updated", "location", "description", "attendees",
+	"created", "updated", "location", "meet_link", "description", "attendees",
 	"recurring", "recurring_event_id", "recurrence",
 }
 
@@ -105,6 +105,7 @@ func eventView(ev *calendar.Event) map[string]any {
 		"created":            ev.Created,
 		"updated":            ev.Updated,
 		"location":           ev.Location,
+		"meet_link":          ev.HangoutLink,
 		"description":        ev.Description,
 		"attendees":          attendeeRows(ev.Attendees),
 		"recurring":          isRecurring(ev),
