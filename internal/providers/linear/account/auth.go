@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -52,7 +51,7 @@ everything-cli linear account auth work --scopes read`,
 				return errors.New("linear accounts do not support re-auth")
 			}
 			acct, err = reauther.Reauth(cmd.Context(), cfg.Fs, store, acct, auth.ReauthOptions{
-				Scopes: parseScopes(scopesFlag),
+				Scopes: auth.ParseScopes(scopesFlag),
 			})
 			if err != nil {
 				return fmt.Errorf("re-authorizing account %q: %w", args[0], err)
@@ -68,20 +67,4 @@ everything-cli linear account auth work --scopes read`,
 	cmd.Flags().StringVar(&scopesFlag, "scopes", "",
 		"Comma-separated OAuth scopes (empty = the account's current scopes)")
 	return cmd
-}
-
-// parseScopes splits a comma-separated --scopes value, trimming blanks. An
-// empty value yields nil, and re-auth keeps the account's currently granted
-// scopes — a deliberately narrowed grant survives re-authorization.
-func parseScopes(flagValue string) []string {
-	if flagValue == "" {
-		return nil
-	}
-	scopes := make([]string, 0, 4)
-	for _, s := range strings.Split(flagValue, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			scopes = append(scopes, s)
-		}
-	}
-	return scopes
 }

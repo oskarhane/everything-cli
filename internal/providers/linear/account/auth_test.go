@@ -152,22 +152,3 @@ func TestAuthWrapsReauthFailure(t *testing.T) {
 	require.ErrorContains(t, err, `re-authorizing account "work"`)
 	require.ErrorContains(t, err, "flow canceled")
 }
-
-// TestParseScopes pins the --scopes parsing: comma-split, trimmed, blanks
-// dropped, empty (or blank-only) input yielding nil.
-func TestParseScopes(t *testing.T) {
-	cases := []struct {
-		name string
-		in   string
-		want []string
-	}{
-		{name: "empty", in: "", want: nil},
-		{name: "blank only", in: " , , ", want: []string{}},
-		{name: "trims and drops blanks", in: " read,write , ,issues:create", want: []string{"read", "write", "issues:create"}},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, parseScopes(tc.in))
-		})
-	}
-}

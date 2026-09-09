@@ -151,19 +151,7 @@ func (s *OAuthStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, 
 		scopes = append([]string{}, s.profile.DefaultScopes...)
 	}
 
-	// Attach identity resolution: Linear has no userinfo GET, so the
-	// freshly exchanged token queries the GraphQL viewer. The full viewer
-	// is captured for the account's Identity field.
-	var who viewer
-	profile := s.profile
-	profile.IdentityResolver = func(ctx context.Context, tok *oauth2.Token) (string, error) {
-		v, err := queryViewer(ctx, s.graphqlURL, tok.AccessToken)
-		if err != nil {
-			return "", err
-		}
-		who = v
-		return v.Email, nil
-	}
+	profile, who := s.profileWithIdentityResolver()
 
 	tok, email, err := s.runFlow(auth.ClientCredentials{ID: clientID, Secret: clientSecret}, scopes, profile)
 	if err != nil {
@@ -210,43 +198,16 @@ func (s *OAuthStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, 
 // grant survives re-authorization), then the profile's defaults for a
 // stored account that carries no scopes at all.
 func (s *OAuthStrategy) Reauth(_ context.Context, _ afero.Fs, store *config.Store, acct *config.Account, opts auth.ReauthOptions) (*config.Account, error) {
-	var payload oauthAuthPayload
-	if err := json.Unmarshal(acct.Auth, &payload); err != nil {
-		return nil, fmt.Errorf("parsing account %q auth: %w", acct.Name, err)
-	}
-	if payload.ClientID == "" {
-		return nil, fmt.Errorf("account %q holds no OAuth client ID", acct.Name)
-	}
-	// Read point: secrets restored from disk must be scrubbed from output.
-	if acct.Token != nil {
-		auth.RegisterSecret(acct.Token.AccessToken)
-		auth.RegisterSecret(acct.Token.RefreshToken)
-	}
-	if payload.ClientSecret != "" {
-		auth.RegisterSecret(payload.ClientSecret)
+	payload, err := s.storedCredentials(acct)
+	if err != nil {
+		return nil, err
 	}
 
-	scopes := opts.Scopes
-	if len(scopes) == 0 {
-		scopes = acct.Scopes
-	}
-	if len(scopes) == 0 {
-		scopes = s.profile.DefaultScopes
-	}
+	// The cascade (explicit opts, then the account's granted scopes, then
+	// the profile's defaults) lives in auth.ResolveReauthScopes.
+	scopes := auth.ResolveReauthScopes(opts.Scopes, acct.Scopes, s.profile.DefaultScopes)
 
-	// Attach identity resolution like Add does: Linear has no userinfo
-	// GET, so the freshly exchanged token queries the GraphQL viewer. The
-	// full viewer is captured for the account's Identity field.
-	var who viewer
-	profile := s.profile
-	profile.IdentityResolver = func(ctx context.Context, tok *oauth2.Token) (string, error) {
-		v, err := queryViewer(ctx, s.graphqlURL, tok.AccessToken)
-		if err != nil {
-			return "", err
-		}
-		who = v
-		return v.Email, nil
-	}
+	profile, who := s.profileWithIdentityResolver()
 
 	tok, email, err := s.runFlow(auth.ClientCredentials{ID: payload.ClientID, Secret: payload.ClientSecret}, scopes, profile)
 	if err != nil {
@@ -279,19 +240,19 @@ func (s *OAuthStrategy) Reauth(_ context.Context, _ afero.Fs, store *config.Stor
 	return store.GetProvider(ID, acct.Name)
 }
 
-// Client builds an *http.Client whose transport sources Bearer tokens from
-// the account's stored token, refreshing against the profile's pinned
-// token endpoint and persisting refreshes back to the linear account file.
-func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http.Client, error) {
-	if acct == nil {
-		return nil, errors.New("no account")
-	}
+// storedCredentials decodes the account's OAuth app credentials payload
+// and requires the client ID the flow and the refreshing token source
+// both need. It is also the single read point for the account's stored
+// secrets: the token's access/refresh values and the payload's client
+// secret are registered for redaction here, so Client and Reauth share
+// one scrubbing site instead of duplicating it.
+func (s *OAuthStrategy) storedCredentials(acct *config.Account) (oauthAuthPayload, error) {
 	var payload oauthAuthPayload
 	if err := json.Unmarshal(acct.Auth, &payload); err != nil {
-		return nil, fmt.Errorf("parsing account %q auth: %w", acct.Name, err)
+		return payload, fmt.Errorf("parsing account %q auth: %w", acct.Name, err)
 	}
 	if payload.ClientID == "" {
-		return nil, fmt.Errorf("account %q holds no OAuth client ID", acct.Name)
+		return payload, fmt.Errorf("account %q holds no OAuth client ID", acct.Name)
 	}
 	// Read point: secrets restored from disk must be scrubbed from output.
 	if acct.Token != nil {
@@ -300,6 +261,40 @@ func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http
 	}
 	if payload.ClientSecret != "" {
 		auth.RegisterSecret(payload.ClientSecret)
+	}
+	return payload, nil
+}
+
+// profileWithIdentityResolver returns a copy of the strategy profile with
+// the GraphQL viewer identity resolver attached, plus a pointer to the
+// viewer the resolver captures — Linear has no userinfo GET, so the
+// freshly exchanged token queries the GraphQL viewer, and the full viewer
+// (not just the email the resolver returns) feeds the account's Identity
+// field. Add and Reauth share this attachment.
+func (s *OAuthStrategy) profileWithIdentityResolver() (auth.OAuthProfile, *viewer) {
+	who := &viewer{}
+	profile := s.profile
+	profile.IdentityResolver = func(ctx context.Context, tok *oauth2.Token) (string, error) {
+		v, err := queryViewer(ctx, s.graphqlURL, tok.AccessToken)
+		if err != nil {
+			return "", err
+		}
+		*who = v
+		return v.Email, nil
+	}
+	return profile, who
+}
+
+// Client builds an *http.Client whose transport sources Bearer tokens from
+// the account's stored token, refreshing against the profile's pinned
+// token endpoint and persisting refreshes back to the linear account file.
+func (s *OAuthStrategy) Client(ctx context.Context, acct *config.Account) (*http.Client, error) {
+	if acct == nil {
+		return nil, errors.New("no account")
+	}
+	payload, err := s.storedCredentials(acct)
+	if err != nil {
+		return nil, err
 	}
 	creds := auth.ClientCredentials{ID: payload.ClientID, Secret: payload.ClientSecret}
 	ts, err := auth.TokenSourceForProvider(s.store, creds, ID, acct.Name, s.profile)
