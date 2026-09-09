@@ -3,6 +3,7 @@ package podcast
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // normalizeMatch normalizes an episode title for tiered matching. Both the
@@ -96,7 +97,7 @@ func matchTitle(want string, titles []string) (int, error) {
 		if len(a) > len(b) {
 			a, b = b, a
 		}
-		if len(a) >= 10 && strings.Contains(b, a) {
+		if utf8.RuneCountInString(a) >= 10 && strings.Contains(b, a) {
 			if hit >= 0 {
 				return 0, ErrEpisodeNotFound // ambiguous containment -> no match
 			}

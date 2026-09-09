@@ -79,6 +79,15 @@ func TestNormalizeMatchTierTable(t *testing.T) {
 			wantSent: true,
 		},
 		{
+			// 9 accented runes = 18 UTF-8 bytes. Under a byte-length gate this
+			// would pass the >=10 check and match; rune-counting must reject it.
+			name:     "tier 3 shorter side under 10 runes but over 10 bytes rejected",
+			want:     "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9", // é x9 (9 runes, 18 bytes)
+			titles:   []string{"preface \u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9 afterword"},
+			wantErr:  true,
+			wantSent: true,
+		},
+		{
 			name:     "tier 3 ambiguity with essentials decoy must not false-positive",
 			want:     "Growing Coffee in the Andes Mountains",
 			titles:   []string{"Growing Coffee in the Andes Mountains (Repost)", "Essentials: Growing Coffee in the Andes Mountains"},
