@@ -83,8 +83,11 @@ func issueNode(id, identifier, title string) map[string]any {
 		"id": id, "identifier": identifier, "title": title,
 		"description": "", "url": "https://linear.app/x/issue/" + identifier,
 		"createdAt": "2026-08-01T10:00:00.000Z", "updatedAt": "2026-08-02T10:00:00.000Z",
-		"state":    map[string]any{"id": "state_1", "name": "In Progress"},
+		"startedAt":   "2026-08-01T11:00:00.000Z",
+		"completedAt": nil, "canceledAt": nil,
+		"state":    map[string]any{"id": "state_1", "name": "In Progress", "type": "started"},
 		"assignee": map[string]any{"id": "user_1", "name": "Ada"},
+		"creator":  map[string]any{"id": "user_2", "name": "Grace"},
 		"team":     map[string]any{"id": "team_1", "name": "Engineering", "key": "ENG"},
 	}
 }
@@ -111,13 +114,20 @@ func TestListIssuesFollowsCursorAcrossTwoPages(t *testing.T) {
 	})
 	svc := newTestService(srv)
 
-	issues, err := svc.ListIssues(context.Background(), "")
+	issues, err := svc.ListIssues(context.Background(), IssueFilter{})
 	require.NoError(t, err)
 	require.Len(t, issues, 3)
 	require.Equal(t, "ENG-1", issues[0].Identifier)
 	require.Equal(t, "ENG-3", issues[2].Identifier)
 	require.Equal(t, "Ada", issues[0].Assignee.Name)
 	require.Equal(t, "ENG", issues[0].Team.Key)
+	// New selection fields decode: state type, creator, timestamps. A wire
+	// null timestamp decodes to the empty string.
+	require.Equal(t, "started", issues[0].State.Type)
+	require.Equal(t, "Grace", issues[0].Creator.Name)
+	require.Equal(t, "2026-08-01T11:00:00.000Z", issues[0].StartedAt)
+	require.Equal(t, "", issues[0].CompletedAt)
+	require.Equal(t, "", issues[0].CanceledAt)
 
 	// Two requests: the second follows pageInfo.endCursor, and both carry
 	// the raw API key (no Bearer prefix).
@@ -130,20 +140,134 @@ func TestListIssuesFollowsCursorAcrossTwoPages(t *testing.T) {
 	}
 }
 
-func TestListIssuesScopedToTeam(t *testing.T) {
+// TestListIssuesFilterVariable asserts the emitted GraphQL filter variable
+// for each composition of IssueFilter: id-like keys match by equality,
+// UpdatedSince matches updatedAt at-or-after.
+func TestListIssuesFilterVariable(t *testing.T) {
+	eq := func(id string) map[string]any {
+		return map[string]any{"id": map[string]any{"eq": id}}
+	}
+	tests := []struct {
+		name   string
+		filter IssueFilter
+		want   map[string]any
+	}{
+		{
+			name:   "team only",
+			filter: IssueFilter{TeamID: "team_1"},
+			want:   map[string]any{"team": eq("team_1")},
+		},
+		{
+			name:   "assignee and updated since",
+			filter: IssueFilter{AssigneeID: "user_1", UpdatedSince: "2026-09-01T00:00:00Z"},
+			want: map[string]any{
+				"assignee":  eq("user_1"),
+				"updatedAt": map[string]any{"gte": "2026-09-01T00:00:00Z"},
+			},
+		},
+		{
+			name: "all four fields compose into one filter",
+			filter: IssueFilter{
+				TeamID:       "team_1",
+				AssigneeID:   "user_1",
+				CreatorID:    "user_2",
+				UpdatedSince: "2026-09-01T00:00:00Z",
+			},
+			want: map[string]any{
+				"team":      eq("team_1"),
+				"assignee":  eq("user_1"),
+				"creator":   eq("user_2"),
+				"updatedAt": map[string]any{"gte": "2026-09-01T00:00:00Z"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, calls := mockGraphQL(t, func(gqlCall) any {
+				return map[string]any{"issues": conn([]any{
+					issueNode("issue_1", "ENG-1", "First"),
+				}, false, "")}
+			})
+			svc := newTestService(srv)
+
+			issues, err := svc.ListIssues(context.Background(), tt.filter)
+			require.NoError(t, err)
+			require.Len(t, issues, 1)
+			require.Len(t, *calls, 1)
+			// One top-level issues query carrying the filter as a variable.
+			require.Contains(t, (*calls)[0].Query, "issues(filter: $filter")
+			require.NotContains(t, (*calls)[0].Query, "team(id:")
+			require.Equal(t, tt.want, (*calls)[0].Variables["filter"])
+		})
+	}
+}
+
+func TestListIssuesZeroFilterOmitsFilterVariable(t *testing.T) {
 	srv, calls := mockGraphQL(t, func(gqlCall) any {
-		return map[string]any{"team": map[string]any{
-			"issues": conn([]any{issueNode("issue_1", "ENG-1", "First")}, false, ""),
-		}}
+		return map[string]any{"issues": conn([]any{
+			issueNode("issue_1", "ENG-1", "First"),
+		}, false, "")}
 	})
 	svc := newTestService(srv)
 
-	issues, err := svc.ListIssues(context.Background(), "team_1")
+	_, err := svc.ListIssues(context.Background(), IssueFilter{})
 	require.NoError(t, err)
-	require.Len(t, issues, 1)
 	require.Len(t, *calls, 1)
-	require.Equal(t, "team_1", (*calls)[0].Variables["teamId"])
-	require.Contains(t, (*calls)[0].Query, "team(id: $teamId)")
+	// The unfiltered wire shape is preserved: no filter variable at all,
+	// not an empty object.
+	require.NotContains(t, (*calls)[0].Variables, "filter")
+	require.Contains(t, (*calls)[0].Query, "issues(filter: $filter")
+}
+
+// commentNode returns a mock comment node.
+func commentNode(id, body string) map[string]any {
+	return map[string]any{
+		"id": id, "body": body,
+		"createdAt": "2026-08-01T12:00:00.000Z", "updatedAt": "2026-08-01T12:00:00.000Z",
+		"parent": map[string]any{"id": "comment_0"},
+		"user":   map[string]any{"id": "user_1", "name": "Ada"},
+	}
+}
+
+func TestListCommentsFollowsCursorAcrossTwoPages(t *testing.T) {
+	srv, calls := mockGraphQL(t, func(call gqlCall) any {
+		if _, paged := call.Variables["after"]; !paged {
+			return map[string]any{"issue": map[string]any{"comments": conn([]any{
+				commentNode("comment_1", "First comment"),
+			}, true, "cursor-1")}}
+		}
+		return map[string]any{"issue": map[string]any{"comments": conn([]any{
+			commentNode("comment_2", "Second comment"),
+		}, false, "")}}
+	})
+	svc := newTestService(srv)
+
+	comments, err := svc.ListComments(context.Background(), "issue_1")
+	require.NoError(t, err)
+	require.Len(t, comments, 2)
+	require.Equal(t, "First comment", comments[0].Body)
+	require.Equal(t, "Ada", comments[0].User.Name)
+	require.Equal(t, "comment_0", comments[0].Parent.ID)
+
+	require.Len(t, *calls, 2)
+	require.Equal(t, "issue_1", (*calls)[0].Variables["id"])
+	require.Equal(t, "cursor-1", (*calls)[1].Variables["after"])
+	// The selection set is exactly the agreed comment fields, paginated on
+	// the issue.comments connection.
+	require.Contains(t, (*calls)[0].Query, "comments(first: $first, after: $after)")
+	require.Contains(t, (*calls)[0].Query, "id body createdAt updatedAt parent { id } user { id name }")
+}
+
+func TestListCommentsIssueNullSurfacesDigError(t *testing.T) {
+	srv, _ := mockGraphQL(t, func(gqlCall) any {
+		return map[string]any{"issue": nil}
+	})
+	svc := newTestService(srv)
+
+	// A null issue leaves no comments to walk into; dig names the null
+	// intermediate segment.
+	_, err := svc.ListComments(context.Background(), "issue_999")
+	require.ErrorContains(t, err, `linear response has null "issue"`)
 }
 
 func TestGetIssue(t *testing.T) {

@@ -28,7 +28,7 @@ func TestListJSON(t *testing.T) {
 	state, ok := m["state"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "In Progress", state["name"])
-	require.Equal(t, "", svc.listTeamID)
+	require.Equal(t, service.IssueFilter{}, svc.listFilter)
 }
 
 func TestListTable(t *testing.T) {
@@ -45,7 +45,7 @@ func TestListTable(t *testing.T) {
 func TestListPassesTeamFlag(t *testing.T) {
 	svc := &fakeService{issues: []service.Issue{seedIssue()}}
 	cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"), "--team", "team_1")
-	require.Equal(t, "team_1", svc.listTeamID)
+	require.Equal(t, service.IssueFilter{TeamID: "team_1"}, svc.listFilter)
 }
 
 func TestListToon(t *testing.T) {

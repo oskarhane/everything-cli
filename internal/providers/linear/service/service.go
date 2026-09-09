@@ -134,10 +134,12 @@ func truncateBody(b []byte) string {
 }
 
 // dig walks data down the given key path and returns the raw JSON found
-// there. It locates nested results such as team.issues.
+// there. It locates nested results such as issue.comments. A null at an
+// intermediate step leaves nowhere left to walk and is an error; a null at
+// the final step is returned as-is (GetIssue turns it into not-found).
 func dig(data json.RawMessage, path ...string) (json.RawMessage, error) {
 	raw := data
-	for _, key := range path {
+	for i, key := range path {
 		var m map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &m); err != nil {
 			return nil, fmt.Errorf("decoding linear response at %q: %w", key, err)
@@ -145,6 +147,9 @@ func dig(data json.RawMessage, path ...string) (json.RawMessage, error) {
 		next, ok := m[key]
 		if !ok {
 			return nil, fmt.Errorf("linear response missing %q", key)
+		}
+		if string(next) == "null" && i < len(path)-1 {
+			return nil, fmt.Errorf("linear response has null %q", key)
 		}
 		raw = next
 	}

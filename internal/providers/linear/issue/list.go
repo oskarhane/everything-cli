@@ -25,7 +25,7 @@ everything-cli linear issue list --team 9c1e2f3a-... --format table`,
 			if err != nil {
 				return err
 			}
-			issues, err := svc.ListIssues(cmd.Context(), teamID)
+			issues, err := svc.ListIssues(cmd.Context(), service.IssueFilter{TeamID: teamID})
 			if err != nil {
 				return err
 			}
