@@ -2,7 +2,6 @@ package account
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
@@ -46,20 +45,12 @@ everything-cli google account add work --credentials ~/google/credentials.json -
 				return err
 			}
 
-			credentialsPath := credentials
-			if credentialsPath == "" {
-				credentialsPath = cfg.Credentials
-			}
-			resolved, err := auth.ResolveCredentials(cfg.Fs, credentialsPath, store.Dir())
-			if err != nil {
-				return err
-			}
-			creds, err := auth.ReadClientCredentials(cfg.Fs, resolved)
+			creds, err := resolveClientCredentials(cfg, store, credentials)
 			if err != nil {
 				return err
 			}
 
-			scopes := parseScopes(scopesFlag)
+			scopes := auth.ParseScopes(scopesFlag)
 			strategy := newAddStrategy(store, creds)
 			acct, err := strategy.Add(cmd.Context(), cfg.Fs, store, auth.AddOptions{
 				Name:        args[0],
@@ -84,18 +75,20 @@ everything-cli google account add work --credentials ~/google/credentials.json -
 	return cmd
 }
 
-// parseScopes splits a comma-separated --scopes value, trimming blanks. An
-// empty value yields nil, and the strategy falls back to the profile's
-// default scope set (auth.GoogleOAuth.DefaultScopes).
-func parseScopes(flagValue string) []string {
-	if flagValue == "" {
-		return nil
+// resolveClientCredentials turns the --credentials flag value (falling back
+// to the provider-level cfg.Credentials) into parsed OAuth app credentials:
+// resolve the path against the store's config dir, then read and parse the
+// file. Onboarding (add) and re-authorization (auth) need the identical
+// chain, so it lives here once — add owns onboarding — instead of a copy
+// per leaf.
+func resolveClientCredentials(cfg *app.Config, store *config.Store, flagValue string) (auth.ClientCredentials, error) {
+	credentialsPath := flagValue
+	if credentialsPath == "" {
+		credentialsPath = cfg.Credentials
 	}
-	scopes := make([]string, 0, 4)
-	for _, s := range strings.Split(flagValue, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			scopes = append(scopes, s)
-		}
+	resolved, err := auth.ResolveCredentials(cfg.Fs, credentialsPath, store.Dir())
+	if err != nil {
+		return auth.ClientCredentials{}, err
 	}
-	return scopes
+	return auth.ReadClientCredentials(cfg.Fs, resolved)
 }

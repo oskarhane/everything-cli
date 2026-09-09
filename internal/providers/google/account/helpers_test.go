@@ -98,11 +98,27 @@ func stubAddStrategy(t *testing.T, fn func(creds auth.ClientCredentials, scopes 
 	t.Cleanup(func() { newAddStrategy = saved })
 }
 
-// fakeStrategy is a test auth.Strategy whose Add runs the stubbed flow and
-// persists through the real provider-scoped store, mirroring the production
-// OAuth strategy without a browser.
+// stubAuthStrategy is stubAddStrategy for the re-auth path: the auth leaf
+// shares add's newAddStrategy seam (type-asserting the Reauther capability),
+// so the same seam is stubbed with a fake whose Reauth runs fn.
+func stubAuthStrategy(t *testing.T, fn func(acct *config.Account, scopes []string) (*oauth2.Token, string, error)) {
+	t.Helper()
+	saved := newAddStrategy
+	newAddStrategy = func(*config.Store, auth.ClientCredentials) auth.Strategy {
+		return fakeStrategy{reauthFn: fn}
+	}
+	t.Cleanup(func() { newAddStrategy = saved })
+}
+
+// fakeStrategy is a test auth.Strategy + auth.Reauther whose Add/Reauth run
+// the stubbed flows and persist through the real provider-scoped store,
+// mirroring the production OAuth strategy without a browser. Reauth is a
+// pure recorder: it hands the account and opts through untouched and only
+// swaps the token — scope precedence/defaults are the real strategy's job,
+// pinned by the strategy-level tests in internal/auth.
 type fakeStrategy struct {
-	fn func(creds auth.ClientCredentials, scopes []string) (*oauth2.Token, string, error)
+	fn       func(creds auth.ClientCredentials, scopes []string) (*oauth2.Token, string, error)
+	reauthFn func(acct *config.Account, scopes []string) (*oauth2.Token, string, error)
 }
 
 func (f fakeStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
@@ -123,6 +139,24 @@ func (f fakeStrategy) Add(_ context.Context, _ afero.Fs, store *config.Store, op
 
 func (f fakeStrategy) Client(context.Context, *config.Account) (*http.Client, error) {
 	return nil, errors.New("fakeStrategy has no client")
+}
+
+// Reauth records what the leaf handed it (via the stub's closure), then
+// persists the account with a rotated token — the stored scopes ride along
+// on the account copy, exactly like the real strategy's keep-on-empty
+// outcome, without reimplementing its precedence cascade.
+func (f fakeStrategy) Reauth(_ context.Context, _ afero.Fs, store *config.Store, acct *config.Account, opts auth.ReauthOptions) (*config.Account, error) {
+	tok, email, err := f.reauthFn(acct, opts.Scopes)
+	if err != nil {
+		return nil, err
+	}
+	updated := *acct
+	updated.Email = email
+	updated.Token = tok
+	if err := store.Save(&updated); err != nil {
+		return nil, err
+	}
+	return store.Get(updated.Name)
 }
 
 // writeCredentials writes a valid installed-app credentials file on the
