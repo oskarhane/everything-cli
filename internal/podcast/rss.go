@@ -11,10 +11,18 @@ import (
 	"strings"
 )
 
-// podcastNS is the Podcasting 2.0 namespace that declares the
-// <podcast:transcript> elements
-// (https://podcastindex.org/namespace/1.0).
-const podcastNS = "https://podcastindex.org/namespace/1.0"
+// podcast5 namespace URIs for the Podcasting 2.0 namespace that declares the
+// <podcast:transcript> elements. Two URIs are seen in the wild: the canonical
+// spec URI (https://podcastindex.org/namespace/1.0) and the older GitHub-docs
+// URI still used by major feeds (e.g. Podcasting 2.0's own feed).
+var podcastNS = map[string]bool{
+	"https://podcastindex.org/namespace/1.0":                                      true,
+	"https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md": true,
+}
+
+// inPodcastNS reports whether space is one of the accepted Podcasting 2.0
+// namespace URIs.
+func inPodcastNS(space string) bool { return podcastNS[space] }
 
 // feed is the subset of an RSS 2.0 podcast feed the podcast client needs: the
 // channel language (used to prefer a matching transcript) and the channel's
@@ -122,7 +130,7 @@ func parseFeed(data []byte) (*feed, error) {
 				} else {
 					curLang = nil
 				}
-			case t.Name.Local == "transcript" && t.Name.Space == podcastNS && cur != nil:
+			case t.Name.Local == "transcript" && inPodcastNS(t.Name.Space) && cur != nil:
 				cur.Transcripts = append(cur.Transcripts, transcriptTagOf(t))
 			}
 		case xml.CharData:

@@ -61,6 +61,25 @@ func TestParseFeed(t *testing.T) {
 	assert.Equal(t, "fr", f.Items[2].Transcripts[0].Language)
 }
 
+func TestParseFeedAlternateNamespaceURI(t *testing.T) {
+	// Some major feeds (e.g. Podcasting 2.0's own feed) declare the podcast:
+	// prefix with the older GitHub-docs namespace URI instead of the canonical
+	// spec URI. parseFeed must accept either.
+	const feed = `<?xml version="1.0"?>
+<rss version="2.0" xmlns:podcast="https://github.com/Podcastindex-org/podcast-namespace/blob/main/docs/1.0.md">
+<channel><language>en</language>
+<item><title>Ep</title>
+<podcast:transcript url="https://transcripts.example/ep.srt" type="application/srt" rel="captions"/>
+</item>
+</channel></rss>`
+	f, err := parseFeed([]byte(feed))
+	require.NoError(t, err)
+	require.Len(t, f.Items, 1)
+	require.Len(t, f.Items[0].Transcripts, 1)
+	assert.Equal(t, "application/srt", f.Items[0].Transcripts[0].Type)
+	assert.Equal(t, "https://transcripts.example/ep.srt", f.Items[0].Transcripts[0].URL)
+}
+
 func TestParseFeedIgnoresItunesNamespace(t *testing.T) {
 	const feed = `<?xml version="1.0"?>
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
