@@ -6,8 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -47,43 +45,9 @@ type transcriptTag struct {
 	Language string
 }
 
-// fetchBytes GETs rawURL and returns the body capped at maxFetchBytes. The
-// initial target and every redirect hop must be https (or a loopback test
-// server); each hop is independently re-validated by
-// networkClient.CheckRedirect.
-func fetchBytes(ctx context.Context, rawURL string) ([]byte, error) {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return nil, fmt.Errorf("podcast: invalid URL %q: %w", rawURL, err)
-	}
-	if err := checkHTTPS(u); err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("podcast: building request: %w", err)
-	}
-	resp, err := networkClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("podcast: fetching %s: %w", u.Host, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("podcast: unexpected HTTP status %d from %s", resp.StatusCode, u.Host)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes+1))
-	if err != nil {
-		return nil, fmt.Errorf("podcast: reading %s: %w", u.Host, err)
-	}
-	if int64(len(body)) > maxFetchBytes {
-		return nil, fmt.Errorf("podcast: response from %s exceeds %d bytes", u.Host, maxFetchBytes)
-	}
-	return body, nil
-}
-
 // fetchFeed fetches and parses a podcast RSS feed reachable at feedURL.
 func fetchFeed(ctx context.Context, feedURL string) (*feed, error) {
-	data, err := fetchBytes(ctx, feedURL)
+	data, err := get(ctx, feedURL, "")
 	if err != nil {
 		return nil, err
 	}

@@ -171,7 +171,7 @@ func TestFetchFeed(t *testing.T) {
 }
 
 func TestFetchFeedRejectsNonHTTPSNonLoopback(t *testing.T) {
-	_, err := fetchBytes(context.Background(), "http://example.com/podcast/rss")
+	_, err := get(context.Background(), "http://example.com/podcast/rss", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "https")
 }
@@ -184,7 +184,7 @@ func TestFetchFeedRejectsRedirectOffLoopback(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := fetchBytes(context.Background(), srv.URL+"/feed.xml")
+	_, err := get(context.Background(), srv.URL+"/feed.xml", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "redirect")
 }
@@ -195,19 +195,19 @@ func TestFetchFeedNon200(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := fetchBytes(context.Background(), srv.URL+"/feed.xml")
+	_, err := get(context.Background(), srv.URL+"/feed.xml", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "404")
 }
 
 func TestFetchFeedExceedsCap(t *testing.T) {
-	huge := strings.Repeat("x", maxFetchBytes+1)
+	huge := strings.Repeat("x", maxBodyBytes+1)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(huge))
 	}))
 	t.Cleanup(srv.Close)
 
-	_, err := fetchBytes(context.Background(), srv.URL+"/feed.xml")
+	_, err := get(context.Background(), srv.URL+"/feed.xml", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "exceeds")
 }

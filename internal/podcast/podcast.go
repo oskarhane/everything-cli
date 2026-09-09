@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"time"
 )
 
 // Sentinel errors returned by the podcast Client.
@@ -20,37 +18,6 @@ var (
 	// yields no parseable cues.
 	ErrEmptyTranscript = errors.New("podcast: empty transcript")
 )
-
-const (
-	// requestTimeout bounds a single feed or transcript fetch, mirroring the
-	// youtube client's 30s budget.
-	requestTimeout = 30 * time.Second
-
-	// maxFetchBytes caps any feed, transcript, or metadata body read through
-	// fetchBytes so a hostile server cannot balloon memory.
-	maxFetchBytes = 64 << 20 // 64 MiB
-)
-
-// networkClient drives every feed and transcript fetch. Redirects are
-// followed but every hop target is re-validated against the https-only (or
-// loopback test server) rule, so a redirect cannot slip the client onto an
-// arbitrary plain-HTTP origin.
-var networkClient = &http.Client{
-	Timeout: requestTimeout,
-	CheckRedirect: func(req *http.Request, _ []*http.Request) error {
-		return checkRedirectHTTPS(req)
-	},
-}
-
-// checkRedirectHTTPS re-validates a redirect hop target: it must be https,
-// or a loopback host (used by httptest test servers). Mirroring the existing
-// checkHTTPS seam so tests can use httptest with no real network.
-func checkRedirectHTTPS(req *http.Request) error {
-	if err := checkHTTPS(req.URL); err != nil {
-		return fmt.Errorf("podcast: refusing redirect to %q: %w", req.URL.Redacted(), err)
-	}
-	return nil
-}
 
 // Client resolves podcast episodes to their episodes and parses timed
 // transcripts, using only the Go standard library.
@@ -130,7 +97,7 @@ func (c *client) Episode(ctx context.Context, ref Ref) (*Episode, error) {
 // Transcript fetches and parses the timed caption segments behind a
 // transcript URL.
 func (c *client) Transcript(ctx context.Context, rawURL string) ([]Segment, error) {
-	data, err := fetchBytes(ctx, rawURL)
+	data, err := get(ctx, rawURL, "")
 	if err != nil {
 		return nil, err
 	}

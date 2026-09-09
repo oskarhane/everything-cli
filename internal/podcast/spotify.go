@@ -53,7 +53,7 @@ func ResolveSpotify(ctx context.Context, ref Ref) (Meta, error) {
 		return Meta{}, fmt.Errorf("podcast: ResolveSpotify requires a spotify ref, got %q", ref.Platform)
 	}
 	pageURL := spotifyEmbedPage + "/episode/" + ref.EpisodeID
-	body, err := httpGet(ctx, pageURL, "")
+	body, err := get(ctx, pageURL, "")
 	if err != nil {
 		return Meta{}, fmt.Errorf("%w: fetching Spotify embed page: %v", ErrShowNotFound, err)
 	}

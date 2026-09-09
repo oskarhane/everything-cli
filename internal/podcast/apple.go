@@ -36,13 +36,13 @@ func ResolveApple(ctx context.Context, ref Ref) (Meta, error) {
 	if err != nil {
 		return Meta{}, err
 	}
-	body, err := httpGet(ctx, pageURL, browserUserAgent)
+	body, err := get(ctx, pageURL, browserUserAgent)
 	if err != nil {
 		return Meta{}, fmt.Errorf("podcast: fetching Apple episode page: %w", err)
 	}
 	episodeTitle := extractOGTitle(string(body))
 	if episodeTitle == "" {
-		return Meta{}, fmt.Errorf("podcast: no og:title on Apple episode page for id%s", ref.PodcastID)
+		return Meta{}, fmt.Errorf("podcast: no og:title on Apple episode page for id %s", ref.PodcastID)
 	}
 	show, err := lookupShow(ctx, ref.PodcastID)
 	if err != nil {
