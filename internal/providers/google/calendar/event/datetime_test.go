@@ -8,7 +8,7 @@ import (
 
 	calendar "google.golang.org/api/calendar/v3"
 
-	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/dates"
+	"github.com/oskarhane/everything-cli/internal/dates"
 )
 
 // fixedNow anchors relative parsing so expectations are deterministic.

@@ -11,8 +11,8 @@ import (
 	calendar "google.golang.org/api/calendar/v3"
 
 	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/dates"
 	"github.com/oskarhane/everything-cli/internal/output"
-	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/dates"
 	"github.com/oskarhane/everything-cli/internal/providers/google/calendar/service"
 )
 
