@@ -12,6 +12,7 @@ import (
 	_ "github.com/oskarhane/everything-cli/internal/providers/google"
 	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
 	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
+	_ "github.com/oskarhane/everything-cli/internal/providers/podcast"
 )
 
 func main() {

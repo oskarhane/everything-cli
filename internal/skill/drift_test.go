@@ -22,6 +22,7 @@ import (
 	_ "github.com/oskarhane/everything-cli/internal/providers/google"
 	_ "github.com/oskarhane/everything-cli/internal/providers/granola"
 	_ "github.com/oskarhane/everything-cli/internal/providers/linear"
+	_ "github.com/oskarhane/everything-cli/internal/providers/podcast"
 )
 
 // TestTreeDrift is the drift guard: every runnable leaf of the mounted
