@@ -20,5 +20,6 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService], viewer
 	cmd.AddCommand(newGetCmd(cfg, newSvc))
 	cmd.AddCommand(newCreateCmd(cfg, newSvc))
 	cmd.AddCommand(newUpdateCmd(cfg, newSvc))
+	cmd.AddCommand(newCommentsCmd(cfg, newSvc))
 	return cmd
 }
