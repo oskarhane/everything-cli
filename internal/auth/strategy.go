@@ -56,6 +56,26 @@ type AddOptions struct {
 	ClientSecret string
 }
 
+// Reauther is the optional Strategy capability for re-authorizing an
+// EXISTING account: re-running the interactive OAuth flow against the
+// account's pinned identity and updating its stored token in place.
+// Strategies without an interactive flow (API keys) simply do not implement
+// it; callers type-assert, so the base Strategy seam stays small.
+type Reauther interface {
+	// Reauth re-runs the interactive flow for the account's identity and
+	// persists the fresh token under the account's existing name.
+	Reauth(ctx context.Context, fs afero.Fs, store *config.Store, acct *config.Account, opts ReauthOptions) (*config.Account, error)
+}
+
+// ReauthOptions carries the re-authorization inputs a Reauther may need.
+// Fields not relevant to a strategy are ignored by it.
+type ReauthOptions struct {
+	// Scopes is the requested OAuth scope set; empty means keep the
+	// account's currently granted scopes, so a narrowed grant survives
+	// re-authorization.
+	Scopes []string
+}
+
 // OAuthStrategy is the Strategy for installed-app OAuth2 providers. It
 // composes the generalized flow (RunFlowWith), account persistence
 // (SaveAccount) and the refreshing token source (TokenSourceWith) against
