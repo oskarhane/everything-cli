@@ -21,9 +21,9 @@ type StrategyFactory func(store *config.Store) auth.Strategy
 
 // NewCmd builds the linear account parent command, scoped to the provider
 // ID so accounts resolve under accounts/<provider>/ only. The
-// list/get/use/remove leaves come from the shared account builder; add
-// stays here because it is strategy-specific. Every leaf inherits the
-// root's persistent flags (--account, --format, --debug).
+// list/get/use/remove leaves come from the shared account builder; add and
+// auth stay here because they are strategy-specific. Every leaf inherits
+// the root's persistent flags (--account, --format, --debug).
 func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *cobra.Command {
 	spec := sharedaccount.Spec{
 		ProviderID:  providerID,
@@ -34,12 +34,13 @@ func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *co
 		Use:   "account",
 		Short: "Manage Linear accounts and their credentials",
 		Long: "Manage Linear accounts: add them with a personal API key or " +
-			"OAuth (--oauth), list them, inspect one, pick the default account, " +
-			"and remove them.",
+			"OAuth (--oauth), re-authorize an OAuth account in place, list " +
+			"them, inspect one, pick the default account, and remove them.",
 	}
 
 	cmd.AddCommand(sharedaccount.NewListCmd(cfg, spec))
 	cmd.AddCommand(newAddCmd(cfg, providerID, newStrategy))
+	cmd.AddCommand(newAuthCmd(cfg, providerID, newStrategy))
 	cmd.AddCommand(sharedaccount.NewGetCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewUseCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewRemoveCmd(cfg, spec))
