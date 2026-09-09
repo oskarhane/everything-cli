@@ -82,7 +82,9 @@ everything-cli google account remove work --force
 Accounts added before Drive/Docs/Sheets/Slides support lack the new
 scopes: re-run `google account auth <name>` to grant them (the flow
 always re-prompts with `prompt=consent`, and the account is updated in
-place, keyed by email).
+place under its existing name). Identity is pinned to the stored email:
+authorizing as a different Google identity is an error and nothing is
+saved — onboard that identity with `google account add` instead.
 
 ## gmail
 
