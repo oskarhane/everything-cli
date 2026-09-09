@@ -25,24 +25,34 @@ func TestMain(m *testing.M) {
 }
 
 // fakeService is the hermetic service.IssueService double: it serves seeded
-// issues and records every call for assertions.
+// issues and comments and records every call for assertions.
 type fakeService struct {
-	issues []service.Issue
-	err    error // when set, every call fails
+	issues   []service.Issue
+	comments []service.Comment
+	err      error // when set, every call fails
 
-	listTeamID string
-	gotID      string
-	created    service.CreateIssueInput
-	updatedID  string
-	updated    service.UpdateIssueInput
+	listFilter      service.IssueFilter
+	commentsIssueID string
+	gotID           string
+	created         service.CreateIssueInput
+	updatedID       string
+	updated         service.UpdateIssueInput
 }
 
-func (f *fakeService) ListIssues(_ context.Context, teamID string) ([]service.Issue, error) {
-	f.listTeamID = teamID
+func (f *fakeService) ListIssues(_ context.Context, filter service.IssueFilter) ([]service.Issue, error) {
+	f.listFilter = filter
 	if f.err != nil {
 		return nil, f.err
 	}
 	return f.issues, nil
+}
+
+func (f *fakeService) ListComments(_ context.Context, issueID string) ([]service.Comment, error) {
+	f.commentsIssueID = issueID
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.comments, nil
 }
 
 func (f *fakeService) GetIssue(_ context.Context, id string) (*service.Issue, error) {
@@ -94,12 +104,14 @@ func seedIssue() service.Issue {
 		Identifier:  "ENG-1",
 		Title:       "Fix login redirect",
 		Description: "Users land on / after logout",
-		State:       &service.NamedRef{ID: "state_1", Name: "In Progress"},
+		State:       &service.StateRef{ID: "state_1", Name: "In Progress", Type: "started"},
 		Assignee:    &service.NamedRef{ID: "user_1", Name: "Ada"},
+		Creator:     &service.NamedRef{ID: "user_2", Name: "Grace"},
 		Team:        &service.Team{ID: "team_1", Name: "Engineering", Key: "ENG"},
 		URL:         "https://linear.app/x/issue/ENG-1",
 		CreatedAt:   "2026-08-01T10:00:00.000Z",
 		UpdatedAt:   "2026-08-02T10:00:00.000Z",
+		StartedAt:   "2026-08-01T11:00:00.000Z",
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/config"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // StrategyFactory builds the auth strategy account add onboards through.
@@ -22,9 +23,11 @@ type StrategyFactory func(store *config.Store) auth.Strategy
 // NewCmd builds the linear account parent command, scoped to the provider
 // ID so accounts resolve under accounts/<provider>/ only. The
 // list/get/use/remove leaves come from the shared account builder; add and
-// auth stay here because they are strategy-specific. Every leaf inherits
-// the root's persistent flags (--account, --format, --debug).
-func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *cobra.Command {
+// auth stay here because they are strategy-specific; whoami stays here
+// because it reports the identity of the account resolved for the
+// invocation, via the viewer dialer. Every leaf inherits the root's
+// persistent flags (--account, --format, --debug).
+func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory, viewerDialer service.Dialer[service.ViewerService]) *cobra.Command {
 	spec := sharedaccount.Spec{
 		ProviderID:  providerID,
 		DisplayName: "Linear",
@@ -35,7 +38,8 @@ func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *co
 		Short: "Manage Linear accounts and their credentials",
 		Long: "Manage Linear accounts: add them with a personal API key or " +
 			"OAuth (--oauth), re-authorize an OAuth account in place, list " +
-			"them, inspect one, pick the default account, and remove them.",
+			"them, inspect one, pick the default account, remove them, and " +
+			"ask whoami which identity the current account authenticates as.",
 	}
 
 	cmd.AddCommand(sharedaccount.NewListCmd(cfg, spec))
@@ -44,6 +48,7 @@ func NewCmd(cfg *app.Config, providerID string, newStrategy StrategyFactory) *co
 	cmd.AddCommand(sharedaccount.NewGetCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewUseCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewRemoveCmd(cfg, spec))
+	cmd.AddCommand(newWhoamiCmd(cfg, viewerDialer))
 
 	return cmd
 }

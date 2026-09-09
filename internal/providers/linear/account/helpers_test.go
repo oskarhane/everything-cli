@@ -19,6 +19,7 @@ import (
 	"github.com/oskarhane/everything-cli/internal/auth/apikey"
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/output"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
 // providerID is the provider these tests scope accounts to.
@@ -35,13 +36,22 @@ func TestMain(m *testing.M) {
 
 // newAccountEnv returns a hermetic account tree: an in-memory FS, a pinned
 // config dir, and the account tree mounted on a fresh root command whose
-// stdout is captured. Tests never touch the real ~/.config tree.
-func newAccountEnv(t *testing.T, factory StrategyFactory) (*app.Config, *cobra.Command, *bytes.Buffer) {
+// stdout is captured. Tests never touch the real ~/.config tree. The
+// optional viewer dialer is the whoami seam; omitted, it is one that always
+// fails, so a leaf that unexpectedly dials in a non-whoami test fails
+// loudly instead of silently hitting a nil service.
+func newAccountEnv(t *testing.T, factory StrategyFactory, viewerDialer ...service.Dialer[service.ViewerService]) (*app.Config, *cobra.Command, *bytes.Buffer) {
 	t.Helper()
 	t.Setenv(config.EnvConfigDir, "/config")
 	cfg := &app.Config{Fs: afero.NewMemMapFs()}
 	root := app.NewRootCommand(cfg)
-	root.AddCommand(NewCmd(cfg, testProviderID, factory))
+	dialer := service.Dialer[service.ViewerService](func(context.Context) (service.ViewerService, error) {
+		return nil, errors.New("no viewer dialer wired for this test")
+	})
+	if len(viewerDialer) > 0 {
+		dialer = viewerDialer[0]
+	}
+	root.AddCommand(NewCmd(cfg, testProviderID, factory, dialer))
 	out := &bytes.Buffer{}
 	root.SetOut(out)
 	root.SetErr(io.Discard)

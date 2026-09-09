@@ -1,6 +1,5 @@
-// Package dates parses calendar timestamp flag values: the RFC3339, date,
-// and relative-offset forms shared by the calendar command tree (event and
-// freebusy window bounds).
+// Package dates parses timestamp flag values shared across providers: the
+// RFC3339, date, and relative-offset forms used for event and window bounds.
 package dates
 
 import (

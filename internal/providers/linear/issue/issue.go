@@ -11,14 +11,15 @@ import (
 // NewCmd returns the `linear issue` parent command with its leaves
 // attached. Every leaf lives in its own file with one AddCommand line per
 // leaf.
-func NewCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) *cobra.Command {
+func NewCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService], viewerSvc service.Dialer[service.ViewerService]) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "issue",
 		Short: "Manage Linear issues",
 	}
-	cmd.AddCommand(newListCmd(cfg, newSvc))
+	cmd.AddCommand(newListCmd(cfg, newSvc, viewerSvc))
 	cmd.AddCommand(newGetCmd(cfg, newSvc))
 	cmd.AddCommand(newCreateCmd(cfg, newSvc))
 	cmd.AddCommand(newUpdateCmd(cfg, newSvc))
+	cmd.AddCommand(newCommentsCmd(cfg, newSvc))
 	return cmd
 }
