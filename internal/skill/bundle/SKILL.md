@@ -11,8 +11,10 @@ description: >
   URL or video ID — no account needed); manage Linear issues, teams, and
   projects (provider `linear`); read Granola notes (provider
   `granola`); or read and send regular email over IMAP/SMTP (provider
-  `email`: list mailboxes and messages, read full messages, send mail).
-  Accounts are added, switched, and inspected per provider
+  `email`: list mailboxes and messages, read full messages, send mail); or
+  fetch podcast episode transcripts (provider `podcast`: pass an Apple or
+  Spotify episode URL — no account needed). Accounts are added, switched,
+  and inspected per provider
   (`everything-cli <provider> account ...`). Skip for Meet, Chrome, or
   anything the gcloud CLI manages (projects, Cloud SDK services).
 version: dev
@@ -39,6 +41,7 @@ reference file — this document covers only the shared conventions.
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts; OAuth accounts | [references/google.md](references/google.md) |
 | `granola` | Granola notes via the Granola public API; API-key accounts | [references/granola.md](references/granola.md) |
 | `linear` | Linear issues, teams, projects; API key or OAuth | [references/linear.md](references/linear.md) |
+| `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL; no account | [references/podcast.md](references/podcast.md) |
 
 Every provider also has its own account subtree: `everything-cli
 <provider> account add|list|get|use|remove`.
