@@ -274,11 +274,14 @@ Issues, teams, and projects over Linear's GraphQL API.
 everything-cli linear team list                              # find a team ID
 everything-cli linear project list
 
-everything-cli linear issue list [--team 9c1e2f3a-...]       # empty --team = workspace-wide
+everything-cli linear issue list [--team 9c1e2f3a-...] [--assignee <uuid|me>] \
+    [--created-by <uuid|me>] [--updated-since -7d]       # one server-side filter; empty = workspace-wide
 everything-cli linear issue get BLA-123
+everything-cli linear issue comments BLA-123
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
     [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-...]
 everything-cli linear issue update BLA-123 --state 8b9c0d1e-... [--title ... --assignee ...]
+everything-cli linear account whoami                         # id, name, email of the acting account
 ```
 
 ### Granola
