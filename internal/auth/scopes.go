@@ -70,7 +70,7 @@ func RequireScopes(acct *config.Account, required []string) error {
 	if len(missing) > 1 {
 		label = "scopes"
 	}
-	return fmt.Errorf("account %q is missing %s %s: re-run \"everything-cli google account add <name>\" to consent (accounts added before Drive support need this once)",
+	return fmt.Errorf("account %q is missing %s %s: re-run \"everything-cli google account auth <name>\" to consent (accounts added before Drive support need this once)",
 		acct.Name, label, strings.Join(missing, ", "))
 }
 
@@ -87,7 +87,7 @@ func RequireAnyScopes(acct *config.Account, required []string) error {
 	if len(missingScopes(acct, required)) < len(required) {
 		return nil
 	}
-	return fmt.Errorf("account %q is missing scope %s: re-run \"everything-cli google account add <name>\" to consent (accounts added before Drive support need this once)",
+	return fmt.Errorf("account %q is missing scope %s: re-run \"everything-cli google account auth <name>\" to consent (accounts added before Drive support need this once)",
 		acct.Name, strings.Join(required, " or "))
 }
 
