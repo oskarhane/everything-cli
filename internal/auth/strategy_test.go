@@ -181,6 +181,35 @@ func TestOAuthStrategyAddDefaultScopes(t *testing.T) {
 	assert.Equal(t, GoogleOAuth.DefaultScopes, persisted.Scopes)
 }
 
+// TestResolveReauthScopes pins the re-auth scope precedence: an explicit
+// override wins over the account's stored grant, the stored grant wins
+// over the profile defaults (so a narrowed grant survives re-auth), and
+// all-empty input yields the defaults — empty included.
+func TestResolveReauthScopes(t *testing.T) {
+	override := []string{"scope-override"}
+	stored := []string{"scope-stored"}
+	defaults := []string{"scope-default"}
+
+	cases := []struct {
+		name     string
+		opts     []string
+		stored   []string
+		defaults []string
+		want     []string
+	}{
+		{name: "override wins over stored and defaults", opts: override, stored: stored, defaults: defaults, want: override},
+		{name: "stored wins over defaults when no override", opts: nil, stored: stored, defaults: defaults, want: stored},
+		{name: "defaults only when override and stored are empty", opts: nil, stored: nil, defaults: defaults, want: defaults},
+		{name: "all empty yields empty", opts: nil, stored: nil, defaults: nil, want: nil},
+		{name: "empty (non-nil) override does not count as an override", opts: []string{}, stored: stored, defaults: defaults, want: stored},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, ResolveReauthScopes(tc.opts, tc.stored, tc.defaults))
+		})
+	}
+}
+
 // TestRunFlowWithCustomProfile: the generalized flow takes its endpoints,
 // identity URL and email scope from the supplied profile — the client
 // credentials it is handed carry no endpoints at all.

@@ -47,7 +47,7 @@ func TestDialRequiresDriveScope(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), `account "work"`)
-			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			assert.Contains(t, err.Error(), "account auth", "error must name the re-consent action")
 			assert.Contains(t, err.Error(), auth.ScopesDrive[0], "error must name the missing scope")
 		})
 	}
@@ -144,7 +144,7 @@ func TestFileSharingLeavesRequireFullDriveScope(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), `account "work"`)
 			assert.Contains(t, err.Error(), auth.ScopesDrive[0], "error must name the full drive scope")
-			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			assert.Contains(t, err.Error(), "account auth", "error must name the re-consent action")
 			assert.False(t, dialed, "guard must fail before the dialer is called")
 		})
 	}

@@ -47,6 +47,26 @@ func TestScopes(t *testing.T) {
 	assert.Equal(t, "https://www.googleapis.com/auth/userinfo.email", ScopeUserEmail)
 }
 
+// TestParseScopes pins the canonical --scopes parsing shared by every
+// provider leaf: comma-split, trimmed, blanks dropped, empty (or
+// blank-only) input yielding nil / no entries.
+func TestParseScopes(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{name: "empty", in: "", want: nil},
+		{name: "blank only", in: " , , ", want: []string{}},
+		{name: "trims and drops blanks", in: " read,write , ,issues:create", want: []string{"read", "write", "issues:create"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, ParseScopes(tc.in))
+		})
+	}
+}
+
 // TestMissingScopes pins the shared set-comparison helper: it returns only
 // required entries absent from the account's grants, in required's order.
 func TestMissingScopes(t *testing.T) {
@@ -87,13 +107,13 @@ func TestRequireScopes(t *testing.T) {
 			name:     "narrowed grant names the missing scope and the re-consent action",
 			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesGmail[0]}},
 			required: ScopesDrive,
-			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive: re-run "everything-cli google account auth <name>" to consent (accounts added before Drive support need this once)`,
 		},
 		{
 			name:     "every missing scope is listed",
 			acct:     &config.Account{Name: "legacy", Scopes: nil},
 			required: []string{ScopesDocs[0], ScopesSheets[0]},
-			wantErr:  `account "legacy" is missing scopes https://www.googleapis.com/auth/documents, https://www.googleapis.com/auth/spreadsheets: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "legacy" is missing scopes https://www.googleapis.com/auth/documents, https://www.googleapis.com/auth/spreadsheets: re-run "everything-cli google account auth <name>" to consent (accounts added before Drive support need this once)`,
 		},
 	}
 
@@ -105,7 +125,7 @@ func TestRequireScopes(t *testing.T) {
 				return
 			}
 			require.EqualError(t, err, tc.wantErr)
-			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			assert.Contains(t, err.Error(), "account auth", "error must name the re-consent action")
 			for _, s := range tc.required {
 				assert.Contains(t, err.Error(), s, "error must name missing scope %s", s)
 			}
@@ -137,7 +157,7 @@ func TestRequireAnyScopes(t *testing.T) {
 			name:     "grant outside the set fails naming both alternatives",
 			acct:     &config.Account{Name: "work", Scopes: []string{ScopeUserEmail, ScopesGmail[0]}},
 			required: ScopesDriveDial,
-			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive or https://www.googleapis.com/auth/drive.file: re-run "everything-cli google account add <name>" to consent (accounts added before Drive support need this once)`,
+			wantErr:  `account "work" is missing scope https://www.googleapis.com/auth/drive or https://www.googleapis.com/auth/drive.file: re-run "everything-cli google account auth <name>" to consent (accounts added before Drive support need this once)`,
 		},
 		{
 			name:     "no account errors before any alternative check",
@@ -155,10 +175,11 @@ func TestRequireAnyScopes(t *testing.T) {
 				return
 			}
 			require.EqualError(t, err, tc.wantErr)
-			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
 			if tc.acct == nil {
+				assert.Contains(t, err.Error(), "account add", "no-account error must name the account-creation action")
 				return
 			}
+			assert.Contains(t, err.Error(), "account auth", "error must name the re-consent action")
 			for _, s := range tc.required {
 				assert.Contains(t, err.Error(), s, "error must name alternative scope %s", s)
 			}

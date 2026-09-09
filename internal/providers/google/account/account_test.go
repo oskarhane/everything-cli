@@ -19,7 +19,7 @@ func findCommand(cmd *cobra.Command, name string) *cobra.Command {
 	return nil
 }
 
-// TestParentMountsLeaves: the account parent mounts exactly the five leaves
+// TestParentMountsLeaves: the account parent mounts exactly the six leaves
 // (cobra lists subcommands sorted), with no leaf bodies in the parent.
 func TestParentMountsLeaves(t *testing.T) {
 	_, root, _ := newAccountEnv(t)
@@ -30,7 +30,7 @@ func TestParentMountsLeaves(t *testing.T) {
 	for _, sub := range parent.Commands() {
 		names = append(names, sub.Name())
 	}
-	assert.Equal(t, []string{"add", "get", "list", "remove", "use"}, names)
+	assert.Equal(t, []string{"add", "auth", "get", "list", "remove", "use"}, names)
 }
 
 // TestLeafExamplesHaveInvocations: every leaf documents itself with a
@@ -41,7 +41,7 @@ func TestLeafExamplesHaveInvocations(t *testing.T) {
 	parent := findCommand(root, "account")
 	require.NotNil(t, parent)
 
-	for _, leaf := range []string{"list", "add", "get", "use", "remove"} {
+	for _, leaf := range []string{"list", "add", "auth", "get", "use", "remove"} {
 		sub := findCommand(parent, leaf)
 		require.NotNil(t, sub, "leaf %s should be mounted", leaf)
 		require.NotEmpty(t, sub.Example, "%s should document examples", leaf)

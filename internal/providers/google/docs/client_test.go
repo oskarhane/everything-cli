@@ -42,7 +42,7 @@ func TestDialRequiresDocsScope(t *testing.T) {
 			}
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), `account "work"`)
-			assert.Contains(t, err.Error(), "account add", "error must name the re-consent action")
+			assert.Contains(t, err.Error(), "account auth", "error must name the re-consent action")
 			assert.Contains(t, err.Error(), auth.ScopesDocs[0], "error must name the missing scope")
 		})
 	}

@@ -67,6 +67,14 @@ Manage Linear accounts and their stored credentials.
   `--oauth` when passed without it; env fallbacks `$LINEAR_CLIENT_ID` /
   `$LINEAR_CLIENT_SECRET`). Output: `name`, `provider` — the key is
   deliberately absent so no format can leak it.
+- `linear account auth <name>` — re-run the OAuth flow for an existing
+  OAuth account, using the client credentials already stored in the
+  account (no flags or env needed). Flag: `--scopes <csv>` (empty = the
+  account's current scopes). Output: `name`, `provider`. OAuth accounts
+  only — an API-key account errors with guidance to re-create it via
+  `linear account add`; an unknown account errors pointing at `linear
+  account add`; an identity mismatch is a hard error and nothing is
+  saved.
 - `linear account list` — all configured Linear accounts. Fields:
   `name`, `default` (`true` on the default account in JSON/TOON; a
   `(default)` marker in the table).
@@ -84,6 +92,7 @@ everything-cli linear account add work                                  # hidden
 LINEAR_API_KEY=lin_api_... everything-cli linear account add work
 everything-cli linear account add work --api-key lin_api_...
 everything-cli linear account add work --oauth --client-id 7231...
+everything-cli linear account auth work                       # OAuth accounts only
 everything-cli linear account list --format json
 everything-cli linear account get work --format json
 everything-cli linear account use work

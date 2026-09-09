@@ -2,6 +2,7 @@ package linear
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/spf13/afero"
@@ -23,6 +24,9 @@ type strategy struct {
 
 // Compile-time proof that strategy satisfies the auth seam.
 var _ auth.Strategy = (*strategy)(nil)
+
+// Compile-time proof that strategy carries the re-authorization capability.
+var _ auth.Reauther = (*strategy)(nil)
 
 // newStrategy builds Linear's composite strategy: the API-key strategy
 // (raw key in the Authorization header, no Bearer prefix, captured from
@@ -58,4 +62,19 @@ func (s *strategy) Client(ctx context.Context, acct *config.Account) (*http.Clie
 		return s.oauth.Client(ctx, acct)
 	}
 	return s.apiKey.Client(ctx, acct)
+}
+
+// Reauth re-runs the browser OAuth flow for OAuth accounts — dispatching
+// on the same account shape as Client. API-key accounts have no interactive
+// flow to re-run, so they are rejected with guidance instead: re-creating
+// the account re-captures the key.
+func (s *strategy) Reauth(ctx context.Context, fs afero.Fs, store *config.Store, acct *config.Account, opts auth.ReauthOptions) (*config.Account, error) {
+	if acct != nil && acct.Token != nil {
+		return s.oauth.Reauth(ctx, fs, store, acct, opts)
+	}
+	name := ""
+	if acct != nil {
+		name = acct.Name
+	}
+	return nil, fmt.Errorf("account %q uses an API key, not OAuth; re-create it with \"everything-cli linear account add <name>\"", name)
 }
