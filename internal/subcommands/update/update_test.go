@@ -55,8 +55,8 @@ func TestUpdateCheck_JSONKeysAreSnakeCase(t *testing.T) {
 		cmdtest.JSONKeys(t, decoded))
 }
 
-// TestUpdateYes_AutoInstalls: --yes pre-decides the skill install
-// (SkipSkillInstall=false) and no prompt is read.
+// TestUpdateYes_AutoInstalls: --yes decides the skill install lazily (the
+// decision returns install without prompting) and no prompt is read.
 func TestUpdateYes_AutoInstallsWithoutPrompt(t *testing.T) {
 	_, root, out, _ := newUpdateEnv(t)
 	setVersion(t, "v1.0.0")
@@ -69,8 +69,9 @@ func TestUpdateYes_AutoInstallsWithoutPrompt(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Len(t, *calls, 1)
-	assert.False(t, (*calls)[0].SkipSkillInstall, "--yes must not skip the skill install")
 	assert.True(t, (*calls)[0].Yes)
+	require.NotNil(t, (*calls)[0].ShouldInstallSkill)
+	assert.True(t, (*calls)[0].ShouldInstallSkill(), "--yes must decide install, without prompting")
 	assert.Equal(t, 0, *yesCalls, "no prompt when --yes is given")
 	assert.Contains(t, stdout, `"skill_installed"`)
 	assert.Contains(t, stdout, `"skill_version": "v1.2.3"`)
@@ -91,9 +92,8 @@ func TestUpdatePrompt_Accepted(t *testing.T) {
 	stdout, err := execute(t, root, out, "update", "--format", "json")
 	require.NoError(t, err)
 
-	assert.Equal(t, 1, *yesCalls)
+	assert.Equal(t, 1, *yesCalls, "the decision prompts exactly once, inside Run")
 	require.Len(t, *calls, 1)
-	assert.False(t, (*calls)[0].SkipSkillInstall)
 	assert.Contains(t, stdout, "Install the refreshed skill bundle? [Y/n] ")
 	assert.Contains(t, stdout, `"skill_installed"`)
 }
@@ -105,14 +105,14 @@ func TestUpdatePrompt_Declined(t *testing.T) {
 	setVersion(t, "v1.0.0")
 	stubClient(t, &fakeClient{rel: relFixture()})
 	withStdinTerminal(t, true)
-	stubReadYesNo(t, false)
+	yesCalls := stubReadYesNo(t, false)
 	calls := stubRun(t)
 
 	stdout, err := execute(t, root, out, "update", "--format", "json")
 	require.NoError(t, err)
 
 	require.Len(t, *calls, 1)
-	assert.True(t, (*calls)[0].SkipSkillInstall)
+	assert.Equal(t, 1, *yesCalls, "the decision prompts exactly once, inside Run")
 	assert.Contains(t, stdout, skipHint)
 	// The row always carries the key; skipped installs render it empty.
 	assert.Contains(t, stdout, `"skill_installed": null`)
@@ -169,7 +169,8 @@ func TestUpdatePrompt_NotReadWhenNonTTYOrAgent(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, *calls, 1)
-		assert.True(t, (*calls)[0].SkipSkillInstall)
+		require.NotNil(t, (*calls)[0].ShouldInstallSkill)
+		assert.False(t, (*calls)[0].ShouldInstallSkill(), "non-TTY decides skip, without prompting")
 		assert.NotContains(t, stdout, "Install the refreshed skill bundle")
 		assert.Contains(t, stdout, skipHint)
 	})
@@ -187,7 +188,8 @@ func TestUpdatePrompt_NotReadWhenNonTTYOrAgent(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Len(t, *calls, 1)
-		assert.True(t, (*calls)[0].SkipSkillInstall)
+		require.NotNil(t, (*calls)[0].ShouldInstallSkill)
+		assert.False(t, (*calls)[0].ShouldInstallSkill(), "agent harness decides skip, without prompting")
 		assert.Equal(t, 0, *yesCalls, "prompt must not be read in agent mode")
 	})
 }
@@ -207,6 +209,27 @@ func TestUpdateUpToDate_ExitsZeroWithResult(t *testing.T) {
 	assert.Contains(t, stdout, `"updated": false`)
 	assert.Contains(t, stdout, `"update_available": false`)
 	assert.Contains(t, stdout, `"latest_version": "v1.2.3"`)
+	assert.Empty(t, fc.downloads, "up-to-date must not download anything")
+}
+
+// TestUpdateUpToDate_NeverPrompts: the install decision is lazy — an
+// already-up-to-date result on an interactive TTY (no --yes) exits 0 with
+// no prompt: the decision is only consulted after a successful binary
+// replacement, which never happened.
+func TestUpdateUpToDate_NeverPrompts(t *testing.T) {
+	_, root, out, _ := newUpdateEnv(t)
+	setVersion(t, "v1.2.3")
+	fc := &fakeClient{rel: relFixture()}
+	stubClient(t, fc)
+	withStdinTerminal(t, true)
+	yesCalls := stubReadYesNo(t, true)
+
+	stdout, err := execute(t, root, out, "update", "--format", "json")
+	require.NoError(t, err)
+
+	assert.Equal(t, 0, *yesCalls, "up-to-date must not prompt")
+	assert.NotContains(t, stdout, "Install the refreshed skill bundle")
+	assert.Contains(t, stdout, `"updated": false`)
 	assert.Empty(t, fc.downloads, "up-to-date must not download anything")
 }
 
@@ -234,6 +257,25 @@ func TestUpdateRateLimited_HintsToken(t *testing.T) {
 	assert.Contains(t, err.Error(), "GITHUB_TOKEN")
 }
 
+// TestUpdateRateLimited_NeverPrompts: the install decision is lazy — a
+// rate-limited version check on an interactive TTY returns the rate-limit
+// error without ever prompting for a skill install that never happens.
+func TestUpdateRateLimited_NeverPrompts(t *testing.T) {
+	_, root, out, _ := newUpdateEnv(t)
+	setVersion(t, "v1.0.0")
+	stubClient(t, &fakeClient{latestErr: updateapi.ErrRateLimited})
+	withStdinTerminal(t, true)
+	yesCalls := stubReadYesNo(t, true)
+
+	stdout, err := execute(t, root, out, "update", "--format", "json")
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "rate limited by GitHub")
+	assert.Contains(t, err.Error(), "GITHUB_TOKEN")
+	assert.Equal(t, 0, *yesCalls, "a failed version check must not prompt")
+	assert.NotContains(t, stdout, "Install the refreshed skill bundle")
+}
+
 // TestUpdateAgentFilter_PassedThrough: --agent lands in Options.AgentFilter.
 func TestUpdateAgentFilter_PassedThrough(t *testing.T) {
 	_, root, out, _ := newUpdateEnv(t)
@@ -246,7 +288,7 @@ func TestUpdateAgentFilter_PassedThrough(t *testing.T) {
 
 	require.Len(t, *calls, 1)
 	assert.Equal(t, "claude-code", (*calls)[0].AgentFilter)
-	assert.False(t, (*calls)[0].SkipSkillInstall)
+	assert.True(t, (*calls)[0].ShouldInstallSkill(), "--yes decides install")
 }
 
 // TestUpdateRunPipeline_ProceedsToDownload: with the real runUpdate seam and

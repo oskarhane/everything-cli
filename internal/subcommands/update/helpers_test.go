@@ -104,8 +104,10 @@ func stubClient(t *testing.T, c updateapi.Client) {
 
 // stubRun replaces the runUpdate seam with a recording stub and restores it
 // via t.Cleanup. The stub returns a canned success Result whose skill
-// fields follow the real Run contract (skill_hint filled only when the
-// reinstall is skipped) and records the computed Options.
+// fields follow the real Run contract: the decision is consulted exactly
+// once on the (stubbed) successful-replacement path, and skill_hint is
+// filled only when it declines the reinstall. Records the computed
+// Options.
 func stubRun(t *testing.T) *[]updateapi.Options {
 	t.Helper()
 	var calls []updateapi.Options
@@ -119,7 +121,8 @@ func stubRun(t *testing.T) *[]updateapi.Options {
 			Updated:         true,
 			BinaryPath:      "/usr/local/bin/everything-cli",
 		}
-		if opts.SkipSkillInstall {
+		install := opts.ShouldInstallSkill == nil || opts.ShouldInstallSkill()
+		if !install {
 			res.SkillHint = skipHint
 			return res, nil
 		}

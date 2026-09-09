@@ -84,19 +84,23 @@ type Options struct {
 	// ["--agent", AgentFilter].
 	AgentFilter string
 	// Yes is the --yes flag. Run does NOT act on it: the install decision
-	// belongs to the caller (see SkipSkillInstall).
+	// belongs to the caller (see ShouldInstallSkill).
 	Yes bool
 	// CheckOnly stops Run after the version comparison: no downloads, no
 	// replacement, no skill install.
 	CheckOnly bool
-	// SkipSkillInstall suppresses the post-update skill reinstall. Zero
-	// value (false) means Run ALWAYS reinstalls the skill bundle after a
-	// successful binary replacement — the install decision itself belongs
-	// to the caller, which pre-decides it via prompt/flag (node 08's
-	// contract: --yes auto-installs, prompt on TTY, hint otherwise; the
-	// caller sets SkipSkillInstall only when the user declined or is not
-	// present to be prompted). When skipped, Run fills skill_hint.
-	SkipSkillInstall bool
+	// ShouldInstallSkill decides whether Run reinstalls the skill bundle
+	// after a successful binary replacement. Run consults it exactly once
+	// and ONLY on that success path — never before the version check and
+	// never on a download/verify/replace failure, so a failed or
+	// up-to-date run never triggers the caller's prompt. The zero value
+	// (nil) means INSTALL, preserving the old SkipSkillInstall=false
+	// zero-value semantics: a zero Options reinstalls the skill bundle
+	// after a successful update. Run itself never prompts (it may run
+	// non-interactively): the caller supplies the decision func and does
+	// any prompting inside it (--yes auto-installs, prompt on TTY, hint
+	// otherwise). A false return fills skill_hint.
+	ShouldInstallSkill func() bool
 	// FS is the filesystem used to detect agents and read the installed
 	// SKILL.md. Zero value uses afero.NewOsFs; tests inject afero.NewMemMapFs.
 	FS afero.Fs
@@ -144,10 +148,11 @@ func (r Result) Row() map[string]any {
 
 // Run orchestrates the self-update flow.
 //
-// The skill-install decision is made by the CALLER: Run always reinstalls
-// the skill bundle after a successful binary replacement unless
-// opts.SkipSkillInstall is set (the caller decides via --yes/prompt/hint —
-// see the SkipSkillInstall doc). Run cannot prompt: it may run non-interactively.
+// The skill-install decision is requested from the CALLER lazily: only
+// after a successful binary replacement does Run consult
+// opts.ShouldInstallSkill, exactly once (nil means install — see the
+// ShouldInstallSkill doc). Run itself never prompts: it may run
+// non-interactively; the decision func comes from the caller.
 //
 // Error contract (the command layer maps these):
 //   - ErrUpToDate (wrapped): current is already the latest; the returned
@@ -235,7 +240,14 @@ func performUpdate(ctx context.Context, client Client, rel *Release, current str
 	}
 	res.Updated = true
 
-	if opts.SkipSkillInstall {
+	// Consulted exactly once and only now — the replacement succeeded —
+	// never on a check/download/verify/replace failure path. Nil means
+	// install (the zero-Options semantics).
+	installSkill := true
+	if opts.ShouldInstallSkill != nil {
+		installSkill = opts.ShouldInstallSkill()
+	}
+	if !installSkill {
 		res.SkillHint = "run 'everything-cli skill install' to refresh the installed skill bundle"
 		return res, nil
 	}

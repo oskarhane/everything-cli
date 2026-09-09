@@ -314,22 +314,79 @@ func TestRunFullUpdate(t *testing.T) {
 	}
 }
 
-func TestRunSkipSkillInstall(t *testing.T) {
+func TestRunSkillDecisionDeclined(t *testing.T) {
 	e, _ := newEnv(t)
 	rel, bodies := testRelease(t, false, false)
 	e.client = &fakeClient{rel: rel, bodies: bodies}
 	e.seedSkill(t, "1.1.0")
 
 	opts := e.opts()
-	opts.SkipSkillInstall = true
+	opts.ShouldInstallSkill = func() bool { return false }
 	res, err := Run(context.Background(), e.client, "v1.0.0", opts)
 	require.NoError(t, err)
 
 	assert.True(t, res.Updated)
-	assert.Empty(t, e.executed, "skip means no subprocess install")
+	assert.Empty(t, e.executed, "a declined decision means no subprocess install")
 	assert.Empty(t, res.SkillInstalled)
 	assert.Empty(t, res.SkillVersion)
 	assert.Contains(t, res.SkillHint, "skill install")
+}
+
+// TestRunSkillDecisionNilInstalls: a nil ShouldInstallSkill means install —
+// the zero-Options semantics (the old SkipSkillInstall=false): a successful
+// update always reinstalls the skill bundle.
+func TestRunSkillDecisionNilInstalls(t *testing.T) {
+	e, _ := newEnv(t)
+	rel, bodies := testRelease(t, false, false)
+	e.client = &fakeClient{rel: rel, bodies: bodies}
+	e.seedSkill(t, "1.1.0")
+
+	opts := e.opts() // ShouldInstallSkill left nil
+	res, err := Run(context.Background(), e.client, "v1.0.0", opts)
+	require.NoError(t, err)
+
+	assert.True(t, res.Updated)
+	assert.Equal(t, [][]string{{"skill", "install"}}, e.executed)
+	assert.NotEmpty(t, res.SkillInstalled)
+	assert.Equal(t, "1.1.0", res.SkillVersion)
+	assert.Empty(t, res.SkillHint)
+}
+
+// TestRunSkillDecisionNotConsultedOnFailure: the decision is consulted
+// ONLY after a successful binary replacement — never on a check failure,
+// an up-to-date result, or a verify failure.
+func TestRunSkillDecisionNotConsultedOnFailure(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		current string
+		setUp   func(t *testing.T, e *env)
+		wantErr error
+	}{
+		{name: "check failure", current: "v1.0.0", wantErr: ErrRateLimited,
+			setUp: func(t *testing.T, e *env) { e.client = &fakeClient{latestErr: ErrRateLimited} }},
+		{name: "up to date", current: testTag, wantErr: ErrUpToDate,
+			setUp: func(t *testing.T, e *env) {
+				rel, bodies := testRelease(t, false, false)
+				e.client = &fakeClient{rel: rel, bodies: bodies}
+			}},
+		{name: "checksum mismatch", current: "v1.0.0", wantErr: ErrChecksumMismatch,
+			setUp: func(t *testing.T, e *env) {
+				rel, bodies := testRelease(t, false, true)
+				e.client = &fakeClient{rel: rel, bodies: bodies}
+			}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			e, _ := newEnv(t)
+			tt.setUp(t, e)
+			calls := 0
+			opts := e.opts()
+			opts.ShouldInstallSkill = func() bool { calls++; return true }
+
+			_, err := Run(context.Background(), e.client, tt.current, opts)
+			require.ErrorIs(t, err, tt.wantErr)
+			assert.Equal(t, 0, calls, "the decision must not be consulted before a successful replacement")
+		})
+	}
 }
 
 func TestRunChecksumMismatchAbortsBeforeReplace(t *testing.T) {

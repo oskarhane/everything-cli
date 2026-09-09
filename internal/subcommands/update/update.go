@@ -25,7 +25,7 @@ import (
 var newClient = func() updateapi.Client { return updateapi.NewClient("", "") }
 
 // runUpdate is the seam over the update.Run orchestration, so command tests
-// can observe the computed Options (notably SkipSkillInstall and
+// can observe the computed Options (notably ShouldInstallSkill and
 // AgentFilter) without executing the real download/replace pipeline.
 var runUpdate = func(ctx context.Context, client updateapi.Client, current string, opts updateapi.Options) (updateapi.Result, error) {
 	return updateapi.Run(ctx, client, current, opts)
@@ -102,10 +102,13 @@ everything-cli update --yes --agent claude-code`,
 				return nil
 			}
 			res, err := runUpdate(ctx, client, app.Version, updateapi.Options{
-				AgentFilter:      agent,
-				Yes:              yes,
-				SkipSkillInstall: skipSkillInstall(yes, cmd),
-				FS:               cfg.Fs,
+				AgentFilter: agent,
+				Yes:         yes,
+				// A closure, not a call: Run consults the decision — and
+				// any prompt inside it — only after a successful binary
+				// replacement, never while Options is being built.
+				ShouldInstallSkill: skillInstallDecision(yes, cmd),
+				FS:                 cfg.Fs,
 			})
 			if err != nil {
 				if errors.Is(err, updateapi.ErrUpToDate) {
@@ -125,20 +128,26 @@ everything-cli update --yes --agent claude-code`,
 	return cmd
 }
 
-// skipSkillInstall pre-decides the post-update skill reinstall for Run
-// (Run never prompts: it may run non-interactively). --yes auto-installs;
-// an interactive non-agent terminal is asked; anything else — non-TTY stdin
-// or agent harness — gets no prompt and Run fills skill_hint instead.
-func skipSkillInstall(yes bool, cmd *cobra.Command) bool {
-	if yes {
+// skillInstallDecision builds the lazy post-update skill-install decision
+// handed to Run: Run consults it exactly once, only after a successful
+// binary replacement — so a failed version check, an up-to-date result, or
+// a failed download/verify/replace never prompts. When consulted:
+// --yes auto-installs; an interactive non-agent terminal is asked;
+// anything else — non-TTY stdin or agent harness — gets no prompt and Run
+// fills skill_hint instead. (Run itself never prompts: it may run
+// non-interactively; the closure comes from the caller.)
+func skillInstallDecision(yes bool, cmd *cobra.Command) func() bool {
+	return func() bool {
+		if yes {
+			return true
+		}
+		if output.StdinIsTerminal() && !output.IsAgent() {
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), "Install the refreshed skill bundle? [Y/n] ")
+			ok, err := readYesNo()
+			return err == nil && ok
+		}
 		return false
 	}
-	if output.StdinIsTerminal() && !output.IsAgent() {
-		_, _ = fmt.Fprint(cmd.OutOrStdout(), "Install the refreshed skill bundle? [Y/n] ")
-		ok, err := readYesNo()
-		return err != nil || !ok
-	}
-	return true
 }
 
 // printCheck renders the --check result: versions and availability only.

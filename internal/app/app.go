@@ -67,6 +67,13 @@ func NewRootCommand(cfg *Config) *cobra.Command {
 		},
 	}
 
+	// SilenceUsage pairs with main.go's error wiring (root.SilenceErrors =
+	// true + app.PrintError): a failed run emits only the redacted
+	// "Error: …" line, never cobra's usage dump — usage stays available
+	// via --help. Set on the shared root constructor so the shipped tree
+	// and every test tree inherit it.
+	root.SilenceUsage = true
+
 	f := root.PersistentFlags()
 	f.StringVar(&cfg.Account, "account", "", "Account to act as (empty = default account)")
 	f.StringVar(&cfg.Format, "format", "", "Output format: json, table, or toon (empty = auto-detect)")
