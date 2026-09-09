@@ -46,6 +46,17 @@ at `<config>/accounts/google/<name>.json` (mode 0600) and never printed.
   missing scope and a re-consent action instead of raw 403s. File
   read/write leaves work under `drive.file`; the sharing commands
   require the full `https://www.googleapis.com/auth/drive` scope.
+- `google account auth <name>` — re-run the OAuth flow for an EXISTING
+  account and update it in place (same name, same email, new token
+  cached). Flags: `--credentials <path>` (empty = auto-resolve),
+  `--scopes <csv>` (empty = keep the account's currently granted scopes
+  — a narrowed grant survives re-auth). Output: `name`, `email` — token
+  values are never printed. Unknown account → run `google account add`
+  first; if the browser flow returns a different email than the
+  account's, it is a hard error naming both identities and nothing is
+  saved — use `account add` for a different identity. Use it to revive
+  revoked/dead refresh tokens (Google "Testing" apps expire them after
+  7 days) or to widen scopes.
 - `google account get <name>` — account metadata (name, email, scopes,
   default). Token values are never printed, in any output format.
 - `google account use <name>` — make `<name>` the default Google
@@ -60,15 +71,18 @@ everything-cli google account add work
 everything-cli google account add work --credentials ~/google/credentials.json \
   --scopes https://www.googleapis.com/auth/gmail.send
 everything-cli google account add work --scopes https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/drive.file,https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/presentations
+everything-cli google account auth work                       # fresh token, keeps current scopes
+everything-cli google account auth work --credentials ~/google/credentials.json \
+  --scopes https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/drive
 everything-cli google account get work --format json
 everything-cli google account use work
 everything-cli google account remove work --force
 ```
 
 Accounts added before Drive/Docs/Sheets/Slides support lack the new
-scopes: re-run `google account add <name>` with the same name to grant
-them (the flow always re-prompts with `prompt=consent`, and the account
-is updated in place, keyed by email).
+scopes: re-run `google account auth <name>` to grant them (the flow
+always re-prompts with `prompt=consent`, and the account is updated in
+place, keyed by email).
 
 ## gmail
 

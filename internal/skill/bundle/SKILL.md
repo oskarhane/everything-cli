@@ -44,7 +44,10 @@ reference file — this document covers only the shared conventions.
 | `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL; no account | [references/podcast.md](references/podcast.md) |
 
 Every provider also has its own account subtree: `everything-cli
-<provider> account add|list|get|use|remove`.
+<provider> account add|list|get|use|remove`. OAuth providers also have
+`account auth <name>` to re-run the OAuth flow for an existing account
+and update it in place — `google` always, `linear` for its OAuth
+accounts (API-key accounts error instead).
 
 ## Accounts
 

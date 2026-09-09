@@ -31,7 +31,7 @@ everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 | `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send | Username + password per account |
 | `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL | No account at all |
 
-Every provider has its own account subtree (`everything-cli <provider> account add|list|get|use|remove`); see [Accounts](#accounts).
+Every provider has its own account subtree (`everything-cli <provider> account add|list|get|use|remove`), plus `account auth <name>` to re-run the OAuth flow for an existing account — `google` always, `linear` for its OAuth accounts; see [Accounts](#accounts).
 
 ## Install
 
@@ -119,7 +119,7 @@ b. **Consent screen (console only).** *APIs & Services → OAuth consent screen*
 - **External** — any Google account. Required for personal (gmail.com) accounts, and the right choice when one app should serve both a personal and a work account. Caveat: if the work org's admin restricts untrusted third-party apps (Admin console → *Security → API controls → App access control*), consent for the work account fails with an admin-policy error — the admin must trust your client ID, or you keep a separate org-internal app for the work account and pass `--credentials <path>` on its commands.
 - **Internal** — only accounts inside the same Workspace org (only offered for projects created inside an org).
 
-**Publish the app** (Production status). In "Testing" status you must list each email as a test user *and refresh tokens expire after 7 days* — weekly re-auth via `google account add`. Self-use doesn't need Google's verification: click through the "unverified app" warning once per account.
+**Publish the app** (Production status). In "Testing" status you must list each email as a test user *and refresh tokens expire after 7 days* — weekly re-auth via `google account auth`. Self-use doesn't need Google's verification: click through the "unverified app" warning once per account.
 
 c. **Scopes (permissions).** Add these on the consent screen — the default `google account add` grant requests them all. Copy-paste block (one per line):
 
@@ -155,7 +155,7 @@ everything-cli google account add personal --scopes https://www.googleapis.com/a
 
 d. **Client credentials (console only).** *APIs & Services → Credentials → Create Credentials → OAuth client ID → Desktop app* — no API exists for creating client IDs. Download the JSON and put it at `~/.config/everything-cli/credentials.json` (or pass `--credentials <path>`). Only this one file is read from the working directory's perspective — the CLI never picks up a `./credentials.json` from the CWD, and it always talks to Google's OAuth endpoints regardless of what the file claims.
 
-The flow stores the token at `~/.config/everything-cli/accounts/google/<name>.json` (0600, atomic writes, auto-refreshed on use). Accounts added before Drive support lack the new scopes: re-run `everything-cli google account add <name>` to consent again — the flow re-prompts and updates that account in place (same name, refreshed token).
+The flow stores the token at `~/.config/everything-cli/accounts/google/<name>.json` (0600, atomic writes, auto-refreshed on use). Accounts added before Drive support lack the new scopes: re-run `everything-cli google account auth <name>` to consent again — the flow re-prompts and updates that account in place (same name, refreshed token).
 
 ## Accounts
 
