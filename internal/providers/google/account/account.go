@@ -28,11 +28,13 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 		Use:   "account",
 		Short: "Manage Google accounts and their cached OAuth tokens",
 		Long: "Manage Google accounts: authorize them with the Google OAuth flow, " +
+			"re-authorize one when its token is revoked or its scopes change, " +
 			"list them, inspect one, pick the default account, and remove them.",
 	}
 
 	cmd.AddCommand(sharedaccount.NewListCmd(cfg, spec))
 	cmd.AddCommand(newAddCmd(cfg))
+	cmd.AddCommand(newAuthCmd(cfg))
 	cmd.AddCommand(sharedaccount.NewGetCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewUseCmd(cfg, spec))
 	cmd.AddCommand(sharedaccount.NewRemoveCmd(cfg, spec))
