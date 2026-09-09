@@ -25,9 +25,14 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Use:   ID,
 		Short: "Interact with Linear from the command line",
 	}
-	cmd.AddCommand(issue.NewCmd(cfg, func(ctx context.Context) (service.IssueService, error) {
-		return service.As[service.IssueService](dial(ctx, cfg))
-	}))
+	cmd.AddCommand(issue.NewCmd(cfg,
+		func(ctx context.Context) (service.IssueService, error) {
+			return service.As[service.IssueService](dial(ctx, cfg))
+		},
+		func(ctx context.Context) (service.ViewerService, error) {
+			return service.As[service.ViewerService](dial(ctx, cfg))
+		},
+	))
 	cmd.AddCommand(team.NewCmd(cfg, func(ctx context.Context) (service.TeamService, error) {
 		return service.As[service.TeamService](dial(ctx, cfg))
 	}))
