@@ -53,6 +53,26 @@ var ScopesSlides = []string{
 	"https://www.googleapis.com/auth/presentations",
 }
 
+// ParseScopes splits a comma-separated --scopes flag value, trimming
+// whitespace around each entry and dropping blanks. An empty flag value
+// yields nil — the distinction matters to callers: nil means "no override
+// requested", so the strategy falls back to the account's or the profile's
+// scopes, while a non-empty result replaces them. It is the single CSV
+// scope parser for every provider's `account add` / `account auth` leaves,
+// which previously each carried a character-identical copy.
+func ParseScopes(flagValue string) []string {
+	if flagValue == "" {
+		return nil
+	}
+	scopes := make([]string, 0, 4)
+	for _, s := range strings.Split(flagValue, ",") {
+		if s = strings.TrimSpace(s); s != "" {
+			scopes = append(scopes, s)
+		}
+	}
+	return scopes
+}
+
 // RequireScopes fails fast when the account lacks a scope a command needs,
 // before any service is built or API call made: without it, accounts consented
 // before Drive support only surface raw 403s from Google. It errors with a

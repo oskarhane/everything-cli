@@ -24,13 +24,7 @@ var _ Reauther = (*OAuthStrategy)(nil)
 // grant survives re-authorization), then the profile's defaults for a
 // stored account that carries no scopes at all.
 func (s *OAuthStrategy) Reauth(_ context.Context, _ afero.Fs, store *config.Store, acct *config.Account, opts ReauthOptions) (*config.Account, error) {
-	scopes := opts.Scopes
-	if len(scopes) == 0 {
-		scopes = acct.Scopes
-	}
-	if len(scopes) == 0 {
-		scopes = s.profile.DefaultScopes
-	}
+	scopes := ResolveReauthScopes(opts.Scopes, acct.Scopes, s.profile.DefaultScopes)
 	if s.creds.ID == "" {
 		return nil, errors.New("no OAuth client credentials")
 	}

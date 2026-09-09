@@ -76,6 +76,26 @@ type ReauthOptions struct {
 	Scopes []string
 }
 
+// ResolveReauthScopes picks the scope set a re-authorization flow runs
+// with, by precedence: opts (an explicit --scopes override) wins, then
+// stored (the account's currently granted scopes), then defaults (the
+// strategy profile's default set). The stored tier sits above the defaults
+// so a deliberately narrowed grant survives re-authorization instead of
+// silently widening back to the defaults; the defaults are only for a
+// stored account carrying no scopes at all. It is the single place this
+// cascade lives — provider strategies implementing their own Reauth call
+// it rather than re-implementing the precedence.
+func ResolveReauthScopes(opts, stored, defaults []string) []string {
+	scopes := opts
+	if len(scopes) == 0 {
+		scopes = stored
+	}
+	if len(scopes) == 0 {
+		scopes = defaults
+	}
+	return scopes
+}
+
 // OAuthStrategy is the Strategy for installed-app OAuth2 providers. It
 // composes the generalized flow (RunFlowWith), account persistence
 // (SaveAccount) and the refreshing token source (TokenSourceWith) against

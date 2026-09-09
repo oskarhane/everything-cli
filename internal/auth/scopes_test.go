@@ -47,6 +47,26 @@ func TestScopes(t *testing.T) {
 	assert.Equal(t, "https://www.googleapis.com/auth/userinfo.email", ScopeUserEmail)
 }
 
+// TestParseScopes pins the canonical --scopes parsing shared by every
+// provider leaf: comma-split, trimmed, blanks dropped, empty (or
+// blank-only) input yielding nil / no entries.
+func TestParseScopes(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{name: "empty", in: "", want: nil},
+		{name: "blank only", in: " , , ", want: []string{}},
+		{name: "trims and drops blanks", in: " read,write , ,issues:create", want: []string{"read", "write", "issues:create"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, ParseScopes(tc.in))
+		})
+	}
+}
+
 // TestMissingScopes pins the shared set-comparison helper: it returns only
 // required entries absent from the account's grants, in required's order.
 func TestMissingScopes(t *testing.T) {
