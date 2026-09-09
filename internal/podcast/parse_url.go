@@ -46,11 +46,10 @@ func ParseURL(raw string) (Ref, error) {
 		return Ref{}, ErrUnsupportedURL
 	}
 
-	host := strings.ToLower(u.Host)
-	switch {
-	case host == "podcasts.apple.com":
+	switch strings.ToLower(u.Host) {
+	case "podcasts.apple.com":
 		return parseApple(u)
-	case host == "open.spotify.com":
+	case "open.spotify.com":
 		return parseSpotify(u)
 	default:
 		return Ref{}, ErrUnsupportedURL

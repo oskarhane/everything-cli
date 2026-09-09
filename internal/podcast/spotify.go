@@ -81,7 +81,7 @@ func extractNextData(page string) (showTitle, episodeTitle string, err error) {
 	}
 	entity := data.Props.PageProps.State.Data.Entity
 	if entity.Subtitle == "" || entity.Title == "" {
-		return "", "", fmt.Errorf("Spotify embed page carries no entity title data")
+		return "", "", fmt.Errorf("spotify embed page carries no entity title data")
 	}
 	return entity.Subtitle, entity.Title, nil
 }
