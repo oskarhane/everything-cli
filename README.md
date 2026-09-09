@@ -1,6 +1,6 @@
 # everything-cli
 
-One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, Granola, and regular IMAP/SMTP email — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
+One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, Granola, regular IMAP/SMTP email, and podcast transcripts — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
 
 The command layout is provider-first:
 
@@ -29,6 +29,7 @@ everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 | `linear` | Linear issues, teams, projects | Personal API key **or** OAuth (browser flow with PKCE) |
 | `granola` | Granola notes (read-only) | Official `grn_` API key — requires a Granola **Business or Enterprise** plan |
 | `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send | Username + password per account |
+| `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL | No account at all |
 
 Every provider has its own account subtree (`everything-cli <provider> account add|list|get|use|remove`); see [Accounts](#accounts).
 
@@ -299,6 +300,17 @@ everything-cli email message list [--mailbox INBOX] [--limit 25]         # envel
 everything-cli email message get 42 [--mailbox Archive]                  # full message + attachment metadata
 everything-cli email message send --to a@x.com --to b@x.com [--cc c@x.com] \
     --subject "Report" (--body "text" | --body-file report.txt | --body-file -)   # - reads stdin
+```
+
+### Podcast
+
+Episode transcripts from an Apple Podcasts or Spotify episode URL — no account, OAuth, API key, or token cache. Coverage is limited to shows that publish a creator-provided `podcast:transcript` tag in their RSS feed (WebVTT/SRT, ~6.3% of feeds globally); a show without one errors instead of returning empty.
+
+```sh
+everything-cli podcast transcript "https://podcasts.apple.com/us/podcast/slug/id123?i=456"        # plain text when piped, table on a TTY
+everything-cli podcast transcript "https://open.spotify.com/episode/abc" --format json           # timed segments as JSON
+everything-cli podcast transcript "https://open.spotify.com/intl-se/episode/abc" --raw           # force plain text even on a TTY
+everything-cli podcast transcript "https://podcasts.apple.com/us/podcast/slug/id123?i=456" --out notes.txt   # plain text to a file
 ```
 
 ## Agent skills

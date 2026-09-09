@@ -12,7 +12,7 @@ TEST: `make test` · BUILD: `make build` · LINT: `make lint` · FORMAT: `make f
 
 PRIMARY LANGUAGES: [Go]
 
-`everything-cli` — one command-line tool for many SaaS providers (Google, Linear, Granola), multi-account per provider, behind one set of conventions.
+`everything-cli` — one command-line tool for many SaaS providers (Google, Linear, Granola, podcast), multi-account per provider, behind one set of conventions.
 
 `internal/providers/google/drive/service` is shared by the drive, docs, sheets, and slides trees — dialing, the per-API service seam, and pagination live there; do not duplicate them per resource. The other providers have their own seams (`internal/providers/linear/service`, `internal/providers/granola/service.go` + `dial.go`).
 
