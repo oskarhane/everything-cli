@@ -86,10 +86,13 @@ func TestGetTabOutWritesFile(t *testing.T) {
 }
 
 func TestGetUnknownTabPropagatesServiceError(t *testing.T) {
-	svc := &fakeDocService{docTabs: seedDocTabs(), docText: "whole doc\n", docTabText: "tab body\n"}
-	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "doc_1", "--tab", "nope")
+	svc := &fakeDocService{docTabs: seedDocTabs(), docText: "DOC-WIDE-EXPORT-MARKER\n", docTabText: "TAB-RENDER-MARKER"}
+	out, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "doc_1", "--tab", "nope")
 
 	// The unknown key fails the tab read; the leaf must not fall back to
-	// the doc-wide export.
+	// the doc-wide export — no document bytes may reach stdout (the usage
+	// block cobra prints on error is harness noise, not content).
 	require.ErrorContains(t, err, `no tab with ID or title "nope"`)
+	require.NotContains(t, out, "DOC-WIDE-EXPORT-MARKER")
+	require.NotContains(t, out, "TAB-RENDER-MARKER")
 }

@@ -2,7 +2,9 @@ package tabs
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -73,6 +75,39 @@ func (f *fakeDocService) RenameDocTab(_ context.Context, docID, tabID, title str
 	f.renameCalls++
 	f.renameDocID, f.renameTabID, f.renameTitle = docID, tabID, title
 	return f.renameErr
+}
+
+// ResolveDocTab resolves the --tab key against the seeded tab tree with the
+// real service's rules — exact tab ID first, then exact title — so the
+// delete/rename leaves' tests can assert the resolved ID reached the write.
+func (f *fakeDocService) ResolveDocTab(_ context.Context, _, key string) (service.DocTab, error) {
+	if f.listErr != nil {
+		return service.DocTab{}, f.listErr
+	}
+	for _, tab := range f.tabs {
+		if tab.TabID == key {
+			return tab, nil
+		}
+	}
+	var matches []service.DocTab
+	for _, tab := range f.tabs {
+		if tab.Title == key {
+			matches = append(matches, tab)
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return matches[0], nil
+	case 0:
+		return service.DocTab{}, fmt.Errorf("no tab with ID or title %q", key)
+	default:
+		ids := make([]string, 0, len(matches))
+		for _, tab := range matches {
+			ids = append(ids, tab.TabID)
+		}
+		return service.DocTab{}, fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
+			key, strings.Join(ids, ", "))
+	}
 }
 
 // fakeNewSvc returns a service.Dialer[service.DocService] handing out svc,

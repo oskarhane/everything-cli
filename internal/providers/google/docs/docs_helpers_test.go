@@ -140,6 +140,39 @@ func (f *fakeDocService) resolveTabKey(key string) error {
 	}
 }
 
+// ResolveDocTab serves the leaf-side resolution insert needs: it applies the
+// seeded tab contract and returns the matched tab (inert with no tabs
+// seeded, keeping the older tests' dumb-fake behavior).
+func (f *fakeDocService) ResolveDocTab(_ context.Context, _, key string) (service.DocTab, error) {
+	if len(f.docTabs) == 0 {
+		return service.DocTab{}, nil
+	}
+	for _, tab := range f.docTabs {
+		if tab.TabID == key {
+			return tab, nil
+		}
+	}
+	var matches []service.DocTab
+	for _, tab := range f.docTabs {
+		if tab.Title == key {
+			matches = append(matches, tab)
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return matches[0], nil
+	case 0:
+		return service.DocTab{}, fmt.Errorf("no tab with ID or title %q", key)
+	default:
+		ids := make([]string, 0, len(matches))
+		for _, tab := range matches {
+			ids = append(ids, tab.TabID)
+		}
+		return service.DocTab{}, fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
+			key, strings.Join(ids, ", "))
+	}
+}
+
 // The three tab-mutation stubs below are untouched by any docs leaf yet, but
 // the interface grew, so the fake must carry them (the embedded nil
 // DocService leaves them missing otherwise).

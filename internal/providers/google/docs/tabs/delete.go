@@ -32,7 +32,7 @@ everything-cli google docs tabs delete 1AbCdEfGh --tab t.1a2b3c`,
 			if err != nil {
 				return err
 			}
-			resolved, err := resolveTab(cmd.Context(), svc, args[0], tab)
+			resolved, err := svc.ResolveDocTab(cmd.Context(), args[0], tab)
 			if err != nil {
 				return err
 			}

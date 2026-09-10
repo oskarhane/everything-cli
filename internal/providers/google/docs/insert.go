@@ -1,9 +1,7 @@
 package docs
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -46,14 +44,16 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 				return err
 			}
 			// InsertDocText forwards the tab ID as-is and makes no read to
-			// resolve a title, so a --tab key is resolved here first; an
-			// empty tab lets the API apply the insert to the first tab.
+			// resolve a title, so a --tab key is resolved here first via
+			// the service's shared resolution; an empty tab lets the API
+			// apply the insert to the first tab.
 			tabID := ""
 			if tab != "" {
-				tabID, err = resolveInsertTab(cmd.Context(), svc, args[0], tab)
+				resolved, err := svc.ResolveDocTab(cmd.Context(), args[0], tab)
 				if err != nil {
 					return err
 				}
+				tabID = resolved.TabID
 			}
 			if err := svc.InsertDocText(cmd.Context(), args[0], body, index, tabID); err != nil {
 				return err
@@ -70,36 +70,4 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 	f.Int64Var(&index, "index", 0, "Docs-API content index to insert before (required, >0)")
 	f.StringVar(&tab, "tab", "", "Insert into this tab, by tab ID or exact title (default: the first tab)")
 	return cmd
-}
-
-// resolveInsertTab resolves a --tab key to a tab ID for the insert leaf.
-// InsertDocText makes no read of its own, so the leaf resolves the key here
-// with the same rules the service's tab reads apply: exact tab ID first,
-// then exact title; an ambiguous title names the tabs it matches, an
-// unknown key names the key that was searched for.
-func resolveInsertTab(ctx context.Context, svc service.DocService, docID, key string) (string, error) {
-	tabs, err := svc.ListDocTabs(ctx, docID)
-	if err != nil {
-		return "", fmt.Errorf("resolving tab %q in document %s: %w", key, docID, err)
-	}
-	for _, tab := range tabs {
-		if tab.TabID == key {
-			return key, nil
-		}
-	}
-	var matches []string
-	for _, tab := range tabs {
-		if tab.Title == key {
-			matches = append(matches, tab.TabID)
-		}
-	}
-	switch len(matches) {
-	case 1:
-		return matches[0], nil
-	case 0:
-		return "", fmt.Errorf("no tab with ID or title %q in document %s", key, docID)
-	default:
-		return "", fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
-			key, strings.Join(matches, ", "))
-	}
 }

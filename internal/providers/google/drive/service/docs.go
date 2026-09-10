@@ -21,11 +21,12 @@ import (
 // (case-sensitive iff matchCase) doc-wide and returns how many occurrences
 // changed. AppendDocText resolves its tab key (exact tab ID, then exact
 // title) because it reads the tabs tree anyway; InsertDocText makes no read
-// and forwards the tab ID as-is, so a title key must be resolved first (e.g.
-// via ListDocTabs).
+// and forwards the tab ID as-is, so a title key must be resolved first via
+// ResolveDocTab.
 type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	ListDocTabs(ctx context.Context, docID string) ([]DocTab, error)
+	ResolveDocTab(ctx context.Context, docID, key string) (DocTab, error)
 	GetDocTabText(ctx context.Context, docID, tabID string) (string, error)
 	AddDocTab(ctx context.Context, docID, title string) (string, error)
 	DeleteDocTab(ctx context.Context, docID, tabID string) error
@@ -84,6 +85,22 @@ func (s *realDriveService) ListDocTabs(ctx context.Context, docID string) ([]Doc
 		out = append(out, docTabOf(tab))
 	}
 	return out, nil
+}
+
+// ResolveDocTab resolves a tab key — exact tab ID first, then exact title —
+// against the document's tab tree and returns the matched tab. Write leaves
+// whose write call makes no read of its own (InsertDocText) call it so the
+// wire always carries the immutable tab ID, never the caller's key.
+func (s *realDriveService) ResolveDocTab(ctx context.Context, docID, key string) (DocTab, error) {
+	doc, err := s.getDocumentTabs(ctx, docID)
+	if err != nil {
+		return DocTab{}, err
+	}
+	tab, err := chooseTab(doc, key)
+	if err != nil {
+		return DocTab{}, err
+	}
+	return docTabOf(tab), nil
 }
 
 // GetDocTabText renders one tab's body to plain text: the tab is resolved by
