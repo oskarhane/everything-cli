@@ -473,6 +473,17 @@ is the recoverable alternative to `google docs delete`.
 - `google docs comment delete <doc-id> --comment <comment-id>
   [--force]` — permanently delete a comment; refuses without `--force`,
   mirroring `google docs delete`.
+- `google docs tabs list <doc-id>` — the document's tabs flattened
+  depth-first, a parent before its child tabs: tab_id, title, index,
+  nesting_level, parent_tab_id.
+- `google docs tabs create <doc-id> --title <title>` — append a new tab
+  and echo the tab id the API assigned it.
+- `google docs tabs rename <doc-id>` — retitle a tab: `--tab` is the
+  tab's ID or exact current title (an exact ID wins over a title;
+  ambiguous titles error and name the matching ids), `--title` is the
+  new one.
+- `google docs tabs delete <doc-id> --tab <id-or-exact-title>` — remove
+  a tab, its content and child tabs included.
 
 Comment operations ride the Drive API, not the Docs API: they require a
 drive or drive.file scope (accounts on the default profile already hold
@@ -496,6 +507,10 @@ everything-cli google docs comment reply 1AbCdEfGh --comment AAAAc4-0 --text "On
 everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
 everything-cli google docs comment reopen 1AbCdEfGh --comment AAAAc4-0
 everything-cli google docs comment delete 1AbCdEfGh --comment AAAAc4-0 --force
+everything-cli google docs tabs list 1AbCdEfGh --format json
+everything-cli google docs tabs create 1AbCdEfGh --title Appendix
+everything-cli google docs tabs rename 1AbCdEfGh --tab Appendix --title "Appendix v2"
+everything-cli google docs tabs delete 1AbCdEfGh --tab t.1a2b3c
 everything-cli google docs delete 1AbCdEfGh --force
 ```
 

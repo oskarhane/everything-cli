@@ -8,6 +8,7 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/google/comment"
+	"github.com/oskarhane/everything-cli/internal/providers/google/docs/tabs"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
@@ -43,5 +44,10 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	// Comments are managed through the Drive API, so the one shared comment
 	// subtree serves both the docs and slides trees.
 	cmd.AddCommand(comment.NewCmd(cfg))
+	// Tabs are a Docs-API concept, so this subtree rides the same DocService
+	// seam as the content leaves above.
+	cmd.AddCommand(tabs.NewCmd(cfg, func(ctx context.Context) (service.DocService, error) {
+		return service.As[service.DocService](newSvc(ctx))
+	}))
 	return cmd
 }
