@@ -40,7 +40,9 @@ everything-cli google docs append 1AbCdEfGh --text-file notes.txt`,
 			if err != nil {
 				return err
 			}
-			if err := svc.AppendDocText(cmd.Context(), args[0], body); err != nil {
+			// An empty tab targets the document's first tab; --tab lands
+			// in a later change.
+			if err := svc.AppendDocText(cmd.Context(), args[0], body, ""); err != nil {
 				return err
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Appended text to document %s\n", args[0]); err != nil {
