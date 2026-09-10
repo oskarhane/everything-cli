@@ -59,14 +59,14 @@ func (f *fakeDocService) GetDocText(_ context.Context, docID string) (string, er
 	return f.docText, nil
 }
 
-func (f *fakeDocService) AppendDocText(_ context.Context, docID, text, tabID string) error {
+func (f *fakeDocService) AppendDocText(_ context.Context, docID, text, tabKey string) error {
 	if f.err != nil {
 		return f.err
 	}
-	if err := f.resolveTabKey(tabID); err != nil {
+	if err := f.resolveTabKey(tabKey); err != nil {
 		return err
 	}
-	f.appendedID, f.appendedText, f.appendedTabID = docID, text, tabID
+	f.appendedID, f.appendedText, f.appendedTabID = docID, text, tabKey
 	return nil
 }
 
@@ -98,46 +98,27 @@ func (f *fakeDocService) ListDocTabs(context.Context, string) ([]service.DocTab,
 
 // GetDocTabText serves the seeded tab render and records the tab key the
 // leaf forwarded.
-func (f *fakeDocService) GetDocTabText(_ context.Context, _, tabID string) (string, error) {
+func (f *fakeDocService) GetDocTabText(_ context.Context, _, tabKey string) (string, error) {
 	if f.err != nil {
 		return "", f.err
 	}
-	if err := f.resolveTabKey(tabID); err != nil {
+	if err := f.resolveTabKey(tabKey); err != nil {
 		return "", err
 	}
-	f.tabReadID = tabID
+	f.tabReadID = tabKey
 	return f.docTabText, nil
 }
 
 // resolveTabKey applies the real service's tab-key contract to the seeded
-// tabs — exact tab ID first, then exact title, ambiguity and unknown keys
-// erroring with the service's own wording — so unknown-key tests exercise
-// the leaves' error propagation the way a real dial would. With no tabs
-// seeded the check is inert, keeping the older tests' dumb-fake behavior.
+// tabs, so unknown-key tests exercise the leaves' error propagation the way
+// a real dial would. With no tabs seeded the check is inert, keeping the
+// older tests' dumb-fake behavior.
 func (f *fakeDocService) resolveTabKey(key string) error {
 	if len(f.docTabs) == 0 {
 		return nil
 	}
-	for _, tab := range f.docTabs {
-		if tab.TabID == key {
-			return nil
-		}
-	}
-	var matches []string
-	for _, tab := range f.docTabs {
-		if tab.Title == key {
-			matches = append(matches, tab.TabID)
-		}
-	}
-	switch len(matches) {
-	case 1:
-		return nil
-	case 0:
-		return fmt.Errorf("no tab with ID or title %q", key)
-	default:
-		return fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
-			key, strings.Join(matches, ", "))
-	}
+	_, err := f.ResolveDocTab(context.Background(), "", key)
+	return err
 }
 
 // ResolveDocTab serves the leaf-side resolution insert needs: it applies the

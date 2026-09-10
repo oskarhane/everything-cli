@@ -27,11 +27,11 @@ type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	ListDocTabs(ctx context.Context, docID string) ([]DocTab, error)
 	ResolveDocTab(ctx context.Context, docID, key string) (DocTab, error)
-	GetDocTabText(ctx context.Context, docID, tabID string) (string, error)
+	GetDocTabText(ctx context.Context, docID, tabKey string) (string, error)
 	AddDocTab(ctx context.Context, docID, title string) (string, error)
 	DeleteDocTab(ctx context.Context, docID, tabID string) error
 	RenameDocTab(ctx context.Context, docID, tabID, title string) error
-	AppendDocText(ctx context.Context, docID, text, tabID string) (err error)
+	AppendDocText(ctx context.Context, docID, text, tabKey string) (err error)
 	InsertDocText(ctx context.Context, docID, text string, index int64, tabID string) (err error)
 	ReplaceDocText(ctx context.Context, docID, find, replaceWith string, matchCase bool) (int, error)
 }
@@ -111,18 +111,18 @@ func (s *realDriveService) ResolveDocTab(ctx context.Context, docID, key string)
 // paragraph; table structure is flattened into the line stream) and drops
 // styling, images and other non-text elements, section breaks, and any
 // headers, footers, or footnotes.
-func (s *realDriveService) GetDocTabText(ctx context.Context, docID, tabID string) (string, error) {
+func (s *realDriveService) GetDocTabText(ctx context.Context, docID, tabKey string) (string, error) {
 	doc, err := s.getDocumentTabs(ctx, docID)
 	if err != nil {
 		return "", err
 	}
-	tab, err := chooseTab(doc, tabID)
+	tab, err := chooseTab(doc, tabKey)
 	if err != nil {
 		return "", fmt.Errorf("choosing tab in document %s: %w", docID, err)
 	}
 	body, err := tabBody(tab)
 	if err != nil {
-		return "", fmt.Errorf("tab %s in document %s: %w", tabID, docID, err)
+		return "", fmt.Errorf("tab %s in document %s: %w", tabKey, docID, err)
 	}
 	return renderBodyText(body), nil
 }
@@ -186,14 +186,14 @@ func (s *realDriveService) RenameDocTab(ctx context.Context, docID, tabID, title
 // InsertTextRequest. Docs indexes are zero-based UTF-16 code units and an
 // insertion point may not be the body's end index, so the last element's
 // endIndex - 1 is the only index the API accepts for a true append. An empty
-// tabID targets the first tab; the fetch must use includeTabsContent=true
+// tabKey targets the first tab; the fetch must use includeTabsContent=true
 // because the legacy top-level body is empty for multi-tab documents.
-func (s *realDriveService) AppendDocText(ctx context.Context, docID, text, tabID string) error {
+func (s *realDriveService) AppendDocText(ctx context.Context, docID, text, tabKey string) error {
 	doc, err := s.getDocumentTabs(ctx, docID)
 	if err != nil {
 		return err
 	}
-	tab, err := chooseTab(doc, tabID)
+	tab, err := chooseTab(doc, tabKey)
 	if err != nil {
 		return fmt.Errorf("choosing tab in document %s: %w", docID, err)
 	}
@@ -208,7 +208,7 @@ func (s *realDriveService) AppendDocText(ctx context.Context, docID, text, tabID
 	if _, err := s.docs.Documents.BatchUpdate(docID, &docs.BatchUpdateDocumentRequest{
 		Requests: []*docs.Request{{
 			InsertText: &docs.InsertTextRequest{
-				Location: tabLocation(index, tabID, tab),
+				Location: tabLocation(index, tabKey, tab),
 				Text:     text,
 			},
 		}},
