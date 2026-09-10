@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
+	"github.com/oskarhane/everything-cli/internal/providers/google/comment"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
@@ -39,5 +40,8 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(newDeleteCmd(cfg, func(ctx context.Context) (service.FileService, error) {
 		return service.As[service.FileService](newSvc(ctx))
 	}))
+	// Comments are managed through the Drive API, so the one shared comment
+	// subtree serves both the docs and slides trees.
+	cmd.AddCommand(comment.NewCmd(cfg))
 	return cmd
 }

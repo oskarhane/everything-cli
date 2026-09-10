@@ -456,6 +456,29 @@ is the recoverable alternative to `google docs delete`.
 - `google docs delete <doc-id> [--force]` — permanently delete the
   document's Drive file; refuses without `--force`. Prefer `google drive
   file trash <doc-id>`.
+- `google docs comment list <doc-id> [--all]` — open (unresolved)
+  comments on the document; `--all` includes resolved ones. Rows:
+  comment_id, author, created, resolved, quoted (the text the comment
+  anchors to, when the API provides it), content, replies (reply count
+  in table output; nested {reply_id, author, created, action, content}
+  objects in JSON/TOON).
+- `google docs comment add <doc-id> --text "…"` — add a file-level
+  comment; reports the created comment id.
+- `google docs comment reply <doc-id> --comment <comment-id> --text "…"`
+  — reply to a comment thread.
+- `google docs comment resolve <doc-id> --comment <comment-id>` — mark a
+  comment resolved (posts a resolve reply).
+- `google docs comment reopen <doc-id> --comment <comment-id>` — reopen
+  a resolved comment.
+- `google docs comment delete <doc-id> --comment <comment-id>
+  [--force]` — permanently delete a comment; refuses without `--force`,
+  mirroring `google docs delete`.
+
+Comment operations ride the Drive API, not the Docs API: they require a
+drive or drive.file scope (accounts on the default profile already hold
+the full drive scope), not the documents scope. Added comments are
+file-level, not anchored to a text selection — the API's anchor format
+is opaque and unreliable, so anchoring is out of scope.
 
 ```sh
 everything-cli google docs get 1AbCdEfGh --out notes.txt
@@ -466,6 +489,13 @@ everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
 everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
 everything-cli google docs replace 1AbCdEfGh --find TODO --replace-with "TBD"
+everything-cli google docs comment list 1AbCdEfGh
+everything-cli google docs comment list 1AbCdEfGh --all --format json
+everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"
+everything-cli google docs comment reply 1AbCdEfGh --comment AAAAc4-0 --text "On it"
+everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
+everything-cli google docs comment reopen 1AbCdEfGh --comment AAAAc4-0
+everything-cli google docs comment delete 1AbCdEfGh --comment AAAAc4-0 --force
 everything-cli google docs delete 1AbCdEfGh --force
 ```
 
@@ -536,12 +566,39 @@ alternative.
 - `google slides delete <presentation-id> [--force]` — permanently
   delete the presentation's Drive file; refuses without `--force`.
   Prefer `google drive file trash <presentation-id>`.
+- `google slides comment list <presentation-id> [--all]` — open
+  (unresolved) comments; `--all` includes resolved. Same row shape as
+  `google docs comment list`: comment_id, author, created, resolved,
+  quoted, content, replies.
+- `google slides comment add <presentation-id> --text "…"` — add a
+  file-level comment; reports the created comment id.
+- `google slides comment reply <presentation-id> --comment
+  <comment-id> --text "…"` — reply to a comment thread.
+- `google slides comment resolve <presentation-id> --comment
+  <comment-id>` — mark a comment resolved (posts a resolve reply).
+- `google slides comment reopen <presentation-id> --comment
+  <comment-id>` — reopen a resolved comment.
+- `google slides comment delete <presentation-id> --comment
+  <comment-id> [--force]` — permanently delete a comment; refuses
+  without `--force`, mirroring `google slides delete`.
+
+The comment subtree mirrors `google docs comment` — one shared
+implementation, same flags, same scope requirement (drive or
+drive.file; comments ride the Drive API, not the presentations API),
+and added comments are file-level, not anchored to a text selection.
 
 ```sh
 everything-cli google slides get 1AbCpresentationID --format json
 everything-cli google slides get 1AbCpresentationID --slide 3
 everything-cli google slides replace 1AbCpresentationID --find Acme --replace-with Zenith
 everything-cli google slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case
+everything-cli google slides comment list 1AbCpresentationID
+everything-cli google slides comment list 1AbCpresentationID --all --format json
+everything-cli google slides comment add 1AbCpresentationID --text "Clarify this slide"
+everything-cli google slides comment reply 1AbCpresentationID --comment AAAAc4-0 --text "Done"
+everything-cli google slides comment resolve 1AbCpresentationID --comment AAAAc4-0
+everything-cli google slides comment reopen 1AbCpresentationID --comment AAAAc4-0
+everything-cli google slides comment delete 1AbCpresentationID --comment AAAAc4-0 --force
 everything-cli google slides delete 1AbCpresentationID --force
 ```
 
@@ -645,9 +702,11 @@ treat an absent transcript as an empty success.
   message delete`, `google gmail label delete`, `google gmail draft
   delete`, `google account remove`, `google calendar delete`, `google
   calendar event delete`, `google drive file delete`, `google docs
-  delete`, `google sheets delete`, `google slides delete`. Prefer the
+  delete`, `google docs comment delete`, `google sheets delete`,
+  `google slides delete`, `google slides comment delete`. Prefer the
   trash verbs (`google gmail message trash`, `google drive file trash`)
-  over the permanent deletes.
+  over the permanent deletes — and `google docs comment resolve` /
+  `google slides comment resolve` over deleting a comment thread.
 - `--max` budgets API paging (default 25 on gmail list commands and
   `google drive file list`, 250 on calendar event list/instances; `0` =
   no cap).
