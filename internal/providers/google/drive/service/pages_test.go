@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"golang.org/x/oauth2"
@@ -186,6 +187,48 @@ func TestListPermissionsFollowsAllPages(t *testing.T) {
 	for i, id := range want {
 		if ids[i] != id {
 			t.Errorf("perms[%d].Id = %s, want %s", i, ids[i], id)
+		}
+	}
+}
+
+// TestListPermissionsPinsFields drives ListPermissions over a fake
+// permissions.list and asserts every page's request pins the fields
+// parameter: the API default omits emailAddress and displayName, and a pin
+// without nextPageToken would truncate multi-page listings to page one.
+func TestListPermissionsPinsFields(t *testing.T) {
+	var sawFields []string
+	svc := newPagedTestServer(t, map[string]http.HandlerFunc{
+		"/files/f-1/permissions": func(w http.ResponseWriter, r *http.Request) {
+			sawFields = append(sawFields, r.URL.Query().Get("fields"))
+			switch r.URL.Query().Get("pageToken") {
+			case "":
+				writeJSON(w, drive.PermissionList{
+					Permissions:   []*drive.Permission{{Id: "perm-1", Type: "user"}},
+					NextPageToken: "tok-2",
+				})
+			case "tok-2":
+				writeJSON(w, drive.PermissionList{
+					Permissions:   []*drive.Permission{{Id: "perm-2", Type: "anyone"}},
+					NextPageToken: "",
+				})
+			default:
+				http.Error(w, "unexpected pageToken", http.StatusBadRequest)
+			}
+		},
+	})
+
+	perms, err := svc.ListPermissions(t.Context(), "f-1")
+	if err != nil {
+		t.Fatalf("ListPermissions: %v", err)
+	}
+	if len(perms) != 2 {
+		t.Fatalf("permission count = %d, want 2", len(perms))
+	}
+	for i, fields := range sawFields {
+		for _, want := range []string{"emailAddress", "displayName", "nextPageToken"} {
+			if !strings.Contains(fields, want) {
+				t.Errorf("page %d fields = %q, want it to contain %s", i+1, fields, want)
+			}
 		}
 	}
 }

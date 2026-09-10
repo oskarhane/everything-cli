@@ -17,9 +17,13 @@ type PermissionService interface {
 }
 
 // ListPermissions pages permissions.list for one file and returns every
-// permission across all pages.
+// permission across all pages. Fields is pinned to the display-relevant
+// permission fields so the response carries exactly what the leaves display
+// (the API default omits emailAddress and displayName); nextPageToken is
+// included or multi-page listings would truncate to page one.
 func (s *realDriveService) ListPermissions(ctx context.Context, fileID string) ([]*drive.Permission, error) {
-	call := s.drive.Permissions.List(fileID)
+	call := s.drive.Permissions.List(fileID).
+		Fields("nextPageToken,permissions(id,type,role,emailAddress,displayName,deleted)")
 	return pageAll(func(page string) ([]*drive.Permission, string, error) {
 		if page != "" {
 			call = call.PageToken(page)
