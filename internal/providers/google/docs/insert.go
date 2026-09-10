@@ -1,7 +1,9 @@
 package docs
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -11,14 +13,16 @@ import (
 
 // newInsertCmd returns `docs insert`: insert text immediately before the
 // given Docs-API content index (--index, a zero-based UTF-16 code-unit
-// offset, so --index 1 puts the text at the very start of the body). The
-// text comes from --text or a file via --text-file, exactly one of the two,
-// and is sent verbatim — no newline is added, unlike append.
+// offset, so --index 1 puts the text at the very start of the body) in a tab
+// (--tab, by tab ID or exact title; default the first tab). The text comes
+// from --text or a file via --text-file, exactly one of the two, and is sent
+// verbatim — no newline is added, unlike append.
 func newInsertCmd(cfg *app.Config, newSvc service.Dialer[service.DocService]) *cobra.Command {
 	var (
 		text     string
 		textFile string
 		index    int64
+		tab      string
 	)
 	cmd := &cobra.Command{
 		Use:   "insert <doc-id>",
@@ -41,9 +45,17 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 			if err != nil {
 				return err
 			}
-			// An empty tab lets the API apply the insert to the first tab;
-			// --tab lands in a later change.
-			if err := svc.InsertDocText(cmd.Context(), args[0], body, index, ""); err != nil {
+			// InsertDocText forwards the tab ID as-is and makes no read to
+			// resolve a title, so a --tab key is resolved here first; an
+			// empty tab lets the API apply the insert to the first tab.
+			tabID := ""
+			if tab != "" {
+				tabID, err = resolveInsertTab(cmd.Context(), svc, args[0], tab)
+				if err != nil {
+					return err
+				}
+			}
+			if err := svc.InsertDocText(cmd.Context(), args[0], body, index, tabID); err != nil {
 				return err
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Inserted text into document %s at index %d\n", args[0], index); err != nil {
@@ -56,5 +68,38 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 	f.StringVar(&text, "text", "", "Text to insert (inserted verbatim, before --index)")
 	f.StringVar(&textFile, "text-file", "", "Read the text to insert from this file instead of --text")
 	f.Int64Var(&index, "index", 0, "Docs-API content index to insert before (required, >0)")
+	f.StringVar(&tab, "tab", "", "Insert into this tab, by tab ID or exact title (default: the first tab)")
 	return cmd
+}
+
+// resolveInsertTab resolves a --tab key to a tab ID for the insert leaf.
+// InsertDocText makes no read of its own, so the leaf resolves the key here
+// with the same rules the service's tab reads apply: exact tab ID first,
+// then exact title; an ambiguous title names the tabs it matches, an
+// unknown key names the key that was searched for.
+func resolveInsertTab(ctx context.Context, svc service.DocService, docID, key string) (string, error) {
+	tabs, err := svc.ListDocTabs(ctx, docID)
+	if err != nil {
+		return "", fmt.Errorf("resolving tab %q in document %s: %w", key, docID, err)
+	}
+	for _, tab := range tabs {
+		if tab.TabID == key {
+			return key, nil
+		}
+	}
+	var matches []string
+	for _, tab := range tabs {
+		if tab.Title == key {
+			matches = append(matches, tab.TabID)
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return matches[0], nil
+	case 0:
+		return "", fmt.Errorf("no tab with ID or title %q in document %s", key, docID)
+	default:
+		return "", fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
+			key, strings.Join(matches, ", "))
+	}
 }
