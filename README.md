@@ -232,9 +232,10 @@ everything-cli google drive file share 1AbCdEfGh --role writer --domain example.
 everything-cli google drive file unshare 1AbCdEfGh --email a@x.com                  # or --permission <id>
 
 everything-cli google docs get 1AbCdEfGh --out notes.txt       # raw text; without --out it streams to stdout
-everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
-everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"   # before a Docs-API content index
-everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
+everything-cli google docs get 1AbCdEfGh --tab t.1a2b3c        # one tab's text (default: the whole document)
+everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar" [--tab t.1a2b3c]   # default: first tab
+everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan" [--tab t.1a2b3c]   # before a Docs-API content index
+everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"   # doc-wide; no per-tab scoping
 everything-cli google docs comment list 1AbCdEfGh --all          # comment threads; resolved included with --all
 everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"   # file-level comment
 everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
@@ -260,6 +261,8 @@ everything-cli google slides delete 1AbCdEfGh --force          # permanent
 ```
 
 `google docs comment …` and `google slides comment …` share one comment tree (list/add/reply/resolve/reopen/delete). Comments ride the Drive API — they need the drive or drive.file scope (not the documents/presentations scopes), and added comments are file-level rather than anchored to a text selection.
+
+Docs tabs: `google docs tabs list` prints the tab ids every docs `--tab` flag accepts; a `--tab` key matches an exact tab ID first, then an exact title, and an ambiguous title errors naming the matching ids. Sheets `--tab` values match a worksheet tab's title exactly.
 
 `--values` takes an inline JSON array of arrays; `--values-file` reads the same shape from a `.json`/`.csv`/`.tsv` file instead. Both `google sheets values append` and `google sheets values update` take `--input-option RAW|USER_ENTERED` (default `USER_ENTERED`, which parses formulas).
 

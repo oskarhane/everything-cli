@@ -439,20 +439,25 @@ is the recoverable alternative to `google docs delete`.
 
 - `google docs get <doc-id>` — the document's raw text, streamed to
   stdout exactly as exported (bypasses `--format`); `--out <file>`
-  writes it there instead.
+  writes it there instead. `--tab <id-or-exact-title>` reads only that
+  tab's text (default: the whole document).
 - `google docs append <doc-id>` — add text at the very end of the body.
   Flags: `--text` | `--text-file <path>` (exactly one). A trailing
   newline is added when missing, so successive appends each start on
-  their own line.
+  their own line. `--tab <id-or-exact-title>` appends to that tab
+  (default: the first tab).
 - `google docs insert <doc-id>` — insert text immediately BEFORE the
   given `--index` (required, > 0 — a zero-based Docs-API content index
   in UTF-16 code units; `--index 1` puts the text at the very start of
   the body). Flags: `--text` | `--text-file` (exactly one). Unlike
   append, the text is sent verbatim — no newline is added.
+  `--tab <id-or-exact-title>` inserts into that tab (default: the first
+  tab).
 - `google docs replace <doc-id>` — replace every occurrence of `--find`
   (required) with `--replace-with` (empty deletes the matches).
   `--match-case` makes matching case-sensitive (default is
-  case-insensitive). Prints the replaced occurrence count.
+  case-insensitive). Prints the replaced occurrence count. Replace is
+  doc-wide — the API has no per-tab scoping.
 - `google docs delete <doc-id> [--force]` — permanently delete the
   document's Drive file; refuses without `--force`. Prefer `google drive
   file trash <doc-id>`.
@@ -478,12 +483,14 @@ is the recoverable alternative to `google docs delete`.
   nesting_level, parent_tab_id.
 - `google docs tabs create <doc-id> --title <title>` — append a new tab
   and echo the tab id the API assigned it.
-- `google docs tabs rename <doc-id>` — retitle a tab: `--tab` is the
-  tab's ID or exact current title (an exact ID wins over a title;
-  ambiguous titles error and name the matching ids), `--title` is the
-  new one.
 - `google docs tabs delete <doc-id> --tab <id-or-exact-title>` — remove
   a tab, its content and child tabs included.
+- `google docs tabs rename <doc-id> --tab <id-or-exact-title> --title
+  <new>` — retitle a tab.
+
+Every docs `--tab` key resolves the same way: an exact tab ID wins over
+a same-named title, and an ambiguous title errors naming the matching
+ids — `google docs tabs list` prints those ids.
 
 Comment operations ride the Drive API, not the Docs API: they require a
 drive or drive.file scope (accounts on the default profile already hold
@@ -494,10 +501,13 @@ is opaque and unreliable, so anchoring is out of scope.
 ```sh
 everything-cli google docs get 1AbCdEfGh --out notes.txt
 everything-cli google docs get 1AbCdEfGh | head -20
+everything-cli google docs get 1AbCdEfGh --tab t.1a2b3c
 everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
 everything-cli google docs append 1AbCdEfGh --text-file notes.txt
+everything-cli google docs append 1AbCdEfGh --tab t.1a2b3c --text "Notes"
 everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
 everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120
+everything-cli google docs insert 1AbCdEfGh --tab t.1a2b3c --index 40 --text "Sidebar"
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
 everything-cli google docs replace 1AbCdEfGh --find TODO --replace-with "TBD"
 everything-cli google docs comment list 1AbCdEfGh
