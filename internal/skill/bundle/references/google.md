@@ -501,10 +501,10 @@ everything-cli google docs delete 1AbCdEfGh --force
 
 ## sheets
 
-Google Sheets metadata and cell values. Create spreadsheets with `google
-drive file create <name> --type sheet`; `google sheets delete` is a thin
-Drive delete — `google drive file trash <spreadsheet-id>` is the
-recoverable alternative.
+Google Sheets metadata, cell values, and worksheet tabs. Create
+spreadsheets with `google drive file create <name> --type sheet`;
+`google sheets delete` is a thin Drive delete — `google drive file trash
+<spreadsheet-id>` is the recoverable alternative.
 
 - `google sheets get <spreadsheet-id>` — one row per sheet tab:
   sheet_id, title, index, row_count, col_count, and a best-effort header
@@ -524,6 +524,13 @@ recoverable alternative.
 - `google sheets values clear <spreadsheet-id>` — empty every cell in
   `--range` (required; formatting kept). No `--force`: it is bounded to
   the range and recoverable via revision history.
+- `google sheets tabs create <spreadsheet-id> --title <title>` — append
+  a new worksheet tab and echo the sheet id the API assigned it.
+- `google sheets tabs rename <spreadsheet-id>` — retitle a tab:
+  `--tab <title>` matches the tab's current title exactly, `--title
+  <new>` is the new one.
+- `google sheets tabs delete <spreadsheet-id> --tab <title>` — remove a
+  tab, every cell on it included; the title matches exactly.
 - `google sheets delete <spreadsheet-id> [--force]` — permanently delete
   the spreadsheet's Drive file; refuses without `--force`. Prefer
   `google drive file trash <spreadsheet-id>`.
@@ -545,6 +552,9 @@ everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" \
 everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!C1" \
   --values '[[=SUM(A1:A2)]]' --input-option RAW
 everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+everything-cli google sheets tabs create 1AbCdEfGh --title Forecast
+everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
+everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes
 everything-cli google sheets delete 1AbCdEfGh --force
 ```
 

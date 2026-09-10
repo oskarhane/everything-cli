@@ -245,6 +245,9 @@ everything-cli google sheets values get 1AbCdEfGh --range "Sheet1!A1:D10"
 everything-cli google sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values '[[1,"a",true],[2,"b",false]]'
 everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" --values '[[1,"a"],[2,"b"]]'
 everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+everything-cli google sheets tabs create 1AbCdEfGh --title Forecast    # add a worksheet tab; echoes its sheet id
+everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
+everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes         # every cell on it included
 
 everything-cli google slides get 1AbCdEfGh --slide 3           # text per shape; --slide narrows to one slide
 everything-cli google slides replace 1AbCdEfGh --find Acme --replace-with Zenith
