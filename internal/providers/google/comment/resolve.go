@@ -1,8 +1,6 @@
 package comment
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
@@ -10,34 +8,11 @@ import (
 )
 
 // newResolveCmd returns `comment resolve`: mark one comment resolved via a
-// resolve action reply (no reply text), reporting the created reply.
+// resolve action reply.
 func newResolveCmd(cfg *app.Config, newSvc service.Dialer[service.CommentService]) *cobra.Command {
-	var commentID string
-	cmd := &cobra.Command{
-		Use:   "resolve <file-id>",
-		Short: "Mark a comment resolved",
-		Example: `# Resolve a comment on a document
+	return newActionCmd(cfg, newSvc, "resolve", "Mark a comment resolved", `# Resolve a comment on a document
 everything-cli google docs comment resolve 1AbCdEfGh --comment comment_1
 
 # Resolve a comment on a presentation
-everything-cli google slides comment resolve 1AbCpresentationID --comment comment_1`,
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if commentID == "" {
-				return fmt.Errorf("--comment is required: the id of the comment to resolve (see comment list)")
-			}
-			svc, err := newSvc(cmd.Context())
-			if err != nil {
-				return err
-			}
-			created, err := svc.CreateReply(cmd.Context(), args[0], commentID, "", "resolve")
-			if err != nil {
-				return err
-			}
-			printReplyView(cmd, cfg, created)
-			return nil
-		},
-	}
-	cmd.Flags().StringVar(&commentID, "comment", "", "Id of the comment to resolve (required)")
-	return cmd
+everything-cli google slides comment resolve 1AbCpresentationID --comment comment_1`)
 }

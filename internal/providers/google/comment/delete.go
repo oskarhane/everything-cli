@@ -30,7 +30,7 @@ everything-cli google slides comment delete 1AbCpresentationID --comment comment
 				return fmt.Errorf("--comment is required: the id of the comment to delete (see comment list)")
 			}
 			if !force {
-				return fmt.Errorf("refusing to delete comment %q on file %q without --force (this cannot be undone; use \"everything-cli google docs comment resolve <file-id> --comment <id>\" instead)", commentID, args[0])
+				return fmt.Errorf("refusing to delete comment %q on file %q without --force (this cannot be undone; use \"%s\" instead)", commentID, args[0], resolveHint(cmd))
 			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
@@ -43,4 +43,14 @@ everything-cli google slides comment delete 1AbCpresentationID --comment comment
 	f.StringVar(&commentID, "comment", "", "Id of the comment to delete (required)")
 	f.BoolVar(&force, "force", false, "Delete the comment instead of refusing")
 	return cmd
+}
+
+// resolveHint names the resolve leaf under the same parent chain as the
+// delete invocation, so the recovery hint is correct whether the comment
+// subtree hangs under docs or slides; a detached leaf gets the neutral form.
+func resolveHint(cmd *cobra.Command) string {
+	if parent := cmd.Parent(); parent != nil {
+		return parent.CommandPath() + " resolve <file-id> --comment <id>"
+	}
+	return "comment resolve <file-id> --comment <id>"
 }

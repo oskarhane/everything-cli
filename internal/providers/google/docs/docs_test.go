@@ -16,8 +16,8 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 	for _, sub := range cmd.Commands() {
 		names = append(names, sub.Name())
 	}
-	// Note: insert rides InsertDocText, added to the committed service as
-	// part of this node. comment is the shared Drive-API comment subtree,
-	// attached under both docs and slides.
+	// Note: insert rides the shared InsertDocText service method; comment is
+	// the shared Drive-API comment subtree, attached under both docs and
+	// slides.
 	require.ElementsMatch(t, []string{"get", "append", "insert", "replace", "delete", "comment"}, names)
 }
