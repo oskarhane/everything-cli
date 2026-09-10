@@ -238,6 +238,10 @@ everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-w
 everything-cli google docs comment list 1AbCdEfGh --all          # comment threads; resolved included with --all
 everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"   # file-level comment
 everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
+everything-cli google docs tabs list 1AbCdEfGh                     # document tabs; child tabs under their parents
+everything-cli google docs tabs create 1AbCdEfGh --title Appendix  # add a tab; echoes its tab id
+everything-cli google docs tabs rename 1AbCdEfGh --tab Appendix --title "Appendix v2"
+everything-cli google docs tabs delete 1AbCdEfGh --tab t.1a2b3c    # child tabs deleted with it
 everything-cli google docs delete 1AbCdEfGh --force            # permanent; drive file trash is the recoverable path
 
 everything-cli google sheets get 1AbCdEfGh                     # sheet tabs, grid sizes, header row
