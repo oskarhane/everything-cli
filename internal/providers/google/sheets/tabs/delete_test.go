@@ -30,6 +30,14 @@ func TestDeleteRecordsExactTitle(t *testing.T) {
 	require.Equal(t, "Notes", svc.deleteTab)
 }
 
+func TestDeleteRequiresTabTitle(t *testing.T) {
+	svc := &fakeTabService{}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, ""), seedSpreadsheetID)
+
+	require.Contains(t, err.Error(), "--tab is required")
+	require.Equal(t, 0, svc.deleteCalls, "no write without the tab title")
+}
+
 func TestDeletePropagatesUnknownTitleError(t *testing.T) {
 	svc := &fakeTabService{deleteErr: errors.New(`spreadsheet sheet_1 has no sheet named "budget"`)}
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newDeleteCmd, svc, ""), seedSpreadsheetID, "--tab", "budget")

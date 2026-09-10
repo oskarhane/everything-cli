@@ -42,6 +42,14 @@ func TestRenameRequiresTitle(t *testing.T) {
 	require.Zero(t, svc.renameCalls, "no rename on a missing title")
 }
 
+func TestRenameRequiresTabTitle(t *testing.T) {
+	svc := &fakeTabService{}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newRenameCmd, svc, ""), seedSpreadsheetID, "--title", "Archive")
+
+	require.Contains(t, err.Error(), "--tab is required")
+	require.Zero(t, svc.renameCalls, "no rename on a missing current title")
+}
+
 func TestRenamePropagatesUnknownTitleError(t *testing.T) {
 	svc := &fakeTabService{renameErr: errors.New(`spreadsheet sheet_1 has no sheet named "notes"`)}
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newRenameCmd, svc, ""), seedSpreadsheetID,

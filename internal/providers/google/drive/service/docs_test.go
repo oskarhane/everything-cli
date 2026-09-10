@@ -557,6 +557,29 @@ func TestGetDocTabTextRendersParagraphsAndTables(t *testing.T) {
 	}
 }
 
+// TestTabWithoutDocumentTabErrors proves a malformed tab response (no
+// documentTab body) errors on both read and write instead of nil-panicking.
+func TestTabWithoutDocumentTabErrors(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" || r.URL.Path != "/v1/documents/doc-1" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		writeJSON(w, &docs.Document{
+			DocumentId: "doc-1",
+			Tabs:       []*docs.Tab{{TabProperties: &docs.TabProperties{TabId: "t.Main", Title: "Notes"}}},
+		})
+	})
+
+	if _, err := svc.GetDocTabText(t.Context(), "doc-1", "t.Main"); err == nil {
+		t.Error("GetDocTabText: want error for a tab with no documentTab body")
+	}
+	if err := svc.AppendDocText(t.Context(), "doc-1", "text", "t.Main"); err == nil {
+		t.Error("AppendDocText: want error for a tab with no documentTab body")
+	}
+}
+
 // seedTabBodyDoc returns a one-tab document whose body holds both element
 // kinds GetDocTabText keeps: a text-run paragraph and a one-row table.
 func seedTabBodyDoc() *docs.Document {

@@ -23,6 +23,9 @@ everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
 everything-cli google sheets tabs rename 1AbCdEfGh --tab notes --title Archive`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if tab == "" {
+				return fmt.Errorf("--tab is required: give the exact current title of the tab to rename")
+			}
 			if title == "" {
 				return fmt.Errorf("--title is required: the tab's new title")
 			}

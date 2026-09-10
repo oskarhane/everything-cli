@@ -19,7 +19,10 @@ import (
 // InsertDocText inserts text before the given Docs-API content index in a tab
 // ("" = first tab); ReplaceDocText replaces every occurrence of find
 // (case-sensitive iff matchCase) doc-wide and returns how many occurrences
-// changed.
+// changed. AppendDocText resolves its tab key (exact tab ID, then exact
+// title) because it reads the tabs tree anyway; InsertDocText makes no read
+// and forwards the tab ID as-is, so a title key must be resolved first (e.g.
+// via ListDocTabs).
 type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	ListDocTabs(ctx context.Context, docID string) ([]DocTab, error)
@@ -100,10 +103,11 @@ func (s *realDriveService) GetDocTabText(ctx context.Context, docID, tabID strin
 	if err != nil {
 		return "", fmt.Errorf("choosing tab in document %s: %w", docID, err)
 	}
-	if tab.DocumentTab == nil || tab.DocumentTab.Body == nil {
-		return "", fmt.Errorf("tab %s in document %s has no readable body", tabID, docID)
+	body, err := tabBody(tab)
+	if err != nil {
+		return "", fmt.Errorf("tab %s in document %s: %w", tabID, docID, err)
 	}
-	return renderBodyText(tab.DocumentTab.Body), nil
+	return renderBodyText(body), nil
 }
 
 // AddDocTab adds a tab titled title to the document and returns the new
@@ -176,7 +180,11 @@ func (s *realDriveService) AppendDocText(ctx context.Context, docID, text, tabID
 	if err != nil {
 		return fmt.Errorf("choosing tab in document %s: %w", docID, err)
 	}
-	index, err := endBodyIndex(tab.DocumentTab.Body)
+	body, err := tabBody(tab)
+	if err != nil {
+		return fmt.Errorf("computing append index for document %s: %w", docID, err)
+	}
+	index, err := endBodyIndex(body)
 	if err != nil {
 		return fmt.Errorf("computing append index for document %s: %w", docID, err)
 	}
@@ -213,6 +221,16 @@ func (s *realDriveService) InsertDocText(ctx context.Context, docID, text string
 		return fmt.Errorf("inserting text into document %s: %w", docID, err)
 	}
 	return nil
+}
+
+// tabBody returns the chosen tab's document-tab body, erroring when the API
+// response omits it — a tab without a documentTab would otherwise nil-panic
+// the caller instead of failing the read or write.
+func tabBody(tab *docs.Tab) (*docs.Body, error) {
+	if tab == nil || tab.DocumentTab == nil || tab.DocumentTab.Body == nil {
+		return nil, errors.New("tab has no readable documentTab body")
+	}
+	return tab.DocumentTab.Body, nil
 }
 
 // endBodyIndex returns the insertion index that appends text at the very end

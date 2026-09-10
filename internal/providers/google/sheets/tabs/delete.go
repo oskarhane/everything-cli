@@ -1,6 +1,8 @@
 package tabs
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
@@ -21,6 +23,9 @@ everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes
 everything-cli google sheets tabs delete 1AbCdEfGh --tab notes`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if tab == "" {
+				return fmt.Errorf("--tab is required: give the exact title of the tab to delete")
+			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
