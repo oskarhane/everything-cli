@@ -235,6 +235,9 @@ everything-cli google docs get 1AbCdEfGh --out notes.txt       # raw text; witho
 everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
 everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"   # before a Docs-API content index
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
+everything-cli google docs comment list 1AbCdEfGh --all          # comment threads; resolved included with --all
+everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"   # file-level comment
+everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
 everything-cli google docs delete 1AbCdEfGh --force            # permanent; drive file trash is the recoverable path
 
 everything-cli google sheets get 1AbCdEfGh                     # sheet tabs, grid sizes, header row
@@ -245,8 +248,11 @@ everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
 
 everything-cli google slides get 1AbCdEfGh --slide 3           # text per shape; --slide narrows to one slide
 everything-cli google slides replace 1AbCdEfGh --find Acme --replace-with Zenith
+everything-cli google slides comment list 1AbCdEfGh             # same comment tree as docs
 everything-cli google slides delete 1AbCdEfGh --force          # permanent
 ```
+
+`google docs comment …` and `google slides comment …` share one comment tree (list/add/reply/resolve/reopen/delete). Comments ride the Drive API — they need the drive or drive.file scope (not the documents/presentations scopes), and added comments are file-level rather than anchored to a text selection.
 
 `--values` takes an inline JSON array of arrays; `--values-file` reads the same shape from a `.json`/`.csv`/`.tsv` file instead. Both `google sheets values append` and `google sheets values update` take `--input-option RAW|USER_ENTERED` (default `USER_ENTERED`, which parses formulas).
 
