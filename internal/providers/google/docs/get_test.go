@@ -53,3 +53,43 @@ func TestGetRequiresExactlyOneArg(t *testing.T) {
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }
+
+func TestGetTabByIDReadsTabText(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs(), docTabText: "tab body\n"}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "doc_1", "--tab", "t.def456")
+
+	// The tab render is raw content too: same stdout path as the doc-wide
+	// export, bytes verbatim, and the tab key reaches the service as given.
+	require.Equal(t, "tab body\n", out)
+	require.Equal(t, "t.def456", svc.tabReadID)
+}
+
+func TestGetTabByTitleForwardsKeyToService(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs(), docTabText: "tab body\n"}
+	out := cmdtest.RunCmd(t, newLeafCmd(newGetCmd, svc, "json"), "doc_1", "--tab", "Changelog")
+
+	// get forwards the --tab key as-is; the service resolves it (exact tab
+	// ID first, then exact title).
+	require.Equal(t, "tab body\n", out)
+	require.Equal(t, "Changelog", svc.tabReadID)
+}
+
+func TestGetTabOutWritesFile(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs(), docTabText: "tab body\n"}
+	fs := afero.NewMemMapFs()
+	cmd := newLeafCmdWithFs(newGetCmd, svc, "json", fs)
+
+	cmdtest.RunCmd(t, cmd, "doc_1", "--tab", "t.def456", "--out", "out/tab.txt")
+
+	// --tab shares the --out plumbing with the doc-wide export.
+	require.Equal(t, []byte("tab body\n"), readAll(t, fs, "out/tab.txt"))
+}
+
+func TestGetUnknownTabPropagatesServiceError(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs(), docText: "whole doc\n", docTabText: "tab body\n"}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newGetCmd, svc, "json"), "doc_1", "--tab", "nope")
+
+	// The unknown key fails the tab read; the leaf must not fall back to
+	// the doc-wide export.
+	require.ErrorContains(t, err, `no tab with ID or title "nope"`)
+}

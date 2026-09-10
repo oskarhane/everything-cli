@@ -3,7 +3,9 @@ package docs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -31,18 +33,23 @@ func TestMain(m *testing.M) {
 type fakeDocService struct {
 	service.DocService
 
-	err          error  // when set, every call fails
-	docText      string // served by GetDocText
-	appendedID   string
-	appendedText string
-	insertID     string
-	insertText   string
-	insertIndex  int64
-	replaceID    string
-	replaceFind  string
-	replaceWith  string
-	replaceCase  bool
-	replaceCount int
+	err           error            // when set, every call fails
+	docText       string           // served by GetDocText
+	docTabs       []service.DocTab // served by ListDocTabs
+	docTabText    string           // served by GetDocTabText
+	tabReadID     string           // tab key the last GetDocTabText received
+	appendedID    string
+	appendedText  string
+	appendedTabID string
+	insertID      string
+	insertText    string
+	insertIndex   int64
+	insertTabID   string
+	replaceID     string
+	replaceFind   string
+	replaceWith   string
+	replaceCase   bool
+	replaceCount  int
 }
 
 func (f *fakeDocService) GetDocText(_ context.Context, docID string) (string, error) {
@@ -56,7 +63,10 @@ func (f *fakeDocService) AppendDocText(_ context.Context, docID, text, tabID str
 	if f.err != nil {
 		return f.err
 	}
-	f.appendedID, f.appendedText = docID, text
+	if err := f.resolveTabKey(tabID); err != nil {
+		return err
+	}
+	f.appendedID, f.appendedText, f.appendedTabID = docID, text, tabID
 	return nil
 }
 
@@ -64,7 +74,7 @@ func (f *fakeDocService) InsertDocText(_ context.Context, docID, text string, in
 	if f.err != nil {
 		return f.err
 	}
-	f.insertID, f.insertText, f.insertIndex = docID, text, index
+	f.insertID, f.insertText, f.insertIndex, f.insertTabID = docID, text, index, tabID
 	return nil
 }
 
@@ -76,17 +86,63 @@ func (f *fakeDocService) ReplaceDocText(_ context.Context, docID, find, replaceW
 	return f.replaceCount, nil
 }
 
-// The five tab methods below are stubs: no docs leaf calls them yet, but the
-// interface grew, so the fake must carry them (the embedded nil DocService
-// leaves them missing otherwise).
+// ListDocTabs serves the seeded tab list; the leaves read it to resolve a
+// --tab key (insert) or not at all (get/append forward the key to the
+// service, which resolves it).
 func (f *fakeDocService) ListDocTabs(context.Context, string) ([]service.DocTab, error) {
-	return nil, nil
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.docTabs, nil
 }
 
-func (f *fakeDocService) GetDocTabText(context.Context, string, string) (string, error) {
-	return "", nil
+// GetDocTabText serves the seeded tab render and records the tab key the
+// leaf forwarded.
+func (f *fakeDocService) GetDocTabText(_ context.Context, _, tabID string) (string, error) {
+	if f.err != nil {
+		return "", f.err
+	}
+	if err := f.resolveTabKey(tabID); err != nil {
+		return "", err
+	}
+	f.tabReadID = tabID
+	return f.docTabText, nil
 }
 
+// resolveTabKey applies the real service's tab-key contract to the seeded
+// tabs — exact tab ID first, then exact title, ambiguity and unknown keys
+// erroring with the service's own wording — so unknown-key tests exercise
+// the leaves' error propagation the way a real dial would. With no tabs
+// seeded the check is inert, keeping the older tests' dumb-fake behavior.
+func (f *fakeDocService) resolveTabKey(key string) error {
+	if len(f.docTabs) == 0 {
+		return nil
+	}
+	for _, tab := range f.docTabs {
+		if tab.TabID == key {
+			return nil
+		}
+	}
+	var matches []string
+	for _, tab := range f.docTabs {
+		if tab.Title == key {
+			matches = append(matches, tab.TabID)
+		}
+	}
+	switch len(matches) {
+	case 1:
+		return nil
+	case 0:
+		return fmt.Errorf("no tab with ID or title %q", key)
+	default:
+		return fmt.Errorf("tab title %q is ambiguous: matches tabs %s; use a tab ID",
+			key, strings.Join(matches, ", "))
+	}
+}
+
+// The three tab-mutation stubs below are untouched by any docs leaf yet, but
+// the interface grew, so the fake must carry them (the embedded nil
+// DocService leaves them missing otherwise).
 func (f *fakeDocService) AddDocTab(context.Context, string, string) (string, error) {
 	return "", nil
 }
@@ -135,6 +191,16 @@ func newFileLeafCmd(build func(*app.Config, service.Dialer[service.FileService])
 // bytes, for the get streaming tests (bytes must pass through verbatim).
 func seedDocText() string {
 	return "Meeting notes\t2026\n\x1fSection two\n"
+}
+
+// seedDocTabs returns the tab list the --tab tests resolve keys against: a
+// root tab plus its child tab, so the listing mirrors a realistic
+// depth-first flattening.
+func seedDocTabs() []service.DocTab {
+	return []service.DocTab{
+		{TabID: "t.abc123", Title: "Meeting notes"},
+		{TabID: "t.def456", Title: "Changelog", Index: 1, NestingLevel: 1, ParentTabID: "t.abc123"},
+	}
 }
 
 // seedTextFile writes text to a file on the test FS and returns its path.

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 
+	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
 
@@ -88,4 +89,44 @@ func TestInsertRequiresExactlyOneArg(t *testing.T) {
 	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newInsertCmd, svc, "json"), "--index", "1", "--text", "x")
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
+}
+
+func TestInsertTabByIDReachesService(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	cmdtest.RunCmd(t, newLeafCmd(newInsertCmd, svc, "json"),
+		"doc_1", "--index", "1", "--text", "x", "--tab", "t.def456")
+
+	require.Equal(t, "t.def456", svc.insertTabID)
+	require.Equal(t, int64(1), svc.insertIndex)
+}
+
+func TestInsertTabByTitleSendsResolvedID(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	cmdtest.RunCmd(t, newLeafCmd(newInsertCmd, svc, "json"),
+		"doc_1", "--index", "1", "--text", "x", "--tab", "Changelog")
+
+	// InsertDocText makes no read of its own: the leaf resolves the title
+	// via ListDocTabs and sends the resolved tab ID.
+	require.Equal(t, "t.def456", svc.insertTabID)
+}
+
+func TestInsertUnknownTabWritesNothing(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newInsertCmd, svc, "json"),
+		"doc_1", "--index", "1", "--text", "x", "--tab", "nope")
+
+	require.ErrorContains(t, err, `no tab with ID or title "nope"`)
+	require.Empty(t, svc.insertID) // zero write calls
+}
+
+func TestInsertAmbiguousTabTitleErrors(t *testing.T) {
+	svc := &fakeDocService{docTabs: append(seedDocTabs(),
+		service.DocTab{TabID: "t.ghi789", Title: "Changelog", Index: 2, ParentTabID: "t.abc123"})}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newInsertCmd, svc, "json"),
+		"doc_1", "--index", "1", "--text", "x", "--tab", "Changelog")
+
+	// The error names the matching tabs so the caller can pick an ID.
+	require.ErrorContains(t, err, `tab title "Changelog" is ambiguous`)
+	require.ErrorContains(t, err, "t.def456, t.ghi789")
+	require.Empty(t, svc.insertID) // zero write calls
 }
