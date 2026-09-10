@@ -52,7 +52,7 @@ func (f *fakeDocService) GetDocText(_ context.Context, docID string) (string, er
 	return f.docText, nil
 }
 
-func (f *fakeDocService) AppendDocText(_ context.Context, docID, text string) error {
+func (f *fakeDocService) AppendDocText(_ context.Context, docID, text, tabID string) error {
 	if f.err != nil {
 		return f.err
 	}
@@ -60,7 +60,7 @@ func (f *fakeDocService) AppendDocText(_ context.Context, docID, text string) er
 	return nil
 }
 
-func (f *fakeDocService) InsertDocText(_ context.Context, docID, text string, index int64) error {
+func (f *fakeDocService) InsertDocText(_ context.Context, docID, text string, index int64, tabID string) error {
 	if f.err != nil {
 		return f.err
 	}
@@ -74,6 +74,29 @@ func (f *fakeDocService) ReplaceDocText(_ context.Context, docID, find, replaceW
 	}
 	f.replaceID, f.replaceFind, f.replaceWith, f.replaceCase = docID, find, replaceWith, matchCase
 	return f.replaceCount, nil
+}
+
+// The five tab methods below are stubs: no docs leaf calls them yet, but the
+// interface grew, so the fake must carry them (the embedded nil DocService
+// leaves them missing otherwise).
+func (f *fakeDocService) ListDocTabs(context.Context, string) ([]service.DocTab, error) {
+	return nil, nil
+}
+
+func (f *fakeDocService) GetDocTabText(context.Context, string, string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeDocService) AddDocTab(context.Context, string, string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeDocService) DeleteDocTab(context.Context, string, string) error {
+	return nil
+}
+
+func (f *fakeDocService) RenameDocTab(context.Context, string, string, string) error {
+	return nil
 }
 
 // fakeNewSvc returns a service.Dialer[service.DocService] handing out svc, so

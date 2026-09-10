@@ -41,7 +41,9 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 			if err != nil {
 				return err
 			}
-			if err := svc.InsertDocText(cmd.Context(), args[0], body, index); err != nil {
+			// An empty tab lets the API apply the insert to the first tab;
+			// --tab lands in a later change.
+			if err := svc.InsertDocText(cmd.Context(), args[0], body, index, ""); err != nil {
 				return err
 			}
 			if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Inserted text into document %s at index %d\n", args[0], index); err != nil {
