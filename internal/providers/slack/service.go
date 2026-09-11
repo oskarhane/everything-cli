@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/oskarhane/everything-cli/internal/output"
 )
 
 // defaultBaseURL is the Slack Web API origin. Every method is a path under
@@ -100,12 +102,8 @@ func (s *httpService) apiCall(ctx context.Context, path string, q url.Values, ou
 		return fmt.Errorf("calling slack API: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return rateLimitError(resp.Header.Get("Retry-After"))
-	}
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
-		return fmt.Errorf("slack API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	if err := s.checkStatus(resp); err != nil {
+		return err
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -126,6 +124,24 @@ func (s *httpService) apiCall(ctx context.Context, path string, q url.Values, ou
 		if err := json.Unmarshal(body, out); err != nil {
 			return fmt.Errorf("decoding slack %s response (upstream schema changed?): %w", path, err)
 		}
+	}
+	return nil
+}
+
+// checkStatus maps a non-200 response to the shared status error: a 429
+// surfaces the Retry-After seconds, and any other status echoes a body
+// capped at maxErrBodyBytes. The body passes through output.StripControl
+// before formatting because it is attacker-influenceable wire data that
+// lands in a terminal error line — an embedded ANSI escape must not
+// survive. Both apiCall and DownloadFileTo delegate here so every Slack
+// endpoint shares one status policy.
+func (s *httpService) checkStatus(resp *http.Response) error {
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return rateLimitError(resp.Header.Get("Retry-After"))
+	}
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
+		return fmt.Errorf("slack API returned %d: %s", resp.StatusCode, output.StripControl(strings.TrimSpace(string(body))))
 	}
 	return nil
 }

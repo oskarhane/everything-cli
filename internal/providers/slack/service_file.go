@@ -33,19 +33,17 @@ type filesInfoResponse struct {
 }
 
 // wireFileInfo is the pinned subset of Slack's wire file object for
-// files.info. URLPrivate is the absolute, token-gated download URL; it is
-// wire-only — DownloadFileTo consumes it and it never reaches output.
+// files.info: the attachment fields wireFile already pins, plus
+// URLPrivate, the absolute, token-gated download URL; it is wire-only —
+// DownloadFileTo consumes it and it never reaches output.
 type wireFileInfo struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Mimetype   string `json:"mimetype"`
-	Size       int64  `json:"size"`
+	wireFile
 	URLPrivate string `json:"url_private"`
 }
 
 // view maps the wire file into the shared File view, dropping url_private.
 func (f wireFileInfo) view() File {
-	return File{ID: f.ID, Name: f.Name, Mimetype: f.Mimetype, Size: f.Size}
+	return File(f.wireFile)
 }
 
 // FileInfo returns the file with the given Slack file ID (files.info). Only
@@ -121,12 +119,8 @@ func (s *httpService) DownloadFileTo(ctx context.Context, fileID string, w io.Wr
 		return fmt.Errorf("calling slack file download: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return rateLimitError(resp.Header.Get("Retry-After"))
-	}
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
-		return fmt.Errorf("slack API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	if err := s.checkStatus(resp); err != nil {
+		return err
 	}
 	if _, err := io.Copy(w, resp.Body); err != nil {
 		return fmt.Errorf("streaming slack file %s: %w", fileID, err)

@@ -75,9 +75,7 @@ type fileServerConfig struct {
 	content       []byte
 	contentStatus int    // 0 => 200
 	retryAfter    string // 429 only
-	infoStatus    int    // 0 => 200
 	infoBody      string // overrides the generated ok:true body when non-empty
-	noURL         bool   // omit url_private
 	redirectTo    string // bytes endpoint 302s here instead of serving
 	keepURLPolicy bool   // don't stub validateFileURL (rejection tests)
 }
@@ -94,18 +92,12 @@ func newFileServer(t *testing.T, cfg fileServerConfig) (*httptest.Server, *fileR
 		switch r.URL.Path {
 		case "/files.info":
 			rec.recordInfo(r.URL.Query())
-			if cfg.infoStatus != 0 {
-				w.WriteHeader(cfg.infoStatus)
-			}
 			w.Header().Set("Content-Type", "application/json")
 			if cfg.infoBody != "" {
 				_, _ = io.WriteString(w, cfg.infoBody)
 				return
 			}
 			urlPrivate := srv.URL + "/files/" + testFileID
-			if cfg.noURL {
-				urlPrivate = ""
-			}
 			_, _ = fmt.Fprintf(w,
 				`{"ok":true,"file":{"id":%q,"name":"report.pdf","mimetype":"application/pdf","size":%d,"url_private":%q}}`,
 				testFileID, len(cfg.content), urlPrivate)
@@ -304,6 +296,21 @@ func TestFileDownloadRejectsUntrustedHost(t *testing.T) {
 	assert.Contains(t, err.Error(), testFileID)
 	assert.NotContains(t, err.Error(), evil.URL)
 	assert.Empty(t, evilRec.requests())
+	assert.Equal(t, 0, rec.bytesHits)
+}
+
+// TestFileDownloadMissingURL: an ok:true files.info answer without
+// url_private fails with the no-download-URL error before any bytes request
+// is issued.
+func TestFileDownloadMissingURL(t *testing.T) {
+	srv, rec := newFileServer(t, fileServerConfig{infoBody: fileInfoBody("")})
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newFileService(t, srv))
+
+	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has no download URL")
+	assert.Contains(t, err.Error(), testFileID)
 	assert.Equal(t, 0, rec.bytesHits)
 }
 
