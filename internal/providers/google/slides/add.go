@@ -65,8 +65,9 @@ everything-cli google slides add 1AbCpresentationID --layout g1f2d3c4b5`,
 			if err != nil {
 				return err
 			}
+			row := map[string]any{"slide_id": slideID}
 			output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), addFields,
-				map[string]any{"slide_id": slideID}, []map[string]any{{"slide_id": slideID}})
+				row, []map[string]any{row})
 			return nil
 		},
 	}
