@@ -91,21 +91,21 @@ func TestComposeQuery(t *testing.T) {
 	}{
 		{"nothing", "", "", "", "", false, "trashed = false"},
 		{"query only", "owner = 'me@example.com'", "", "", "", false,
-			"owner = 'me@example.com' trashed = false"},
-		{"name only", "", "invoice", "", "", false, "name contains 'invoice' trashed = false"},
-		{"name escapes quotes", "", "O'Brien's", "", "", false, `name contains 'O\'Brien\'s' trashed = false`},
-		{"name escapes trailing backslash", "", `trailing\`, "", "", false, `name contains 'trailing\\' trashed = false`},
-		{"parent only", "", "", "1AbC", "", false, "'1AbC' in parents trashed = false"},
-		{"parent escapes quotes", "", "", `my'O'folder`, "", false, `'my\'O\'folder' in parents trashed = false`},
+			"owner = 'me@example.com' and trashed = false"},
+		{"name only", "", "invoice", "", "", false, "name contains 'invoice' and trashed = false"},
+		{"name escapes quotes", "", "O'Brien's", "", "", false, `name contains 'O\'Brien\'s' and trashed = false`},
+		{"name escapes trailing backslash", "", `trailing\`, "", "", false, `name contains 'trailing\\' and trashed = false`},
+		{"parent only", "", "", "1AbC", "", false, "'1AbC' in parents and trashed = false"},
+		{"parent escapes quotes", "", "", `my'O'folder`, "", false, `'my\'O\'folder' in parents and trashed = false`},
 		{"mime shorthand", "", "", "", "folder", false,
-			"mimeType = 'application/vnd.google-apps.folder' trashed = false"},
+			"mimeType = 'application/vnd.google-apps.folder' and trashed = false"},
 		{"mime raw passthrough", "", "", "", "image/png", false,
-			"mimeType = 'image/png' trashed = false"},
-		{"mime escapes quotes", "", "", "", `we'ird`, false, `mimeType = 'we\'ird' trashed = false`},
+			"mimeType = 'image/png' and trashed = false"},
+		{"mime escapes quotes", "", "", "", `we'ird`, false, `mimeType = 'we\'ird' and trashed = false`},
 		{"trashed flag drops term", "", "", "", "", true, ""},
 		{"all combined", "fullText = 'q'", "note", "1AbC", "doc", false,
-			"fullText = 'q' name contains 'note' '1AbC' in parents " +
-				"mimeType = 'application/vnd.google-apps.document' trashed = false"},
+			"fullText = 'q' and name contains 'note' and '1AbC' in parents and " +
+				"mimeType = 'application/vnd.google-apps.document' and trashed = false"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -113,6 +113,15 @@ func TestComposeQuery(t *testing.T) {
 			require.Equal(t, tt.want, strings.TrimSpace(got))
 		})
 	}
+}
+
+// TestComposeQueryMultiTermJoinsWithAnd pins the exact multi-term q shape:
+// Drive v3 has no implicit AND, so non-empty terms are joined with " and ".
+func TestComposeQueryMultiTermJoinsWithAnd(t *testing.T) {
+	got := composeQuery("", "template", "", "application/vnd.google-apps.presentation", false)
+	require.Equal(t,
+		"name contains 'template' and mimeType = 'application/vnd.google-apps.presentation' and trashed = false",
+		got)
 }
 
 // keysOf returns the map's keys sorted for assertion-friendly ordering.

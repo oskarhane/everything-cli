@@ -106,9 +106,10 @@ func escapeQ(s string) string {
 }
 
 // composeQuery builds the API's q parameter from the raw --query passthrough
-// plus the composed shorthand terms, ANDed (space-joined in Drive q syntax).
-// --trashed=false adds trashed = false so trashed files are excluded by
-// default; --trashed leaves the term off so both are returned.
+// plus the composed shorthand terms, joined with an explicit " and ". Drive q
+// has no implicit conjunction, so space-joined terms are rejected with
+// "Invalid Value". --trashed=false adds trashed = false so trashed files are
+// excluded by default; --trashed leaves the term off so both are returned.
 func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 	var terms []string
 	if query != "" {
@@ -126,7 +127,7 @@ func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 	if !trashed {
 		terms = append(terms, "trashed = false")
 	}
-	return strings.Join(terms, " ")
+	return strings.Join(terms, " and ")
 }
 
 // resolveMime expands a --mime shorthand to its Drive MIME type; other values
