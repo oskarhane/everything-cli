@@ -124,6 +124,35 @@ func TestComposeQueryMultiTermJoinsWithAnd(t *testing.T) {
 		got)
 }
 
+// TestResolveExportMime pins the --export shorthand expansion: every
+// documented shorthand maps to its full MIME type and anything else (a full
+// MIME string, an unknown token) passes through unchanged.
+func TestResolveExportMime(t *testing.T) {
+	tests := map[string]string{
+		"pdf":  "application/pdf",
+		"pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		"csv":  "text/csv",
+		"tsv":  "text/tab-separated-values",
+		"md":   "text/markdown",
+		"txt":  "text/plain",
+		"odt":  "application/vnd.oasis.opendocument.text",
+		"ods":  "application/vnd.oasis.opendocument.spreadsheet",
+		"odp":  "application/vnd.oasis.opendocument.presentation",
+		// Unmapped values pass through raw.
+		"application/vnd.google-apps.presentation": "application/vnd.google-apps.presentation",
+		"application/pdf":                          "application/pdf",
+		"bogus":                                    "bogus",
+		"":                                         "",
+	}
+	for in, want := range tests {
+		t.Run(in, func(t *testing.T) {
+			require.Equal(t, want, resolveExportMime(in))
+		})
+	}
+}
+
 // keysOf returns the map's keys sorted for assertion-friendly ordering.
 func keysOf(m map[string]any) []string {
 	keys := make([]string, 0, len(m))

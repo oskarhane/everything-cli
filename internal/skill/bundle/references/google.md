@@ -353,11 +353,14 @@ everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent
 ### file download
 
 - `google drive file download <file-id>` — `--out <file>` (else bytes to
-  stdout for piping), `--export <mime>`. Binary files stream via
+  stdout for piping), `--export <mime|shorthand>`. Binary files stream via
   alt=media. Google-native types have no downloadable binary and must be
   exported. Export defaults when `--export` is unset: doc →
   `text/plain`, sheet → `text/csv`, slide → `text/plain`; other native
   types refuse until `--export` names a supported export MIME.
+- `--export` accepts shorthands (expanded to the full MIME) or a full
+  MIME string: `pdf`, `pptx`, `docx`, `xlsx`, `csv`, `tsv`, `md`, `txt`,
+  `odt`, `ods`, `odp`.
 - Export caveat: sheet exports (`text/csv`, `text/tab-separated-values`)
   cover the FIRST SHEET ONLY, and Drive caps exports at 10 MB (larger
   exports are truncated with a warning marker). Other supported exports:
@@ -370,6 +373,7 @@ everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent
 ```sh
 everything-cli google drive file download 1AbCdEfGh --out report.pdf
 everything-cli google drive file download 1AbCdEfGh --export text/csv > data.csv
+everything-cli google drive file download 1AbCdEfGh --export pptx > deck.pptx
 ```
 
 ### file trash / untrash
