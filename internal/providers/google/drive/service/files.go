@@ -9,6 +9,17 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+// fileFields is the Drive file field projection shared by Files.List and
+// Files.Get. It mirrors exactly what file/render.go renders (fileRow plus the
+// fileView description), and pins trashed explicitly — the API default omits
+// it, so a listing without this projection would always report trashed=false.
+const fileFields = "id,name,mimeType,size,owners,parents,trashed,shared,modifiedTime,webViewLink,description"
+
+// fileListFields wraps fileFields in the Files.List envelope. The
+// nextPageToken is required or multi-page listings would be truncated to page
+// one.
+const fileListFields = "nextPageToken,files(" + fileFields + ")"
+
 // FileService is the Drive API surface the file leaves use. Thin wrappers
 // over Files, so fakes model file resources, not call objects.
 type FileService interface {
@@ -30,7 +41,7 @@ type FileService interface {
 // maxFilePageSize.
 func (s *realDriveService) ListFiles(ctx context.Context, query string, maxResults int64) ([]*drive.File, error) {
 	return pageAllBudgeted(maxResults, func(page string, remaining int64) ([]*drive.File, string, error) {
-		call := s.drive.Files.List()
+		call := s.drive.Files.List().Fields(fileListFields)
 		if query != "" {
 			call = call.Q(query)
 		}
@@ -48,10 +59,11 @@ func (s *realDriveService) ListFiles(ctx context.Context, query string, maxResul
 	})
 }
 
-// GetFile returns the file's metadata. The API returns full metadata by
-// default, so no Fields projection is needed here.
+// GetFile returns the file's metadata. Fields is pinned to the rendered field
+// set so trashed (and the fileView description) come back; nextPageToken does
+// not apply to a single resource.
 func (s *realDriveService) GetFile(ctx context.Context, fileID string) (*drive.File, error) {
-	file, err := s.drive.Files.Get(fileID).Context(ctx).Do()
+	file, err := s.drive.Files.Get(fileID).Fields(fileFields).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting file %s: %w", fileID, err)
 	}
