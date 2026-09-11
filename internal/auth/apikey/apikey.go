@@ -46,6 +46,14 @@ type Config struct {
 	// no flag value is given ("LINEAR_API_KEY"); empty disables the env
 	// source.
 	EnvVar string
+	// Validate optionally verifies a captured key before the account is
+	// persisted — typically a cheap identity probe against the provider —
+	// and returns provider-defined metadata stored as Account.Identity.
+	// A returned error aborts Add before any account file is written.
+	// The key is already registered for redaction when the hook runs, so
+	// neither the hook nor its error can leak it. Nil disables validation
+	// (the Linear and Granola configs today).
+	Validate func(ctx context.Context, key string) (map[string]string, error)
 }
 
 // Strategy is the auth.Strategy for API-key providers. The getenv and
@@ -93,16 +101,24 @@ type authPayload struct {
 }
 
 // Add captures the key — flag value, then env var, then a hidden prompt —
-// and persists the account under the provider's store directory. The key
-// is registered for redaction immediately at capture, before anything
-// could print it.
-func (s *Strategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
+// verifies it through the optional Validate hook, and persists the account
+// under the provider's store directory. The key is registered for redaction
+// immediately at capture, before the hook can run or anything could print
+// it. A hook error aborts Add with no account file written.
+func (s *Strategy) Add(ctx context.Context, _ afero.Fs, store *config.Store, opts auth.AddOptions) (*config.Account, error) {
 	key, err := s.capture(opts.APIKey)
 	if err != nil {
 		return nil, err
 	}
 	// Mint point (AGENTS.md rule): register before any output path exists.
 	auth.RegisterSecret(key)
+	var identity map[string]string
+	if s.cfg.Validate != nil {
+		identity, err = s.cfg.Validate(ctx, key)
+		if err != nil {
+			return nil, fmt.Errorf("validating API key: %w", err)
+		}
+	}
 	payload, err := json.Marshal(authPayload{APIKey: key})
 	if err != nil {
 		return nil, fmt.Errorf("encoding auth payload: %w", err)
@@ -110,6 +126,7 @@ func (s *Strategy) Add(_ context.Context, _ afero.Fs, store *config.Store, opts 
 	acct := &config.Account{
 		Name:     opts.Name,
 		Provider: s.cfg.Provider,
+		Identity: identity,
 		Auth:     payload,
 	}
 	if err := store.Save(acct); err != nil {

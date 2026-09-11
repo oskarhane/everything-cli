@@ -24,6 +24,7 @@ var (
 	bearerConfig   = Config{Provider: "granola", HeaderName: "Authorization", HeaderFormat: "Bearer %s", EnvVar: "GRANOLA_API_KEY"}
 	xapiKeyConfig  = Config{Provider: "acme", HeaderName: "X-Api-Key", HeaderFormat: "%s", EnvVar: ""}
 	errPromptBroke = errors.New("prompt broke")
+	errValidate    = errors.New("validate rejected the key")
 )
 
 func newTestStrategy(t *testing.T, cfg Config) *Strategy {
@@ -155,6 +156,89 @@ func TestAddNoKeyAvailable(t *testing.T) {
 		_, err := s.Add(context.Background(), fs, store, auth.AddOptions{Name: "work"})
 		assert.ErrorIs(t, err, errPromptBroke)
 	})
+}
+
+// TestAddNilValidateHookUnchanged: a nil Validate hook leaves Add exactly
+// as it was for the Linear/Granola configs — no identity is invented and
+// the persisted document shape is unchanged.
+func TestAddNilValidateHookUnchanged(t *testing.T) {
+	s := newTestStrategy(t, linearConfig)
+	store, fs := newTestStore(t)
+
+	acct, err := s.Add(context.Background(), fs, store, auth.AddOptions{Name: "work", APIKey: "test-key-nil-hook"})
+	require.NoError(t, err)
+	assert.Nil(t, acct.Identity)
+
+	raw, err := afero.ReadFile(fs, "/cfg/accounts/linear/work.json")
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "identity", "nil hook leaves the saved JSON shape untouched")
+}
+
+// TestAddValidateErrorWritesNoAccount: a Validate hook error aborts Add
+// before persistence, wrapping the hook error; a rejected key leaves no
+// account file (and no default pointer) behind.
+func TestAddValidateErrorWritesNoAccount(t *testing.T) {
+	cfg := linearConfig
+	cfg.Validate = func(context.Context, string) (map[string]string, error) {
+		return nil, errValidate
+	}
+	s := newTestStrategy(t, cfg)
+	store, fs := newTestStore(t)
+
+	_, err := s.Add(context.Background(), fs, store, auth.AddOptions{Name: "work", APIKey: "test-key-rejected"})
+	require.ErrorIs(t, err, errValidate, "the hook error is wrapped, not swallowed")
+	assert.Contains(t, err.Error(), "validating API key")
+
+	files, err := afero.Glob(fs, "/cfg/accounts/*/*.json")
+	require.NoError(t, err)
+	assert.Empty(t, files, "a rejected key must not create an account file")
+}
+
+// TestAddValidateIdentityPersisted: the map returned by Validate lands as
+// Account.Identity on the returned record and in the saved provider JSON.
+func TestAddValidateIdentityPersisted(t *testing.T) {
+	cfg := linearConfig
+	cfg.Validate = func(_ context.Context, key string) (map[string]string, error) {
+		assert.Equal(t, "test-key-identity", key, "the hook receives the captured key")
+		return map[string]string{"user": "u"}, nil
+	}
+	s := newTestStrategy(t, cfg)
+	store, fs := newTestStore(t)
+
+	acct, err := s.Add(context.Background(), fs, store, auth.AddOptions{Name: "work", APIKey: "test-key-identity"})
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"user": "u"}, acct.Identity)
+
+	raw, err := afero.ReadFile(fs, "/cfg/accounts/linear/work.json")
+	require.NoError(t, err)
+	var saved config.Account
+	require.NoError(t, json.Unmarshal(raw, &saved))
+	assert.Equal(t, map[string]string{"user": "u"}, saved.Identity, "identity is persisted in the account JSON")
+	assert.Contains(t, string(raw), `"identity"`)
+}
+
+// TestValidateHookRunsAfterRedactionRegistration pins the mint-point rule
+// on the hook path: by the time Validate runs the key is already in the
+// redaction registry, so a failing hook that echoes the key cannot leak it
+// through the error print.
+func TestValidateHookRunsAfterRedactionRegistration(t *testing.T) {
+	const key = "test-key-hook-redact"
+	cfg := linearConfig
+	cfg.Validate = func(_ context.Context, got string) (map[string]string, error) {
+		require.Equal(t, key, got)
+		scrubbed := auth.Redact("rejected key: " + got)
+		assert.NotContains(t, scrubbed, key, "the key must be registered before the hook runs")
+		assert.Contains(t, scrubbed, "***")
+		return nil, errValidate
+	}
+	s := newTestStrategy(t, cfg)
+	store, fs := newTestStore(t)
+
+	_, err := s.Add(context.Background(), fs, store, auth.AddOptions{Name: "work", APIKey: key})
+	require.ErrorIs(t, err, errValidate)
+	scrubbed := auth.Redact("add failed for key " + key)
+	assert.NotContains(t, scrubbed, key, "the failed add path must not leak the key")
+	assert.Contains(t, scrubbed, "***")
 }
 
 // TestClientSetsConfiguredHeader: each provider config yields a client

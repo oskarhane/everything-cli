@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "user": "U0GRACE",
+      "text": "Ship it.",
+      "ts": "1726038180.000300",
+      "thread_ts": "1726038000.000100"
+    },
+    {
+      "type": "message",
+      "user": "U0ALAN",
+      "text": "Closing the incident.",
+      "ts": "1726038240.000350",
+      "thread_ts": "1726038000.000100"
+    }
+  ],
+  "has_more": false,
+  "response_metadata": {"next_cursor": ""}
+}

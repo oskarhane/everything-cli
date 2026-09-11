@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "query": "from:me",
+  "messages": {
+    "total": 4,
+    "paging": { "count": 2, "total": 4, "page": 2, "pages": 2 },
+    "matches": [
+      {
+        "iid": "search-msg-3",
+        "team": "T0B5K0M1AAC",
+        "channel": { "id": "D0DIRECT", "name": "directmessage", "is_im": true },
+        "type": "message",
+        "user": "U02H6ECK2",
+        "username": "oskar",
+        "ts": "1757480000.000300",
+        "text": "third match",
+        "permalink": "https://hanelabs.slack.com/archives/D0DIRECT/p1757480000000300"
+      },
+      {
+        "iid": "search-msg-4",
+        "team": "T0B5K0M1AAC",
+        "channel": { "id": "C0OTHERS", "name": "random", "is_channel": true },
+        "type": "message",
+        "user": "U02H6ECK2",
+        "username": "oskar",
+        "ts": "1757470000.000400",
+        "text": "fourth match",
+        "permalink": "https://hanelabs.slack.com/archives/C0OTHERS/p1757470000000400"
+      }
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "ok": true,
+  "query": "from:me",
+  "messages": {
+    "total": 4,
+    "paging": { "count": 2, "total": 4, "page": 1, "pages": 2 },
+    "matches": [
+      {
+        "iid": "search-msg-1",
+        "team": "T0B5K0M1AAC",
+        "channel": { "id": "C0B3HMXFEUV", "name": "general", "is_channel": true },
+        "type": "message",
+        "user": "U02H6ECK2",
+        "username": "oskar",
+        "ts": "1757500000.000100",
+        "text": "deployed the ingest fix",
+        "permalink": "https://hanelabs.slack.com/archives/C0B3HMXFEUV/p1757500000000100",
+        "thread_ts": "1757499000.000050",
+        "reply_count": 2,
+        "reactions": [{ "name": "eyes", "count": 1, "users": ["U0SECOND"] }],
+        "edited": { "user": "U02H6ECK2", "ts": "1757500100.000000" }
+      },
+      {
+        "iid": "search-msg-2",
+        "team": "T0B5K0M1AAC",
+        "channel": { "id": "C0B3HMXFEUV", "name": "general", "is_channel": true },
+        "type": "message",
+        "user": "U02H6ECK2",
+        "username": "oskar",
+        "ts": "1757490000.000200",
+        "text": "opened the release checklist",
+        "permalink": "https://hanelabs.slack.com/archives/C0B3HMXFEUV/p1757490000000200"
+      }
+    ]
+  }
+}

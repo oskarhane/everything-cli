@@ -1,0 +1,9 @@
+{
+  "ok": true,
+  "user": {
+    "id": "U0BOT12345",
+    "name": "botskar",
+    "real_name": "Botskar Bot",
+    "is_bot": true
+  }
+}

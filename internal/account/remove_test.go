@@ -27,7 +27,7 @@ func TestRemoveRequiresForce(t *testing.T) {
 
 	t.Run("plain", func(t *testing.T) {
 		cfg, root, out := newAccountEnv(t, linearSpec)
-		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
+		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
 
 		_, err := execute(t, root, out, "account", "remove", "work")
 		require.Error(t, err)
@@ -66,8 +66,8 @@ func TestRemoveDefaultPromotesAndAnnounces(t *testing.T) {
 
 	t.Run("plain", func(t *testing.T) {
 		cfg, root, out := newAccountEnv(t, linearSpec)
-		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
-		seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456")
+		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
+		seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456", nil)
 
 		outStr, err := execute(t, root, out, "account", "remove", "work", "--force")
 		require.NoError(t, err)
@@ -103,7 +103,7 @@ func TestRemoveNonDefaultKeepsDefault(t *testing.T) {
 // default; with nothing to promote, nothing is announced.
 func TestRemoveOnlyAccountClearsDefault(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
-	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
 
 	outStr, err := execute(t, root, out, "account", "remove", "work", "--force")
 	require.NoError(t, err)

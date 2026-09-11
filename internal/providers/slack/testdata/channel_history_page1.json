@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "ts": "1512085950.000216",
+      "user": "U02H6ECK2",
+      "text": "deploy is green",
+      "thread_ts": "1512085940.000100",
+      "reply_count": 2,
+      "reactions": [
+        {"name": "eyes", "count": 3, "users": ["U1", "U2", "U3"]}
+      ],
+      "edited": {"user": "U02H6ECK2", "ts": "1512085960.000300"},
+      "client_msg_id": "unmapped-field"
+    },
+    {
+      "type": "message",
+      "ts": "1512085940.000100",
+      "user": "U0BOT",
+      "text": "first"
+    }
+  ],
+  "has_more": true,
+  "pin_count": 0,
+  "response_metadata": {
+    "next_cursor": "cursor-history-2"
+  }
+}

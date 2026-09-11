@@ -1,6 +1,6 @@
 # everything-cli
 
-One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, Granola, regular IMAP/SMTP email, and podcast transcripts — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
+One command-line tool for many SaaS providers — Google (Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube), Linear, Granola, Slack, regular IMAP/SMTP email, and podcast transcripts — behind one set of conventions, with multi-account support per provider. Built to be agent-friendly: every read command supports `--format json|table|toon`, and output auto-detects agent harnesses (e.g. `CLAUDECODE`) and switches to token-efficient `toon` automatically.
 
 The command layout is provider-first:
 
@@ -17,6 +17,7 @@ everything-cli google drive file share 1AbCdEfGh --role reader --email a@x.com
 everything-cli google youtube transcript https://youtu.be/dQw4w9WgXcQ --lang en
 everything-cli linear issue list --team 9c1e2f3a-... --format json
 everything-cli granola note list --created-after 2026-08-01
+everything-cli slack search messages --query "from:me deploy" --max 25
 everything-cli email message list --mailbox INBOX --limit 10
 everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 ```
@@ -28,6 +29,7 @@ everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts | Google OAuth (your own OAuth Desktop-app client; per-account token cache). YouTube needs no account at all. |
 | `linear` | Linear issues, teams, projects | Personal API key **or** OAuth (browser flow with PKCE) |
 | `granola` | Granola notes (read-only) | Official `grn_` API key — requires a Granola **Business or Enterprise** plan |
+| `slack` | Slack message search, channels, threads, and workspace members (read-only) | `xoxp-` user token (`SLACK_API_KEY` / hidden prompt). Bot tokens (`xoxb-`) fail `search messages`; see the [Slack reference](internal/skill/bundle/references/slack.md) |
 | `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send | Username + password per account |
 | `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL | No account at all |
 
@@ -76,6 +78,21 @@ Requires a Granola **Business or Enterprise** plan — personal plans cannot cre
 ```sh
 everything-cli granola account add work                       # hidden prompt
 GRANOLA_API_KEY=grn_... everything-cli granola account add work  # non-interactive
+```
+
+### Slack (`xoxp-` user token)
+
+Read-only: message search, channel history/list, threads, and workspace members. User tokens start with `xoxp-`; bot tokens (`xoxb-`) cannot call `search messages`. `account add` validates the token against `auth.test` before saving it:
+
+```sh
+everything-cli slack account add work                        # hidden prompt
+SLACK_API_KEY=xoxp-... everything-cli slack account add work # non-interactive
+
+everything-cli slack channel list
+everything-cli slack channel history --channel C0B3HMXFEUV --max 25
+everything-cli slack search messages --query "from:me deploy" --format json
+everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100
+everything-cli slack user list --query eng
 ```
 
 ### Email (IMAP/SMTP username + password)
@@ -307,6 +324,19 @@ Read-only: list and get notes (with AI summaries) via the official Granola publi
 ```sh
 everything-cli granola note list [--created-after 2026-08-01] [--created-before 2026-09-01] [--folder-id fol_...]
 everything-cli granola note get not_abc123def456 [--include-transcript]
+```
+
+### Slack
+
+Read-only workspace access. Every paged read takes `--max` (default 25; `0` = no cap):
+
+```sh
+everything-cli slack channel list [--types public_channel,private_channel]
+everything-cli slack channel history --channel C0B3HMXFEUV [--oldest <ts> --latest <ts>] [--max 25]
+everything-cli slack search messages --query "in:#general incident" [--sort timestamp] [--max 50]
+everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100
+everything-cli slack user get --user U02H6ECK2
+everything-cli slack user list [--query oskar] [--max 25]
 ```
 
 ### Email
