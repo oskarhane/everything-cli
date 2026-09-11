@@ -26,8 +26,8 @@ func TestUseSetsDefault(t *testing.T) {
 
 	t.Run("plain", func(t *testing.T) {
 		cfg, root, out := newAccountEnv(t, linearSpec)
-		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
-		seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456")
+		seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
+		seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456", nil)
 
 		outStr, err := execute(t, root, out, "account", "use", "personal")
 		require.NoError(t, err)

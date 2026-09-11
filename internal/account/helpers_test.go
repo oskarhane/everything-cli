@@ -88,14 +88,16 @@ func seedGoogleAccount(t *testing.T, cfg *app.Config, name, email string) {
 }
 
 // seedKeyAccount persists a key-based provider account directly in the
-// store, bypassing the capture flow.
-func seedKeyAccount(t *testing.T, cfg *app.Config, provider, name, key string) {
+// store, bypassing the capture flow. A nil identity stores no identity map;
+// a non-nil one carries provider metadata (slack's auth.test values).
+func seedKeyAccount(t *testing.T, cfg *app.Config, provider, name, key string, identity map[string]string) {
 	t.Helper()
 	payload, err := json.Marshal(map[string]string{"api_key": key})
 	require.NoError(t, err)
 	require.NoError(t, newStore(t, cfg).Save(&config.Account{
 		Name:     name,
 		Provider: provider,
+		Identity: identity,
 		Auth:     payload,
 	}))
 }

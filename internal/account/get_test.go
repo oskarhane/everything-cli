@@ -8,9 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
-	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // TestGetIdentityShowsMetadataWithoutTokenValues: every output format shows
@@ -77,7 +75,7 @@ func TestGetIdentityTableHeadersUpperCased(t *testing.T) {
 // provider in every format, and the API key never reaches output.
 func TestGetPlainShowsMetadataOnly(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
-	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
 
 	for _, format := range []string{"json", "table", "toon"} {
 		t.Run(format, func(t *testing.T) {
@@ -105,20 +103,6 @@ func TestGetUnknownAccountErrors(t *testing.T) {
 	}
 }
 
-// seedKeyIdentityAccount persists a key-based provider account carrying an
-// Identity map (slack's auth.test metadata), bypassing the capture flow.
-func seedKeyIdentityAccount(t *testing.T, cfg *app.Config, provider, name, key string, identity map[string]string) {
-	t.Helper()
-	payload, err := json.Marshal(map[string]string{"api_key": key})
-	require.NoError(t, err)
-	require.NoError(t, newStore(t, cfg).Save(&config.Account{
-		Name:     name,
-		Provider: provider,
-		Identity: identity,
-		Auth:     payload,
-	}))
-}
-
 // TestGetPlainRendersStoredIdentity: a key-based provider account with a
 // non-empty Identity map renders every entry as an additional top-level
 // field — in every output format — beside name and provider, and never the
@@ -127,7 +111,7 @@ func TestGetPlainRendersStoredIdentity(t *testing.T) {
 	for _, format := range []string{"json", "table", "toon"} {
 		t.Run(format, func(t *testing.T) {
 			cfg, root, out := newAccountEnv(t, linearSpec)
-			seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+			seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 				"user": "oskar",
 				"team": "Neo4j",
 			})
@@ -149,7 +133,7 @@ func TestGetPlainRendersStoredIdentity(t *testing.T) {
 // flattened into the JSON object, not nested under an "identity" key.
 func TestGetPlainIdentityJSONKeysAreTopLevel(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
-	seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 		"user_id": "U02H6ECK2",
 		"team":    "Neo4j",
 	})
@@ -170,7 +154,7 @@ func TestGetPlainIdentityJSONKeysAreTopLevel(t *testing.T) {
 // then the identity keys in sorted order, upper-cased by go-pretty.
 func TestGetPlainIdentityTableHeadersSorted(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
-	seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 		"user_id": "U02H6ECK2",
 		"team":    "Neo4j",
 	})

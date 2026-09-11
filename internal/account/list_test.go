@@ -62,8 +62,8 @@ func TestListIdentityMarksDefaultTable(t *testing.T) {
 // name/default, never an email key, and the API key never reaches output.
 func TestListPlainMarksDefaultJSON(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
-	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123")
-	seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456")
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-123", nil)
+	seedKeyAccount(t, cfg, linearSpec.ProviderID, "personal", "test-key-456", nil)
 
 	outStr, err := execute(t, root, out, "account", "list", "--format", "json")
 	require.NoError(t, err)
