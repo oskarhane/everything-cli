@@ -41,7 +41,7 @@ func TestValidateKeyMapsAuthTestIdentity(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"ok": true,
 			"url": "https://example.slack.com/",
-			"team": "Neo4j",
+			"team": "Hanelabs",
 			"user": "oskar",
 			"team_id": "T0B5K0M1AAC",
 			"user_id": "U02H6ECK2",
@@ -55,7 +55,7 @@ func TestValidateKeyMapsAuthTestIdentity(t *testing.T) {
 	identity, err := validateKey(context.Background(), "xoxp-user-token")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{
-		"team":    "Neo4j",
+		"team":    "Hanelabs",
 		"team_id": "T0B5K0M1AAC",
 		"user":    "oskar",
 		"user_id": "U02H6ECK2",
@@ -68,7 +68,7 @@ func TestValidateKeyMapsAuthTestIdentity(t *testing.T) {
 func TestValidateKeyWarnsOnNonUserToken(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"ok":true,"team":"Neo4j","team_id":"T0B5K0M1AAC","user":"botskar","user_id":"U0BOT"}`))
+		_, _ = w.Write([]byte(`{"ok":true,"team":"Hanelabs","team_id":"T0B5K0M1AAC","user":"botskar","user_id":"U0BOT"}`))
 	}))
 	t.Cleanup(srv.Close)
 	stubValidateBase(t, srv.URL)

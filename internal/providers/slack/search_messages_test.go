@@ -189,7 +189,7 @@ func TestSearchMessagesJSONEchoesQueryAndMatchFields(t *testing.T) {
 	assert.Equal(t, "oskar", first["username"])
 	assert.Equal(t, "1757500000.000100", first["ts"])
 	assert.Equal(t, "deployed the ingest fix", first["text"])
-	assert.Equal(t, "https://neo4j.slack.com/archives/C0B3HMXFEUV/p1757500000000100", first["permalink"])
+	assert.Equal(t, "https://hanelabs.slack.com/archives/C0B3HMXFEUV/p1757500000000100", first["permalink"])
 	assert.Equal(t, "1757499000.000050", first["thread_ts"])
 
 	_, hasThread := payload.Messages[1]["thread_ts"]

@@ -16,7 +16,7 @@ import (
 
 // authTestOK is a successful auth.test answer carrying the workspace
 // identity the validate hook maps into Account.Identity.
-const authTestOK = `{"ok":true,"team":"Neo4j","team_id":"T0B5K0M1AAC","user":"oskar","user_id":"U02H6ECK2"}`
+const authTestOK = `{"ok":true,"team":"Hanelabs","team_id":"T0B5K0M1AAC","user":"oskar","user_id":"U02H6ECK2"}`
 
 // stubAuthTest points the real validate hook's auth.test probe at an
 // httptest server answering body, for the test's lifetime. The network is

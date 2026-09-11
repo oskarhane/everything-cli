@@ -14,7 +14,7 @@
         "username": "oskar",
         "ts": "1757500000.000100",
         "text": "deployed the ingest fix",
-        "permalink": "https://neo4j.slack.com/archives/C0B3HMXFEUV/p1757500000000100",
+        "permalink": "https://hanelabs.slack.com/archives/C0B3HMXFEUV/p1757500000000100",
         "thread_ts": "1757499000.000050",
         "reply_count": 2,
         "reactions": [{ "name": "eyes", "count": 1, "users": ["U0SECOND"] }],
@@ -29,7 +29,7 @@
         "username": "oskar",
         "ts": "1757490000.000200",
         "text": "opened the release checklist",
-        "permalink": "https://neo4j.slack.com/archives/C0B3HMXFEUV/p1757490000000200"
+        "permalink": "https://hanelabs.slack.com/archives/C0B3HMXFEUV/p1757490000000200"
       }
     ]
   }

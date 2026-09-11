@@ -43,7 +43,7 @@ func TestAccountAddValidatesAndStoresIdentity(t *testing.T) {
 			assert.Equal(t, "work", saved.Name)
 			assert.Equal(t, "slack", saved.Provider)
 			assert.Equal(t, map[string]string{
-				"team":    "Neo4j",
+				"team":    "Hanelabs",
 				"team_id": "T0B5K0M1AAC",
 				"user":    "oskar",
 				"user_id": "U02H6ECK2",
@@ -107,7 +107,7 @@ func TestAccountAddRejectedTokenWritesNothing(t *testing.T) {
 // stores the account.
 func TestAccountAddWarnsOnBotToken(t *testing.T) {
 	cfg, root, out := newSlackEnv(t)
-	stubAuthTest(t, `{"ok":true,"team":"Neo4j","team_id":"T0B5K0M1AAC","user":"botskar","user_id":"U0BOT"}`)
+	stubAuthTest(t, `{"ok":true,"team":"Hanelabs","team_id":"T0B5K0M1AAC","user":"botskar","user_id":"U0BOT"}`)
 	warned := stubWarnWriter(t)
 	const token = "xoxb-bot-token"
 

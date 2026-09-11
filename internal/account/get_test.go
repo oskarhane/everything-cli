@@ -113,7 +113,7 @@ func TestGetPlainRendersStoredIdentity(t *testing.T) {
 			cfg, root, out := newAccountEnv(t, linearSpec)
 			seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 				"user": "oskar",
-				"team": "Neo4j",
+				"team": "Hanelabs",
 			})
 
 			outStr, err := execute(t, root, out, "account", "get", "work", "--format", format)
@@ -122,7 +122,7 @@ func TestGetPlainRendersStoredIdentity(t *testing.T) {
 			assert.Contains(t, outStr, "work")
 			assert.Contains(t, outStr, "linear")
 			assert.Contains(t, outStr, "oskar")
-			assert.Contains(t, outStr, "Neo4j")
+			assert.Contains(t, outStr, "Hanelabs")
 			assert.NotContains(t, outStr, "test-key-identity",
 				"format %s leaked the API key", format)
 		})
@@ -135,7 +135,7 @@ func TestGetPlainIdentityJSONKeysAreTopLevel(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
 	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 		"user_id": "U02H6ECK2",
-		"team":    "Neo4j",
+		"team":    "Hanelabs",
 	})
 
 	outStr, err := execute(t, root, out, "account", "get", "work", "--format", "json")
@@ -145,7 +145,7 @@ func TestGetPlainIdentityJSONKeysAreTopLevel(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(outStr), &view))
 	assert.Equal(t, "work", view["name"])
 	assert.Equal(t, "linear", view["provider"])
-	assert.Equal(t, "Neo4j", view["team"])
+	assert.Equal(t, "Hanelabs", view["team"])
 	assert.Equal(t, "U02H6ECK2", view["user_id"])
 	assert.NotContains(t, view, "identity", "identity entries are top-level fields")
 }
@@ -156,7 +156,7 @@ func TestGetPlainIdentityTableHeadersSorted(t *testing.T) {
 	cfg, root, out := newAccountEnv(t, linearSpec)
 	seedKeyAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
 		"user_id": "U02H6ECK2",
-		"team":    "Neo4j",
+		"team":    "Hanelabs",
 	})
 
 	outStr, err := execute(t, root, out, "account", "get", "work", "--format", "table")
