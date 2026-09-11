@@ -22,7 +22,7 @@ func TestFileNewCmdRegistersLeaves(t *testing.T) {
 		names = append(names, sub.Name())
 	}
 	require.ElementsMatch(t,
-		[]string{"list", "get", "create", "upload", "download", "trash", "untrash", "delete",
+		[]string{"list", "get", "create", "copy", "upload", "download", "trash", "untrash", "delete",
 			"permissions", "share", "unshare"},
 		names,
 	)

@@ -292,7 +292,7 @@ everything-cli google calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09
 
 ## drive
 
-Generic Drive file operations — list, get, create, upload, download,
+Generic Drive file operations — list, get, create, copy, upload, download,
 trash, delete, and sharing. Create Google Docs/Sheets/Slides here; their
 content-level verbs live in the docs/sheets/slides sections below.
 
@@ -338,6 +338,19 @@ everything-cli google drive file get 1AbCdEfGh --format json
 everything-cli google drive file create "Reports"
 everything-cli google drive file create "Q3 budget" --type sheet --parent 1AbCdEfGh
 everything-cli google drive file create "notes.md" --mime-type text/markdown
+```
+
+### file copy
+
+- `google drive file copy <file-id>` — duplicate a file; `--name` renames
+  the copy (default: the source's name) and `--parent` places it in a
+  folder (default: the source's parent). Drive keeps the source's MIME
+  type, so Google-native Docs/Sheets/Slides stay native and are never
+  converted.
+
+```sh
+everything-cli google drive file copy 1AbCdEfGh --format json
+everything-cli google drive file copy 1AbCdEfGh --name "Q3 report" --parent 1AbCdEfGh
 ```
 
 ### file upload
