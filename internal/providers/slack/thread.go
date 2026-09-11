@@ -10,7 +10,7 @@ import (
 // threadFields is the table field order for thread output; the same
 // snake_case names are the JSON and TOON keys of the shared Message view.
 // go-pretty's StyleLight upper-cases the headers when rendering.
-var threadFields = []string{"ts", "user", "text", "thread_ts", "reply_count", "edited"}
+var threadFields = []string{"ts", "user", "text", "thread_ts", "reply_count", "edited", "files"}
 
 // printThread renders a thread in the resolved output format: one shared
 // messageRow per message feeds both the JSON/TOON output and the table

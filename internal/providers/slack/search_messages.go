@@ -10,7 +10,7 @@ import (
 // searchMessageFields is the search.messages table field order; the same
 // snake_case names are the JSON/TOON keys where the shapes overlap.
 // go-pretty's StyleLight upper-cases the headers when rendering.
-var searchMessageFields = []string{"channel_id", "channel_name", "user", "username", "ts", "text", "permalink", "thread_ts"}
+var searchMessageFields = []string{"channel_id", "channel_name", "user", "username", "ts", "text", "permalink", "thread_ts", "files"}
 
 // newSearchMessagesCmd returns `slack search messages`: full-text search
 // across the workspace's messages (user token only), following Slack's page
@@ -56,7 +56,7 @@ everything-cli slack search messages --query "from:me" --max 0 --format json`,
 
 // searchMessageRow maps one match to its table row.
 func searchMessageRow(m SearchMatch) map[string]any {
-	return map[string]any{
+	row := map[string]any{
 		"channel_id":   m.ChannelID,
 		"channel_name": m.ChannelName,
 		"user":         m.User,
@@ -66,6 +66,10 @@ func searchMessageRow(m SearchMatch) map[string]any {
 		"permalink":    m.Permalink,
 		"thread_ts":    m.ThreadTS,
 	}
+	if len(m.Files) > 0 {
+		row["files"] = fileCell(m.Files)
+	}
+	return row
 }
 
 // printSearchMessages renders the search view: the echoed query plus the

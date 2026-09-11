@@ -209,7 +209,7 @@ func TestSearchMessagesTableHeaders(t *testing.T) {
 	stdout, err := execute(t, root, out, "slack", "search", "messages",
 		"--query", "from:me", "--max", "1", "--format", "table")
 	require.NoError(t, err)
-	for _, header := range []string{"CHANNEL_ID", "CHANNEL_NAME", "USER", "USERNAME", "TS", "TEXT", "PERMALINK", "THREAD_TS"} {
+	for _, header := range []string{"CHANNEL_ID", "CHANNEL_NAME", "USER", "USERNAME", "TS", "TEXT", "PERMALINK", "THREAD_TS", "FILES"} {
 		assert.Contains(t, stdout, header)
 	}
 	assert.Contains(t, stdout, "deployed the ingest fix")
@@ -231,6 +231,19 @@ func TestSearchMessagesBotTokenSurfacesCode(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not_allowed_token_type")
 	assert.Empty(t, stdout)
+}
+
+// TestSearchMessageRowSurfacesFilesOnlyWhenPresent: the search row carries the
+// shared files cell (name:id) only when the match has attachments.
+func TestSearchMessageRowSurfacesFilesOnlyWhenPresent(t *testing.T) {
+	withFiles := searchMessageRow(SearchMatch{
+		Message: Message{TS: "1.0", Files: []File{{ID: "F1", Name: "a.txt", Mimetype: "text/plain", Size: 1}}},
+	})
+	assert.Equal(t, "a.txt:F1", withFiles["files"].(fileCell).String())
+
+	without := searchMessageRow(SearchMatch{Message: Message{TS: "1.0"}})
+	_, hasFiles := without["files"]
+	assert.False(t, hasFiles, "files are omitted when the match has no attachments")
 }
 
 // TestSearchMessagesRequiresQuery: omitting --query fails validation before

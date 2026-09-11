@@ -11,6 +11,16 @@
       "reactions": [
         {"name": "eyes", "count": 3, "users": ["U1", "U2", "U3"]}
       ],
+      "files": [
+        {
+          "id": "F0B3HMXFEUV",
+          "name": "deploy.log",
+          "mimetype": "text/plain",
+          "size": 2048,
+          "url_private": "https://files.slack.com/files-pri/T1-F0B3HMXFEUV/deploy.log",
+          "mode": "hosted"
+        }
+      ],
       "edited": {"user": "U02H6ECK2", "ts": "1512085960.000300"},
       "client_msg_id": "unmapped-field"
     },

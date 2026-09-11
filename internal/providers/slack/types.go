@@ -24,6 +24,7 @@ type Message struct {
 	ThreadTS   string     `json:"thread_ts,omitempty"`
 	ReplyCount int        `json:"reply_count"`
 	Reactions  []Reaction `json:"reactions,omitempty"`
+	Files      []File     `json:"files,omitempty"`
 	Edited     bool       `json:"edited"`
 }
 
@@ -31,6 +32,16 @@ type Message struct {
 type Reaction struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
+}
+
+// File is one attachment on a message. Slack's wire file object carries many
+// more fields; only the four the shared view surfaces are pinned here. Slack
+// spells the content type "mimetype" (no underscore).
+type File struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Mimetype string `json:"mimetype"`
+	Size     int64  `json:"size"`
 }
 
 // reactionCell is the reactions value one message row carries. It marshals as
@@ -46,6 +57,22 @@ func (r reactionCell) String() string {
 	parts := make([]string, 0, len(r))
 	for _, reaction := range r {
 		parts = append(parts, fmt.Sprintf("%s:%d", reaction.Name, reaction.Count))
+	}
+	return strings.Join(parts, ",")
+}
+
+// fileCell is the attachments value one message row carries. It marshals as
+// the shared []File array (JSON and TOON) while String renders the table cell:
+// the comma-joined name:id list. It mirrors reactionCell so one messageRow
+// serves both the table and the JSON/TOON render formats.
+type fileCell []File
+
+// String renders the table cell form, e.g. "deploy.log:F0B3HMXFEUV"; an empty
+// attachment list renders as "".
+func (f fileCell) String() string {
+	parts := make([]string, 0, len(f))
+	for _, file := range f {
+		parts = append(parts, fmt.Sprintf("%s:%s", file.Name, file.ID))
 	}
 	return strings.Join(parts, ",")
 }
@@ -68,6 +95,9 @@ func messageRow(m Message) map[string]any {
 	}
 	if len(m.Reactions) > 0 {
 		row["reactions"] = reactionCell(m.Reactions)
+	}
+	if len(m.Files) > 0 {
+		row["files"] = fileCell(m.Files)
 	}
 	return row
 }
@@ -101,6 +131,7 @@ type wireMessage struct {
 	ThreadTS   string         `json:"thread_ts"`
 	ReplyCount int            `json:"reply_count"`
 	Reactions  []wireReaction `json:"reactions"`
+	Files      []wireFile     `json:"files"`
 	Edited     *wireEdited    `json:"edited"`
 }
 
@@ -109,6 +140,15 @@ type wireMessage struct {
 type wireReaction struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
+}
+
+// wireFile is the pinned subset of one message attachment; Slack's wire object
+// exposes many more fields and spells the content type "mimetype".
+type wireFile struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Mimetype string `json:"mimetype"`
+	Size     int64  `json:"size"`
 }
 
 // wireEdited is the marker Slack attaches to messages changed after posting;
@@ -131,6 +171,9 @@ func (m wireMessage) view(channelID string) Message {
 	}
 	for _, r := range m.Reactions {
 		msg.Reactions = append(msg.Reactions, Reaction(r))
+	}
+	for _, f := range m.Files {
+		msg.Files = append(msg.Files, File(f))
 	}
 	return msg
 }

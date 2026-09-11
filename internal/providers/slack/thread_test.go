@@ -242,7 +242,7 @@ func TestThreadTableHeadersUpperCase(t *testing.T) {
 	stdout, err := execute(t, root, out, "slack", "thread",
 		"--channel", threadFixtureChannel, "--ts", threadFixtureParentTS, "--format", "table")
 	require.NoError(t, err)
-	for _, header := range []string{"TS", "USER", "TEXT", "THREAD_TS", "REPLY_COUNT", "EDITED"} {
+	for _, header := range []string{"TS", "USER", "TEXT", "THREAD_TS", "REPLY_COUNT", "EDITED", "FILES"} {
 		assert.Contains(t, stdout, header)
 	}
 	assert.Contains(t, stdout, "Deploy is done")

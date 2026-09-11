@@ -28,13 +28,13 @@ func TestProviderWiresAccountAndResourceTrees(t *testing.T) {
 		byName[sub.Name()] = sub
 	}
 
-	for _, name := range []string{"account", "search", "channel", "user", "thread"} {
+	for _, name := range []string{"account", "search", "channel", "user", "thread", "file"} {
 		require.Contains(t, byName, name, "provider.go must wire %q", name)
 	}
 
-	// The resource trees are real: search, channel, and user are parents with
-	// leaves; thread is a runnable leaf.
-	for _, name := range []string{"search", "channel", "user"} {
+	// The resource trees are real: search, channel, user, and file are parents
+	// with leaves; thread is a runnable leaf.
+	for _, name := range []string{"search", "channel", "user", "file"} {
 		assert.NotEmpty(t, byName[name].Commands(), "resource tree %q must wire its leaves", name)
 	}
 	assert.True(t, byName["thread"].Runnable(), "thread must be a runnable leaf")

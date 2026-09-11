@@ -33,9 +33,9 @@ func init() {
 func (Provider) ID() string { return providerID }
 
 // NewCmd builds the `slack` command tree: the provider-scoped account
-// subtree and one parent per resource tree (search, channel, user, thread).
-// This is the final provider.go: later nodes replace their own non-runnable
-// stub file with the real parent/leaf, never this file.
+// subtree and one parent per resource tree (search, channel, user, thread,
+// file). This is the final provider.go: later nodes replace their own
+// non-runnable stub file with the real parent/leaf, never this file.
 func (Provider) NewCmd(cfg *app.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "slack",
@@ -46,5 +46,6 @@ func (Provider) NewCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(newChannelCmd(cfg))
 	cmd.AddCommand(newUserCmd(cfg))
 	cmd.AddCommand(newThreadCmd(cfg))
+	cmd.AddCommand(newFileCmd(cfg))
 	return cmd
 }

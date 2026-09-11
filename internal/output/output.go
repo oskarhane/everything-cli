@@ -127,7 +127,10 @@ func collapsed(v any) any {
 // cellValue resolves a (possibly nested) field path in a decoded row and
 // formats it as a table cell. Missing keys render as empty cells; strings are
 // control-stripped; numbers render without an exponent so large int64 fields
-// show their digits instead of "1e+12".
+// show their digits instead of "1e+12". The default branch covers named
+// Stringer cell types (e.g. the slack provider's reactionCell/fileCell),
+// whose String() output is control-stripped too — it may be built from
+// attacker-influenceable data and must not emit raw ANSI escapes.
 func cellValue(row map[string]any, path []string) any {
 	var v any = row
 	for _, key := range path {
@@ -145,7 +148,7 @@ func cellValue(row map[string]any, path []string) any {
 	case float64:
 		return strconv.FormatFloat(val, 'f', -1, 64)
 	default:
-		return fmt.Sprintf("%v", val)
+		return StripControl(fmt.Sprintf("%v", val))
 	}
 }
 

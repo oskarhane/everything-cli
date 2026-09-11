@@ -2,7 +2,8 @@
 
 The `slack` provider: read Slack workspaces through the Slack Web API
 (`https://slack.com/api`) — full-text message search, channel history and
-conversation listing, threads, and workspace members. Command layout:
+conversation listing, threads, workspace members, and file download.
+Command layout:
 
 ```sh
 everything-cli slack <resource> <action>
@@ -20,8 +21,8 @@ Slack authenticates with a **user token** (`xoxp-...`), sent as
 `Authorization: Bearer xoxp-...` on every Web API call. User tokens come
 from installing a Slack app with user scopes (e.g. `search:read`,
 `channels:history`, `channels:read`, `groups:history`, `im:history`,
-`mpim:history`, `users:read`) into a workspace; the token starts with
-`xoxp-`.
+`mpim:history`, `users:read`, `files:read`) into a workspace; the token
+starts with `xoxp-`.
 
 1. `everything-cli slack account add <name>` — captures the token. Capture
    order: the `--api-key` flag, then the `$SLACK_API_KEY` environment
@@ -92,9 +93,11 @@ everything-cli slack account remove old --force
   `messages`, an array that is `[]` (never null) when nothing matches.
   Each match: `channel_id`, `channel_name`, `user`, `username`, `ts`,
   `text`, `thread_ts` (thread replies only; omitted otherwise),
-  `reply_count`, `reactions` (only when present), `edited`, `permalink`.
-  Table columns: `channel_id`, `channel_name`, `user`, `username`, `ts`,
-  `text`, `permalink`, `thread_ts`.
+  `reply_count`, `reactions` (only when present), `files` (attachments:
+  array of `{id, name, mimetype, size}`, omitted when the match has none),
+  `edited`, `permalink`. Table columns: `channel_id`, `channel_name`,
+  `user`, `username`, `ts`, `text`, `permalink`, `thread_ts`, `files`
+  (the `files` cell joins `name:id` with commas).
 
 ```sh
 everything-cli slack search messages --query "from:me deploy" --format table
@@ -119,7 +122,10 @@ everything-cli slack search messages --query "from:me" --max 0 --format json
   Output fields (JSON/TOON; table order same): `ts`, `channel_id`,
   `user`, `text`, `thread_ts` (omitted when the message is not a thread
   reply), `reply_count`, `reactions` (array of `{name, count}`, only when
-  present; table cell joins `name:count` with commas), `edited` (boolean).
+  present; table cell joins `name:count` with commas), `edited` (boolean),
+  `files` (attachments: array of `{id, name, mimetype, size}`, omitted
+  when the message has none; `FILES` table cell joins `name:id` with
+  commas).
 
 ```sh
 everything-cli slack channel history --channel C0B3HMXFEUV --format json
@@ -157,13 +163,41 @@ everything-cli slack channel list --types public_channel,private_channel --forma
     at most 10 replies.
 
   JSON/TOON is the shared message array (same fields as `channel
-  history`, including `channel_id`; table: `ts`, `user`, `text`,
-  `thread_ts`, `reply_count`, `edited` — `channel_id` stays out of the
-  table because every row shares it).
+  history`, including `channel_id` and `files` — attachments
+  `{id, name, mimetype, size}`, omitted when none; table: `ts`, `user`,
+  `text`, `thread_ts`, `reply_count`, `edited`, `files` — `channel_id`
+  stays out of the table because every row shares it, and the `files`
+  cell joins `name:id` with commas).
 
 ```sh
 everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100 --format json
 everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100 --max 11 --format table
+```
+
+## file
+
+### file download
+
+- `slack file download <file-id> [--out <path>]` — download one uploaded
+  file's content (`files.info` + the authenticated `url_private`). The
+  positional `<file-id>` is Slack's file id (e.g. `F0B3HMXFEUV` — take it
+  from a message's `files` array, where each entry's table cell renders
+  `name:id`). Flag:
+  - `--out <path>` — write the bytes to this local file instead of
+    stdout. Empty streams to stdout, so redirect or pipe it
+    (`everything-cli slack file download F0B3HMXFEUV > report.pdf`).
+
+  `file download` resolves the file with `files.info`, then GETs the
+  returned `url_private` with the same authenticated token and streams the
+  body. `url_private` is wire-only and is never printed. The download is
+  unbounded (no size cap — consume or redirect as needed). Reading
+  attachments needs the `files:read` user scope; without it Slack answers
+  `missing_scope`. Like every Slack verb, this is read-only: it fetches
+  bytes and changes nothing.
+
+```sh
+everything-cli slack file download F0B3HMXFEUV > report.pdf
+everything-cli slack file download F0B3HMXFEUV --out report.pdf
 ```
 
 ## user
@@ -227,9 +261,10 @@ surfaces the raw code, plus scope detail when Slack supplies it:
 
 - **`missing_scope`** — `slack API error: missing_scope (needed:
   <scopes>; provided: <scopes>)`: the token lacks a scope the verb needs
-  (e.g. `search:read` for search, `channels:history` for channel
-  history). Remediation: re-install the app with the missing user scope
-  and add the account again.
+  (e.g. `search:read` for search, `channels:history` for channel history,
+  `missing_scope files:read` for `file download` and any message with
+  attachments). Remediation: re-install the app with the missing user
+  scope, then add the account again with `slack account add`.
 - **`invalid_auth`** — the token is invalid, revoked, or wrong (also
   raised by `account add`'s `auth.test` validation). Remediation: add a
   valid `xoxp-` token with `slack account add`.
@@ -264,6 +299,10 @@ Report that error — it means the CLI's pinned schema needs an update.
 - `user list --query` filters client-side after each page arrives — use
   it to resolve a member by name before `user get`, or to find ids for
   message `user` fields.
-- Read-only provider: there are no send, edit, delete, or reaction verbs.
+- Attachments appear as a message's `files` array (`{id, name, mimetype,
+  size}`), omitted when there are none; the `FILES` table column shows
+  `name:id`. Download one with `slack file download <id>`.
+- Read-only provider: there are no send, edit, delete, or reaction verbs;
+  `file download` only fetches bytes.
 - Output field names are snake_case in every format; table headers render
   UPPER-CASE.

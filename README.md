@@ -29,7 +29,7 @@ everything-cli email message send --to a@x.com --subject "Hi" --body "hello"
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts | Google OAuth (your own OAuth Desktop-app client; per-account token cache). YouTube needs no account at all. |
 | `linear` | Linear issues, teams, projects | Personal API key **or** OAuth (browser flow with PKCE) |
 | `granola` | Granola notes (read-only) | Official `grn_` API key — requires a Granola **Business or Enterprise** plan |
-| `slack` | Slack message search, channels, threads, and workspace members (read-only) | `xoxp-` user token (`SLACK_API_KEY` / hidden prompt). Bot tokens (`xoxb-`) fail `search messages`; see the [Slack reference](internal/skill/bundle/references/slack.md) |
+| `slack` | Slack message search, channels, threads, workspace members, and attachment/file download (read-only) | `xoxp-` user token (`SLACK_API_KEY` / hidden prompt). Bot tokens (`xoxb-`) fail `search messages`; see the [Slack reference](internal/skill/bundle/references/slack.md) |
 | `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send | Username + password per account |
 | `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL | No account at all |
 
@@ -82,7 +82,7 @@ GRANOLA_API_KEY=grn_... everything-cli granola account add work  # non-interacti
 
 ### Slack (`xoxp-` user token)
 
-Read-only: message search, channel history/list, threads, and workspace members. User tokens start with `xoxp-`; bot tokens (`xoxb-`) cannot call `search messages`. `account add` validates the token against `auth.test` before saving it:
+Read-only: message search, channel history/list, threads, workspace members, and attachment/file download. User tokens start with `xoxp-`; bot tokens (`xoxb-`) cannot call `search messages`. `account add` validates the token against `auth.test` before saving it:
 
 ```sh
 everything-cli slack account add work                        # hidden prompt
@@ -93,6 +93,7 @@ everything-cli slack channel history --channel C0B3HMXFEUV --max 25
 everything-cli slack search messages --query "from:me deploy" --format json
 everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100
 everything-cli slack user list --query eng
+everything-cli slack file download F0B3HMXFEUV --out report.pdf   # requires files:read
 ```
 
 ### Email (IMAP/SMTP username + password)
@@ -337,6 +338,7 @@ everything-cli slack search messages --query "in:#general incident" [--sort time
 everything-cli slack thread --channel C0B3HMXFEUV --ts 1726038000.000100
 everything-cli slack user get --user U02H6ECK2
 everything-cli slack user list [--query oskar] [--max 25]
+everything-cli slack file download F0B3HMXFEUV [--out report.pdf]           # requires files:read; stdout by default
 ```
 
 ### Email
