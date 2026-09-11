@@ -145,3 +145,22 @@ func TestAPICallNon200(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "502")
 }
+
+// TestAPICallNon200StripsControlBytes: the echoed error body is
+// attacker-influenceable wire data, so checkStatus strips terminal control
+// bytes (C0/DEL) from it while keeping the readable text.
+func TestAPICallNon200StripsControlBytes(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte("fail\x1b[31mred\x07"))
+	}))
+	t.Cleanup(srv.Close)
+	svc := newHTTPService(srv.Client(), srv.URL)
+
+	err := svc.apiCall(context.Background(), "/auth.test", nil, &struct{}{})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "\x1b")
+	assert.NotContains(t, err.Error(), "\x07")
+	assert.Contains(t, err.Error(), "fail")
+	assert.Contains(t, err.Error(), "red")
+}
