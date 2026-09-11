@@ -55,9 +55,9 @@ type SlideService interface {
 // verbatim — control-byte stripping is the output layer's job, not the
 // seam's.
 func (s *realDriveService) GetSlideText(ctx context.Context, id string) ([]SlideShape, error) {
-	pres, err := s.slides.Presentations.Get(id).Context(ctx).Do()
+	pres, err := s.getPresentation(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("getting presentation %s: %w", id, err)
+		return nil, err
 	}
 	var shapes []SlideShape
 	for i, slide := range pres.Slides {
@@ -77,6 +77,18 @@ func (s *realDriveService) GetSlideText(ctx context.Context, id string) ([]Slide
 		}
 	}
 	return shapes, nil
+}
+
+// getPresentation reads the whole presentation (no field mask: text and
+// placeholder data live three levels down and a too-narrow mask drops shapes
+// entirely). It is the shared read behind GetSlideText, ListSlideLayouts,
+// and ListSlidePlaceholders.
+func (s *realDriveService) getPresentation(ctx context.Context, id string) (*slides.Presentation, error) {
+	pres, err := s.slides.Presentations.Get(id).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting presentation %s: %w", id, err)
+	}
+	return pres, nil
 }
 
 // slideShapeText joins a page element's shape text runs in order, returning
@@ -124,9 +136,9 @@ func (s *realDriveService) ReplaceSlideText(ctx context.Context, id, find, repla
 // the API omits the display name). Layout order is the API's order, which
 // matches the editor's layout picker.
 func (s *realDriveService) ListSlideLayouts(ctx context.Context, id string) ([]SlideLayout, error) {
-	pres, err := s.slides.Presentations.Get(id).Context(ctx).Do()
+	pres, err := s.getPresentation(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("getting presentation %s: %w", id, err)
+		return nil, err
 	}
 	layouts := make([]SlideLayout, 0, len(pres.Layouts))
 	for _, layout := range pres.Layouts {
@@ -156,9 +168,9 @@ func slideLayoutName(layout *slides.Page) string {
 // --placeholder-idx. The whole presentation is read (no field mask) because
 // the placeholder data lives three levels down.
 func (s *realDriveService) ListSlidePlaceholders(ctx context.Context, id string) ([]SlidePlaceholder, error) {
-	pres, err := s.slides.Presentations.Get(id).Context(ctx).Do()
+	pres, err := s.getPresentation(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("getting presentation %s: %w", id, err)
+		return nil, err
 	}
 	var placeholders []SlidePlaceholder
 	for i, slide := range pres.Slides {
