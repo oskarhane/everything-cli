@@ -95,6 +95,37 @@ func TestPrintTable(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:   "control bytes stripped from Stringer cells",
+			fields: []string{"file"},
+			rows:   []map[string]any{{"file": stringerCell("evil\x1b[2J.txt:F123")}},
+			checks: []func(t *testing.T, out string){
+				func(t *testing.T, out string) {
+					assert.Contains(t, out, "evil?[2J.txt:F123")
+					assert.NotContains(t, out, "\x1b", "raw ESC from a Stringer must not reach the terminal")
+				},
+			},
+		},
+		{
+			name:   "Stringer cells without control bytes render intact",
+			fields: []string{"file"},
+			rows:   []map[string]any{{"file": stringerCell("report.pdf:F123")}},
+			checks: []func(t *testing.T, out string){
+				func(t *testing.T, out string) {
+					assert.Contains(t, out, "report.pdf:F123", "name:id renders unchanged when control-free")
+				},
+			},
+		},
+		{
+			name:   "ordinary string cells unchanged by Stringer stripping",
+			fields: []string{"note"},
+			rows:   []map[string]any{{"note": "plain value"}},
+			checks: []func(t *testing.T, out string){
+				func(t *testing.T, out string) {
+					assert.Contains(t, out, "plain value")
+				},
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
@@ -109,6 +140,13 @@ func TestPrintTable(t *testing.T) {
 		})
 	}
 }
+
+// stringerCell is a named Stringer table cell, mirroring the slack provider's
+// reactionCell/fileCell: a value whose String() may be built from
+// attacker-influenceable data and so must be control-stripped by cellValue.
+type stringerCell string
+
+func (c stringerCell) String() string { return string(c) }
 
 // TestPrintTableExactRender pins the full StyleLight rendering of a small
 // table so a style regression (borders, casing, padding) cannot pass silently.
