@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "user": "U02H6ECK2",
+      "text": "Deploy is done, monitoring the dashboards.",
+      "ts": "1726038000.000100",
+      "thread_ts": "1726038000.000100",
+      "reply_count": 4,
+      "reactions": [
+        {"name": "eyes", "count": 2, "users": ["U0GRACE", "U0ALAN"]}
+      ],
+      "edited": {"user": "U02H6ECK2", "ts": "1726038090.000270"},
+      "blocks": [
+        {
+          "type": "section",
+          "text": {"type": "mrkdwn", "text": "Deploy is done, monitoring the dashboards."}
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "user": "U0GRACE",
+      "text": "Nice! Checking the error rate now.",
+      "ts": "1726038060.000200",
+      "thread_ts": "1726038000.000100"
+    },
+    {
+      "type": "message",
+      "user": "U0ALAN",
+      "text": "Error rate is flat.",
+      "ts": "1726038120.000250",
+      "thread_ts": "1726038000.000100"
+    }
+  ],
+  "has_more": true,
+  "response_metadata": {"next_cursor": "thread-page-2"}
+}
