@@ -69,6 +69,19 @@ func TestDownloadExportFlagWins(t *testing.T) {
 	require.Equal(t, "xlsx bytes", string(out))
 }
 
+func TestDownloadExportShorthandExpandsToFullMime(t *testing.T) {
+	svc := &fakeService{
+		files:       []*drive.File{seedBlobFile("application/vnd.google-apps.presentation")},
+		exportBytes: []byte("pptx bytes"),
+	}
+	out := cmdtest.RunCmd(t, newLeafCmd(newDownloadCmd, svc, "json"), "file_1", "--export", "pptx")
+
+	require.Equal(t,
+		"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		svc.exportMime)
+	require.Equal(t, "pptx bytes", string(out))
+}
+
 func TestDownloadNativeWithoutDefaultRefuses(t *testing.T) {
 	for _, mimeType := range []string{
 		"application/vnd.google-apps.folder",

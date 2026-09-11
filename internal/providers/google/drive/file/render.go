@@ -35,6 +35,24 @@ var mimeShorthands = map[string]string{
 	"slide":  "application/vnd.google-apps.presentation",
 }
 
+// exportShorthands maps --export shorthand values to full export MIME types.
+// Any other value passes through raw, so a full MIME string works too. Kept
+// distinct from mimeShorthands (upload/list --mime) because the two name
+// different things: one Drive-native type, one export representation.
+var exportShorthands = map[string]string{
+	"pdf":  "application/pdf",
+	"pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"csv":  "text/csv",
+	"tsv":  "text/tab-separated-values",
+	"md":   "text/markdown",
+	"txt":  "text/plain",
+	"odt":  "application/vnd.oasis.opendocument.text",
+	"ods":  "application/vnd.oasis.opendocument.spreadsheet",
+	"odp":  "application/vnd.oasis.opendocument.presentation",
+}
+
 // defaultExportMimes maps the Google-native types with a text default to the
 // export MIME the download leaf uses when --export is not set. Sheet CSV/TSV
 // exports cover the FIRST SHEET ONLY (see download.go help text).
@@ -133,6 +151,16 @@ func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 // pass through raw, so full MIME strings work.
 func resolveMime(value string) string {
 	if mime, ok := mimeShorthands[value]; ok {
+		return mime
+	}
+	return value
+}
+
+// resolveExportMime expands an --export shorthand (pdf, pptx, docx, ...) to
+// its full export MIME type; other values pass through raw, so full MIME
+// strings work.
+func resolveExportMime(value string) string {
+	if mime, ok := exportShorthands[value]; ok {
 		return mime
 	}
 	return value

@@ -38,7 +38,7 @@ everything-cli google drive file download 1AbCdEfGh --export text/csv > data.csv
 				return err
 			}
 			stream := func(w io.Writer) error {
-				return streamDownload(svc, cmd.Context(), args[0], exportMime, w)
+				return streamDownload(svc, cmd.Context(), args[0], resolveExportMime(exportMime), w)
 			}
 			if out == "" {
 				return stream(cmd.OutOrStdout())
@@ -47,7 +47,7 @@ everything-cli google drive file download 1AbCdEfGh --export text/csv > data.csv
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&exportMime, "export", "", "Export MIME type for Google-native files (defaults: doc -> text/plain, sheet -> text/csv — first sheet only, slide -> text/plain)")
+	f.StringVar(&exportMime, "export", "", "Export MIME type or shorthand (pdf, pptx, docx, xlsx, csv, tsv, md, txt, odt, ods, odp) for Google-native files (defaults: doc -> text/plain, sheet -> text/csv — first sheet only, slide -> text/plain)")
 	f.StringVar(&out, "out", "", "Write the bytes to this file instead of stdout")
 	return cmd
 }
