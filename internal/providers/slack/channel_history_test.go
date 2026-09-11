@@ -105,6 +105,16 @@ func TestChannelHistoryPaginatesAndRespectsMax(t *testing.T) {
 	assert.Equal(t, "eyes", reaction["name"])
 	assert.Equal(t, float64(3), reaction["count"])
 
+	files, ok := first["files"].([]any)
+	require.True(t, ok, "files render as an array of attachment objects")
+	require.Len(t, files, 1)
+	assert.Equal(t, map[string]any{
+		"id":       "F0B3HMXFEUV",
+		"name":     "deploy.log",
+		"mimetype": "text/plain",
+		"size":     float64(2048),
+	}, files[0], "only the four pinned attachment fields surface")
+
 	queries := log.all()
 	require.Len(t, queries, 2, "two pages fetched, then the budget stops the loop")
 	assert.Equal(t, []string{"C0B3HMXFEUV"}, queries[0]["channel"])
@@ -169,11 +179,12 @@ func TestChannelHistoryTable(t *testing.T) {
 	stdout, err := execute(t, root, out, "slack", "channel", "history",
 		"--channel", "C0B3HMXFEUV", "--max", "0", "--format", "table")
 	require.NoError(t, err)
-	for _, header := range []string{"TS", "CHANNEL_ID", "USER", "TEXT", "THREAD_TS", "REPLY_COUNT", "REACTIONS", "EDITED"} {
+	for _, header := range []string{"TS", "CHANNEL_ID", "USER", "TEXT", "THREAD_TS", "REPLY_COUNT", "REACTIONS", "EDITED", "FILES"} {
 		assert.Contains(t, stdout, header)
 	}
 	assert.Contains(t, stdout, "deploy is green")
 	assert.Contains(t, stdout, "eyes:3")
+	assert.Contains(t, stdout, "deploy.log:F0B3HMXFEUV", "the files cell joins name:id")
 }
 
 // TestChannelHistoryChannelNotFound: an ok:false channel_not_found answer

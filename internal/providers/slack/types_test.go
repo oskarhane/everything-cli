@@ -42,6 +42,7 @@ func TestMessageOptionalFieldsOmit(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "thread_ts")
 	assert.NotContains(t, string(data), "reactions")
+	assert.NotContains(t, string(data), "files")
 	assert.Contains(t, string(data), `"reply_count":0`)
 	assert.Contains(t, string(data), `"edited":false`)
 }
@@ -58,6 +59,7 @@ func TestMessageRowMapsSharedShape(t *testing.T) {
 		ThreadTS:   "1512085940.000100",
 		ReplyCount: 2,
 		Reactions:  []Reaction{{Name: "eyes", Count: 3}, {Name: "fire", Count: 1}},
+		Files:      []File{{ID: "F0B3HMXFEUV", Name: "deploy.log", Mimetype: "text/plain", Size: 2048}},
 		Edited:     true,
 	})
 	data, err := json.Marshal(row)
@@ -70,15 +72,19 @@ func TestMessageRowMapsSharedShape(t *testing.T) {
 		"thread_ts": "1512085940.000100",
 		"reply_count": 2,
 		"reactions": [{"name": "eyes", "count": 3}, {"name": "fire", "count": 1}],
+		"files": [{"id": "F0B3HMXFEUV", "name": "deploy.log", "mimetype": "text/plain", "size": 2048}],
 		"edited": true
 	}`, string(data))
 	assert.Equal(t, "eyes:3,fire:1", fmt.Sprintf("%v", row["reactions"]), "the table cell joins name:count")
+	assert.Equal(t, "deploy.log:F0B3HMXFEUV", fmt.Sprintf("%v", row["files"]), "the table cell joins name:id")
 
 	sparse := messageRow(Message{TS: "2.0", ChannelID: "C1", User: "U1", Text: "x"})
 	_, hasThreadTS := sparse["thread_ts"]
 	_, hasReactions := sparse["reactions"]
+	_, hasFiles := sparse["files"]
 	assert.False(t, hasThreadTS, "thread_ts is omitted when empty")
 	assert.False(t, hasReactions, "reactions are omitted when empty")
+	assert.False(t, hasFiles, "files are omitted when empty")
 	assert.Equal(t, 0, sparse["reply_count"])
 	assert.Equal(t, false, sparse["edited"])
 }
@@ -112,6 +118,44 @@ func TestWireMessageMapsEditedObjectToBool(t *testing.T) {
 	var untouched wireMessage
 	require.NoError(t, json.Unmarshal([]byte(`{"ts": "2.0", "user": "U1", "text": "x"}`), &untouched))
 	assert.False(t, untouched.view("C1").Edited)
+}
+
+// TestWireMessageMapsFileAttachments: the wire's files array maps into the
+// shared view pinned to exactly four fields; extra wire fields (url_private,
+// mode, ...) are tolerated and dropped.
+func TestWireMessageMapsFileAttachments(t *testing.T) {
+	var wire wireMessage
+	require.NoError(t, json.Unmarshal([]byte(`{
+		"ts": "1512085950.000216",
+		"user": "U02H6ECK2",
+		"text": "see attached",
+		"files": [
+			{
+				"id": "F0B3HMXFEUV",
+				"name": "deploy.log",
+				"mimetype": "text/plain",
+				"size": 2048,
+				"url_private": "https://files.slack.com/files-pri/T1-F0B3HMXFEUV/deploy.log",
+				"mode": "hosted",
+				"created": 1512085951
+			},
+			{"id": "F1", "name": "chart.png", "mimetype": "image/png", "size": 4096}
+		]
+	}`), &wire))
+
+	msg := wire.view("C0B3HMXFEUV")
+	assert.Equal(t, []File{
+		{ID: "F0B3HMXFEUV", Name: "deploy.log", Mimetype: "text/plain", Size: 2048},
+		{ID: "F1", Name: "chart.png", Mimetype: "image/png", Size: 4096},
+	}, msg.Files)
+
+	data, err := json.Marshal(msg)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"files":[{"id":"F0B3HMXFEUV","name":"deploy.log","mimetype":"text/plain","size":2048}`)
+
+	var untouched wireMessage
+	require.NoError(t, json.Unmarshal([]byte(`{"ts": "2.0", "user": "U1", "text": "x"}`), &untouched))
+	assert.Empty(t, untouched.view("C1").Files)
 }
 
 // TestWireChannelMapsToView: is_private and the im counterpart user survive

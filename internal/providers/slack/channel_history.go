@@ -10,7 +10,7 @@ import (
 // channelHistoryFields is the table column order; the same snake_case names
 // are the JSON and TOON keys (AGENTS.md casing rule). go-pretty's StyleLight
 // upper-cases the header cells at render time.
-var channelHistoryFields = []string{"ts", "channel_id", "user", "text", "thread_ts", "reply_count", "reactions", "edited"}
+var channelHistoryFields = []string{"ts", "channel_id", "user", "text", "thread_ts", "reply_count", "reactions", "edited", "files"}
 
 // newChannelHistoryCmd returns `slack channel history`: one conversation's
 // messages, newest first, following cursor pagination up to --max.
