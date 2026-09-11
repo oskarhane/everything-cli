@@ -122,10 +122,10 @@ everything-cli slack search messages --query "from:me" --max 0 --format json
   Output fields (JSON/TOON; table order same): `ts`, `channel_id`,
   `user`, `text`, `thread_ts` (omitted when the message is not a thread
   reply), `reply_count`, `reactions` (array of `{name, count}`, only when
-  present; table cell joins `name:count` with commas), `files`
-  (attachments: array of `{id, name, mimetype, size}`, omitted when the
-  message has none; `FILES` table cell joins `name:id` with commas),
-  `edited` (boolean).
+  present; table cell joins `name:count` with commas), `edited` (boolean),
+  `files` (attachments: array of `{id, name, mimetype, size}`, omitted
+  when the message has none; `FILES` table cell joins `name:id` with
+  commas).
 
 ```sh
 everything-cli slack channel history --channel C0B3HMXFEUV --format json
