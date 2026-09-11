@@ -344,10 +344,15 @@ everything-cli google drive file create "notes.md" --mime-type text/markdown
 
 - `google drive file upload <local-path>` — flags: `--name` (default:
   the local path's base name), `--parent`, `--mime-type` (default from
-  the extension, else `application/octet-stream`).
+  the extension, else `application/octet-stream`), `--convert-to`
+  (`folder|doc|sheet|slide`, or an `application/vnd.google-apps.*`
+  MIME type) to have Drive convert the upload into a Google-native
+  file — the media content-type still comes from the local file, and
+  `--convert-to` is mutually exclusive with `--mime-type`.
 
 ```sh
 everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh
+everything-cli google drive file upload ./deck.pptx --convert-to slide
 ```
 
 ### file download

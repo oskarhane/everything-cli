@@ -237,7 +237,7 @@ Drive covers files and sharing; the Docs, Sheets, and Slides trees edit one Goog
 everything-cli google drive file list --name "invoice" [--parent <folder-id>] [--mime folder] [--trashed]
 everything-cli google drive file get 1AbCdEfGh --format json
 everything-cli google drive file create "Reports"                    # folder; --type doc|sheet|slide or --mime-type <raw>
-everything-cli google drive file upload ./report.pdf [--name "Q3 report" --parent 1AbCdEfGh]
+everything-cli google drive file upload ./report.pdf [--name "Q3 report" --parent 1AbCdEfGh]   # --convert-to folder|doc|sheet|slide converts
 everything-cli google drive file download 1AbCdEfGh --out report.pdf # Google-native files export instead: --export text/csv
 everything-cli google drive file trash 1AbCdEfGh                     # recoverable (drive file untrash)
 everything-cli google drive file delete 1AbCdEfGh --force            # permanent
