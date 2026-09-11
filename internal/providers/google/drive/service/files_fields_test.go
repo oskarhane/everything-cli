@@ -84,8 +84,8 @@ func TestGetFilePinsFields(t *testing.T) {
 	if file == nil || file.Id != "f-1" {
 		t.Fatalf("file = %+v, want id f-1", file)
 	}
-	if sawFields != fileFields {
-		t.Errorf("fields = %q, want %q", sawFields, fileFields)
+	if sawFields != FileFields {
+		t.Errorf("fields = %q, want %q", sawFields, FileFields)
 	}
 	for _, want := range testFileFields {
 		if !strings.Contains(sawFields, want) {

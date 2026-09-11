@@ -9,16 +9,18 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-// fileFields is the Drive file field projection shared by Files.List and
+// FileFields is the Drive file field projection shared by Files.List and
 // Files.Get. It mirrors exactly what file/render.go renders (fileRow plus the
 // fileView description), and pins trashed explicitly — the API default omits
 // it, so a listing without this projection would always report trashed=false.
-const fileFields = "id,name,mimeType,size,owners,parents,trashed,shared,modifiedTime,webViewLink,description"
+// Exported so the file package's drift-guard test can assert the rendered
+// keys against this projection.
+const FileFields = "id,name,mimeType,size,owners,parents,trashed,shared,modifiedTime,webViewLink,description"
 
-// fileListFields wraps fileFields in the Files.List envelope. The
+// fileListFields wraps FileFields in the Files.List envelope. The
 // nextPageToken is required or multi-page listings would be truncated to page
 // one.
-const fileListFields = "nextPageToken,files(" + fileFields + ")"
+const fileListFields = "nextPageToken,files(" + FileFields + ")"
 
 // FileService is the Drive API surface the file leaves use. Thin wrappers
 // over Files, so fakes model file resources, not call objects.
@@ -63,7 +65,7 @@ func (s *realDriveService) ListFiles(ctx context.Context, query string, maxResul
 // set so trashed (and the fileView description) come back; nextPageToken does
 // not apply to a single resource.
 func (s *realDriveService) GetFile(ctx context.Context, fileID string) (*drive.File, error) {
-	file, err := s.drive.Files.Get(fileID).Fields(fileFields).Context(ctx).Do()
+	file, err := s.drive.Files.Get(fileID).Fields(FileFields).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting file %s: %w", fileID, err)
 	}
