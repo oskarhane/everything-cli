@@ -2,6 +2,7 @@ package slides
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -9,6 +10,22 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/subcommands/cmdtest"
 )
+
+// TestSetTextFlagHelpDescribesInsertion is acceptance 1: --text must not claim
+// to replace the placeholder's content. InsertSlideText issues an
+// InsertTextRequest at index 0, so the help says the text is inserted at the
+// start of the existing text.
+func TestSetTextFlagHelpDescribesInsertion(t *testing.T) {
+	cmd := newSetTextCmd(cmdtest.NewTestConfig("json"), nil)
+	flag := cmd.Flags().Lookup("text")
+	require.NotNil(t, flag)
+
+	usage := strings.ToLower(flag.Usage)
+	require.NotContains(t, usage, "replace")
+	require.Contains(t, usage, "insert")
+	require.Contains(t, usage, "start of the placeholder's existing text")
+	require.Contains(t, usage, "index 0")
+}
 
 // TestSetTextResolvesPlaceholder is acceptance 2: `slides set-text pres
 // --slide 2 --placeholder-idx 0 --text Hello` makes exactly one InsertText
