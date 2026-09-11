@@ -23,21 +23,14 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	newSvc := func(ctx context.Context) (service.DriveService, error) {
 		return dial(ctx, cfg)
 	}
-	cmd.AddCommand(newGetCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
+	slideSvc := func(ctx context.Context) (service.SlideService, error) {
 		return service.As[service.SlideService](newSvc(ctx))
-	}))
-	cmd.AddCommand(newReplaceCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
-		return service.As[service.SlideService](newSvc(ctx))
-	}))
-	cmd.AddCommand(newLayoutsCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
-		return service.As[service.SlideService](newSvc(ctx))
-	}))
-	cmd.AddCommand(newAddCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
-		return service.As[service.SlideService](newSvc(ctx))
-	}))
-	cmd.AddCommand(newSetTextCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
-		return service.As[service.SlideService](newSvc(ctx))
-	}))
+	}
+	cmd.AddCommand(newGetCmd(cfg, slideSvc))
+	cmd.AddCommand(newReplaceCmd(cfg, slideSvc))
+	cmd.AddCommand(newLayoutsCmd(cfg, slideSvc))
+	cmd.AddCommand(newAddCmd(cfg, slideSvc))
+	cmd.AddCommand(newSetTextCmd(cfg, slideSvc))
 	cmd.AddCommand(newDeleteCmd(cfg, func(ctx context.Context) (service.FileService, error) {
 		return service.As[service.FileService](newSvc(ctx))
 	}))
