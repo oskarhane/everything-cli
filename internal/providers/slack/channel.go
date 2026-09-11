@@ -6,6 +6,11 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 )
 
+// defaultChannelMax is the default --max shared by both channel listing
+// leaves: about one Slack page of items, so the common case makes a single
+// request while a busy workspace cannot page forever.
+const defaultChannelMax = 25
+
 // newChannelCmd returns the `slack channel` parent with every channel leaf
 // attached, one AddCommand line each: history reads one conversation's
 // messages, list enumerates the conversations the token can see.

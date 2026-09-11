@@ -12,27 +12,17 @@ import (
 // go-pretty's StyleLight upper-cases the headers when rendering.
 var threadFields = []string{"ts", "user", "text", "thread_ts", "reply_count", "edited"}
 
-// threadRow maps one thread message to its table row. channel_id stays out of
-// the table because every row of a thread shares it; JSON keeps it.
-func threadRow(m Message) map[string]any {
-	return map[string]any{
-		"ts":          m.TS,
-		"user":        m.User,
-		"text":        m.Text,
-		"thread_ts":   m.ThreadTS,
-		"reply_count": m.ReplyCount,
-		"edited":      m.Edited,
-	}
-}
-
-// printThread renders a thread in the resolved output format: JSON and TOON
-// keep the shared []Message shape, the table gets one row per message.
+// printThread renders a thread in the resolved output format: one shared
+// messageRow per message feeds both the JSON/TOON output and the table
+// (channel_id stays out of the table because every row shares it). Output's
+// one-row convention collapses a one-message thread to a single JSON object /
+// TOON document; a longer thread stays an array.
 func printThread(cmd *cobra.Command, cfg *app.Config, messages []Message) {
 	rows := make([]map[string]any, 0, len(messages))
 	for _, m := range messages {
-		rows = append(rows, threadRow(m))
+		rows = append(rows, messageRow(m))
 	}
-	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), threadFields, messages, rows)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), threadFields, rows, rows)
 }
 
 // newThreadCmd returns `slack thread`: one conversation thread — the parent

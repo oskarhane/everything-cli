@@ -143,3 +143,65 @@ func rateLimitError(retryAfter string) error {
 	}
 	return fmt.Errorf("slack API rate limit exceeded (429): retry after %s", retryAfter)
 }
+
+// collectCursorPages drains one cursor-paginated Slack listing. fetch issues a
+// single request and returns the page's items plus the next cursor to follow
+// ("" ends the listing); label names the listing in the runaway-cursor error.
+// The collector keeps fetching until the cursor is empty or max items are
+// collected (max <= 0 = no cap), then truncates any overshoot from the last
+// page. ChannelHistory, ChannelList, ThreadReplies, and UserList all delegate
+// here so every cursor listing shares one termination policy.
+//
+// The limit passed to fetch is the remaining item budget (0 when uncapped) so
+// the listing can clamp its per-request page size; pageLimit turns that hint
+// into the value to send. A client-side filter inside fetch (user list's
+// --query) is allowed: the budget then counts the filtered items fetch returns.
+//
+// A well-behaved endpoint ends with an empty next_cursor, so maxListPages can
+// only fire against an endpoint looping cursors forever: the caller gets a
+// "... did not terminate after %d pages" error instead of hanging or
+// truncating silently.
+func collectCursorPages[T any](
+	ctx context.Context,
+	max int,
+	label string,
+	fetch func(ctx context.Context, cursor string, limit int) ([]T, string, error),
+) ([]T, error) {
+	items := make([]T, 0)
+	cursor := ""
+	for pages := 0; ; pages++ {
+		limit := 0
+		if max > 0 {
+			limit = max - len(items)
+		}
+		page, next, err := fetch(ctx, cursor, limit)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, page...)
+		if max > 0 && len(items) >= max {
+			break
+		}
+		cursor = next
+		if cursor == "" {
+			break
+		}
+		if pages+1 >= maxListPages {
+			return nil, fmt.Errorf("%s did not terminate after %d pages", label, maxListPages)
+		}
+	}
+	if max > 0 && len(items) > max {
+		items = items[:max]
+	}
+	return items, nil
+}
+
+// pageLimit clamps a listing's full per-request page size to the remaining
+// item budget the collector hands down. budget <= 0 means the listing is
+// uncapped, so the full page size is requested.
+func pageLimit(full, budget int) int {
+	if budget > 0 && budget < full {
+		return budget
+	}
+	return full
+}

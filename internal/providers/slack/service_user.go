@@ -2,7 +2,6 @@ package slack
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
@@ -43,47 +42,32 @@ func (s *httpService) UserGet(ctx context.Context, userID string) (User, error) 
 // response_metadata.next_cursor across pages. query filters client-side,
 // case-insensitively, over name, real_name, and display_name; max caps the
 // matches returned and is 0 for no cap. Paging stops as soon as max matches
-// are collected, so a query that never matches pages every member.
+// are collected, so a query that never matches pages every member. The filter
+// lives inside the fetch closure, so it sees every raw page while the
+// collector's budget counts only the matches; requests therefore always ask
+// for the full usersListPageSize.
 func (s *httpService) UserList(ctx context.Context, query string, max int) ([]User, error) {
-	var users []User
-	cursor := ""
-	for pages := 0; ; pages++ {
-		page, err := s.userListPage(ctx, cursor)
-		if err != nil {
-			return nil, err
-		}
-		for _, member := range page.Members {
-			u := member.view()
-			if !userMatch(u, query) {
-				continue
+	return collectCursorPages(ctx, max, "user listing",
+		func(ctx context.Context, cursor string, _ int) ([]User, string, error) {
+			q := url.Values{}
+			q.Set("limit", strconv.Itoa(usersListPageSize))
+			if cursor != "" {
+				q.Set("cursor", cursor)
 			}
-			users = append(users, u)
-			if max > 0 && len(users) >= max {
-				return users, nil
+			var page usersListResponse
+			if err := s.apiCall(ctx, "/users.list", q, &page); err != nil {
+				return nil, "", err
 			}
-		}
-		cursor = page.nextCursor()
-		if cursor == "" {
-			return users, nil
-		}
-		if pages+1 >= maxListPages {
-			return nil, fmt.Errorf("user listing did not terminate after %d pages", maxListPages)
-		}
-	}
-}
-
-// userListPage fetches one users.list page; cursor is "" for the first page.
-func (s *httpService) userListPage(ctx context.Context, cursor string) (*usersListResponse, error) {
-	q := url.Values{}
-	q.Set("limit", strconv.Itoa(usersListPageSize))
-	if cursor != "" {
-		q.Set("cursor", cursor)
-	}
-	var out usersListResponse
-	if err := s.apiCall(ctx, "/users.list", q, &out); err != nil {
-		return nil, err
-	}
-	return &out, nil
+			users := make([]User, 0, len(page.Members))
+			for _, member := range page.Members {
+				u := member.view()
+				if !userMatch(u, query) {
+					continue
+				}
+				users = append(users, u)
+			}
+			return users, page.nextCursor(), nil
+		})
 }
 
 // userMatch reports whether u matches query: a case-insensitive substring of

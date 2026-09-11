@@ -1,5 +1,10 @@
 package slack
 
+import (
+	"fmt"
+	"strings"
+)
+
 // maxListPages caps how many pages one listing may follow before giving up.
 // A well-behaved server ends with an empty next_cursor, so the cap only ever
 // fires on a misbehaving endpoint looping cursors forever. 100 pages at
@@ -26,6 +31,45 @@ type Message struct {
 type Reaction struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
+}
+
+// reactionCell is the reactions value one message row carries. It marshals as
+// the shared []Reaction array (JSON and TOON) while String renders the table
+// cell: the comma-joined name:count list channel history has always shown.
+// output.PrintTable's default %v formatting honors the String method, so one
+// messageRow serves both the table and the JSON/TOON render formats.
+type reactionCell []Reaction
+
+// String renders the table cell form, e.g. "eyes:3,fire:1"; an empty tally
+// renders as "".
+func (r reactionCell) String() string {
+	parts := make([]string, 0, len(r))
+	for _, reaction := range r {
+		parts = append(parts, fmt.Sprintf("%s:%d", reaction.Name, reaction.Count))
+	}
+	return strings.Join(parts, ",")
+}
+
+// messageRow maps one message to its shared output row. It is the single row
+// shape behind both channel history and thread output: JSON/TOON mirror the
+// Message tags (thread_ts and reactions omit when empty, reply_count and
+// edited always render) and each leaf's field list addresses the table cells.
+func messageRow(m Message) map[string]any {
+	row := map[string]any{
+		"ts":          m.TS,
+		"channel_id":  m.ChannelID,
+		"user":        m.User,
+		"text":        m.Text,
+		"reply_count": m.ReplyCount,
+		"edited":      m.Edited,
+	}
+	if m.ThreadTS != "" {
+		row["thread_ts"] = m.ThreadTS
+	}
+	if len(m.Reactions) > 0 {
+		row["reactions"] = reactionCell(m.Reactions)
+	}
+	return row
 }
 
 // Channel is the shared view of one conversation (conversations.list). User

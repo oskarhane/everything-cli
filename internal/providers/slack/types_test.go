@@ -2,6 +2,7 @@ package slack
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,6 +44,43 @@ func TestMessageOptionalFieldsOmit(t *testing.T) {
 	assert.NotContains(t, string(data), "reactions")
 	assert.Contains(t, string(data), `"reply_count":0`)
 	assert.Contains(t, string(data), `"edited":false`)
+}
+
+// TestMessageRowMapsSharedShape: messageRow is the one row shape behind
+// channel history and thread output. JSON mirrors the Message tags, while the
+// reactions value renders the table cell as comma-joined name:count pairs.
+func TestMessageRowMapsSharedShape(t *testing.T) {
+	row := messageRow(Message{
+		TS:         "1512085950.000216",
+		ChannelID:  "C0B3HMXFEUV",
+		User:       "U02H6ECK2",
+		Text:       "hello",
+		ThreadTS:   "1512085940.000100",
+		ReplyCount: 2,
+		Reactions:  []Reaction{{Name: "eyes", Count: 3}, {Name: "fire", Count: 1}},
+		Edited:     true,
+	})
+	data, err := json.Marshal(row)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{
+		"ts": "1512085950.000216",
+		"channel_id": "C0B3HMXFEUV",
+		"user": "U02H6ECK2",
+		"text": "hello",
+		"thread_ts": "1512085940.000100",
+		"reply_count": 2,
+		"reactions": [{"name": "eyes", "count": 3}, {"name": "fire", "count": 1}],
+		"edited": true
+	}`, string(data))
+	assert.Equal(t, "eyes:3,fire:1", fmt.Sprintf("%v", row["reactions"]), "the table cell joins name:count")
+
+	sparse := messageRow(Message{TS: "2.0", ChannelID: "C1", User: "U1", Text: "x"})
+	_, hasThreadTS := sparse["thread_ts"]
+	_, hasReactions := sparse["reactions"]
+	assert.False(t, hasThreadTS, "thread_ts is omitted when empty")
+	assert.False(t, hasReactions, "reactions are omitted when empty")
+	assert.Equal(t, 0, sparse["reply_count"])
+	assert.Equal(t, false, sparse["edited"])
 }
 
 // TestWireMessageMapsEditedObjectToBool: the wire's edited: {...} marker maps

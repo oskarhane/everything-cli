@@ -45,7 +45,7 @@ everything-cli slack channel list --types public_channel,private_channel --forma
 	}
 	f := cmd.Flags()
 	f.StringVar(&opts.Types, "types", defaultChannelTypes, "Comma-separated conversation types: public_channel,private_channel,im,mpim")
-	f.Int64Var(&opts.Max, "max", defaultChannelMax, "Total max channels across all pages (0 = no cap)")
+	f.IntVar(&opts.Max, "max", defaultChannelMax, "Total max channels across all pages (0 = no cap)")
 	return cmd
 }
 

@@ -2,7 +2,6 @@ package slack
 
 import (
 	"context"
-	"fmt"
 	"net/url"
 	"strconv"
 )
@@ -19,7 +18,7 @@ type ChannelHistoryOptions struct {
 	Channel string
 	Oldest  string
 	Latest  string
-	Max     int64
+	Max     int
 }
 
 // ChannelListOptions maps the conversations.list query params. Types is the
@@ -27,7 +26,7 @@ type ChannelHistoryOptions struct {
 // budget across pages (0 = no cap).
 type ChannelListOptions struct {
 	Types string
-	Max   int64
+	Max   int
 }
 
 // channelHistoryResponse is the GET /conversations.history envelope; the
@@ -47,99 +46,60 @@ type channelListResponse struct {
 // following response_metadata.next_cursor across pages until the listing is
 // exhausted or the Max item budget is reached. Messages map to the shared
 // Message view with ChannelID filled from the request. Max <= 0 means no cap
-// (still bounded by maxListPages against a cursor-looping endpoint).
+// (still bounded by maxListPages against a cursor-looping endpoint). The
+// per-request page size is channelPageSize, clamped to the remaining budget.
 func (s *httpService) ChannelHistory(ctx context.Context, opts ChannelHistoryOptions) ([]Message, error) {
-	messages := make([]Message, 0)
-	cursor := ""
-	for page := 0; ; page++ {
-		q := url.Values{}
-		q.Set("channel", opts.Channel)
-		if opts.Oldest != "" {
-			q.Set("oldest", opts.Oldest)
-		}
-		if opts.Latest != "" {
-			q.Set("latest", opts.Latest)
-		}
-		q.Set("limit", channelPageLimit(opts.Max, len(messages)))
-		if cursor != "" {
-			q.Set("cursor", cursor)
-		}
-		var out channelHistoryResponse
-		if err := s.apiCall(ctx, "/conversations.history", q, &out); err != nil {
-			return nil, err
-		}
-		for _, m := range out.Messages {
-			messages = append(messages, m.view(opts.Channel))
-		}
-		if opts.Max > 0 && int64(len(messages)) >= opts.Max {
-			break
-		}
-		if cursor = out.nextCursor(); cursor == "" {
-			break
-		}
-		if page+1 >= maxListPages {
-			return nil, fmt.Errorf("channel history did not terminate after %d pages", maxListPages)
-		}
-	}
-	if opts.Max > 0 && int64(len(messages)) > opts.Max {
-		messages = messages[:opts.Max]
-	}
-	return messages, nil
+	return collectCursorPages(ctx, opts.Max, "channel history",
+		func(ctx context.Context, cursor string, limit int) ([]Message, string, error) {
+			q := url.Values{}
+			q.Set("channel", opts.Channel)
+			if opts.Oldest != "" {
+				q.Set("oldest", opts.Oldest)
+			}
+			if opts.Latest != "" {
+				q.Set("latest", opts.Latest)
+			}
+			q.Set("limit", strconv.Itoa(pageLimit(channelPageSize, limit)))
+			if cursor != "" {
+				q.Set("cursor", cursor)
+			}
+			var out channelHistoryResponse
+			if err := s.apiCall(ctx, "/conversations.history", q, &out); err != nil {
+				return nil, "", err
+			}
+			messages := make([]Message, 0, len(out.Messages))
+			for _, m := range out.Messages {
+				messages = append(messages, m.view(opts.Channel))
+			}
+			return messages, out.nextCursor(), nil
+		})
 }
 
 // ChannelList returns the conversations visible to the token, following
 // response_metadata.next_cursor across pages until the listing is exhausted
 // or the Max item budget is reached. Max <= 0 means no cap (still bounded by
 // maxListPages). Types defaults to the caller's value; the leaf always
-// supplies one.
+// supplies one. The per-request page size is channelPageSize, clamped to the
+// remaining budget.
 func (s *httpService) ChannelList(ctx context.Context, opts ChannelListOptions) ([]Channel, error) {
-	channels := make([]Channel, 0)
-	cursor := ""
-	for page := 0; ; page++ {
-		q := url.Values{}
-		if opts.Types != "" {
-			q.Set("types", opts.Types)
-		}
-		q.Set("limit", channelPageLimit(opts.Max, len(channels)))
-		if cursor != "" {
-			q.Set("cursor", cursor)
-		}
-		var out channelListResponse
-		if err := s.apiCall(ctx, "/conversations.list", q, &out); err != nil {
-			return nil, err
-		}
-		for _, c := range out.Channels {
-			channels = append(channels, c.view())
-		}
-		if opts.Max > 0 && int64(len(channels)) >= opts.Max {
-			break
-		}
-		if cursor = out.nextCursor(); cursor == "" {
-			break
-		}
-		if page+1 >= maxListPages {
-			return nil, fmt.Errorf("channel listing did not terminate after %d pages", maxListPages)
-		}
-	}
-	if opts.Max > 0 && int64(len(channels)) > opts.Max {
-		channels = channels[:opts.Max]
-	}
-	return channels, nil
-}
-
-// channelPageLimit renders the per-request limit: the remaining budget when
-// one is set, else the full page size. The result is at least 1 because the
-// page loop exits before requesting a page with no budget left.
-func channelPageLimit(max int64, have int) string {
-	limit := int64(channelPageSize)
-	if max > 0 {
-		remaining := max - int64(have)
-		if remaining < 1 {
-			remaining = 1
-		}
-		if remaining < limit {
-			limit = remaining
-		}
-	}
-	return strconv.FormatInt(limit, 10)
+	return collectCursorPages(ctx, opts.Max, "channel listing",
+		func(ctx context.Context, cursor string, limit int) ([]Channel, string, error) {
+			q := url.Values{}
+			if opts.Types != "" {
+				q.Set("types", opts.Types)
+			}
+			q.Set("limit", strconv.Itoa(pageLimit(channelPageSize, limit)))
+			if cursor != "" {
+				q.Set("cursor", cursor)
+			}
+			var out channelListResponse
+			if err := s.apiCall(ctx, "/conversations.list", q, &out); err != nil {
+				return nil, "", err
+			}
+			channels := make([]Channel, 0, len(out.Channels))
+			for _, c := range out.Channels {
+				channels = append(channels, c.view())
+			}
+			return channels, out.nextCursor(), nil
+		})
 }

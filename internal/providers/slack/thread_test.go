@@ -50,6 +50,32 @@ func (l *threadRequestLog) all() []url.Values {
 	return append([]url.Values{}, l.queries...)
 }
 
+// decodeThreadMessages decodes a thread JSON payload: output's one-row
+// convention collapses a one-message thread to an object, while a longer
+// thread stays an array.
+func decodeThreadMessages(t *testing.T, stdout string) []Message {
+	t.Helper()
+	var decoded any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &decoded))
+	switch v := decoded.(type) {
+	case []any:
+		raw, err := json.Marshal(v)
+		require.NoError(t, err)
+		var messages []Message
+		require.NoError(t, json.Unmarshal(raw, &messages))
+		return messages
+	case map[string]any:
+		raw, err := json.Marshal(v)
+		require.NoError(t, err)
+		var message Message
+		require.NoError(t, json.Unmarshal(raw, &message))
+		return []Message{message}
+	default:
+		t.Fatalf("unexpected thread JSON shape %T", decoded)
+		return nil
+	}
+}
+
 // newThreadService serves the recorded two-page thread keyed by the cursor
 // parameter. Page one ends with next_cursor "thread-page-2" and page two with
 // an empty one, so a well-behaved caller makes exactly two requests.
@@ -150,8 +176,7 @@ func TestThreadMaxCapsItemsAcrossPages(t *testing.T) {
 				"--max", tc.max, "--format", "json")
 			require.NoError(t, err)
 
-			var messages []Message
-			require.NoError(t, json.Unmarshal([]byte(stdout), &messages))
+			messages := decodeThreadMessages(t, stdout)
 			require.Len(t, messages, tc.wantItems)
 			assert.Equal(t, threadFixtureParentTS, messages[0].TS, "the parent always leads")
 			assert.Len(t, log.all(), tc.wantPages)
@@ -244,8 +269,41 @@ func TestThreadAPIErrorSurfacesCode(t *testing.T) {
 	assert.Equal(t, "channel_not_found", apiErr.Code)
 }
 
+// TestThreadJSONOneMessageIsAnObject: a one-message thread collapses to a
+// single JSON object — the canonical one-row convention — with the shared
+// message fields; thread_ts and reactions stay omitted when empty.
+func TestThreadJSONOneMessageIsAnObject(t *testing.T) {
+	const body = `{"ok":true,"messages":[{"ts":"1726038000.000100","user":"U1","text":"solo parent","reply_count":0}],"response_metadata":{"next_cursor":""}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newHTTPService(srv.Client(), srv.URL))
+
+	stdout, err := execute(t, root, out, "slack", "thread",
+		"--channel", threadFixtureChannel, "--ts", threadFixtureParentTS, "--format", "json")
+	require.NoError(t, err)
+
+	var decoded any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &decoded))
+	message, ok := decoded.(map[string]any)
+	require.True(t, ok, "a one-message thread must render as an object, got %T", decoded)
+	assert.Equal(t, "1726038000.000100", message["ts"])
+	assert.Equal(t, threadFixtureChannel, message["channel_id"])
+	assert.Equal(t, "solo parent", message["text"])
+	assert.Equal(t, float64(0), message["reply_count"])
+	assert.Equal(t, false, message["edited"])
+	_, hasThreadTS := message["thread_ts"]
+	assert.False(t, hasThreadTS, "thread_ts is omitted when empty")
+	_, hasReactions := message["reactions"]
+	assert.False(t, hasReactions, "reactions are omitted when empty")
+}
+
 // TestThreadRepliesCursorLoopIsBounded: an endpoint that keeps answering a
-// non-empty next_cursor cannot loop forever; the shared page cap stops it.
+// non-empty next_cursor cannot loop forever; after maxListPages the shared
+// collector surfaces the runaway-cursor error instead of truncating silently.
 func TestThreadRepliesCursorLoopIsBounded(t *testing.T) {
 	const body = `{"ok":true,"messages":[{"ts":"1.000100","user":"U1","text":"x"}],"response_metadata":{"next_cursor":"always"}}`
 	var calls atomic.Int32
@@ -258,7 +316,8 @@ func TestThreadRepliesCursorLoopIsBounded(t *testing.T) {
 	svc := newHTTPService(srv.Client(), srv.URL)
 
 	messages, err := svc.ThreadReplies(context.Background(), threadFixtureChannel, threadFixtureParentTS, 0)
-	require.NoError(t, err)
-	assert.Len(t, messages, maxListPages)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "thread replies did not terminate after 100 pages")
+	assert.Nil(t, messages, "a runaway cursor returns no partial output")
 	assert.EqualValues(t, maxListPages, calls.Load())
 }
