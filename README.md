@@ -238,7 +238,7 @@ everything-cli google drive file list --name "invoice" [--parent <folder-id>] [-
 everything-cli google drive file get 1AbCdEfGh --format json
 everything-cli google drive file create "Reports"                    # folder; --type doc|sheet|slide or --mime-type <raw>
 everything-cli google drive file copy 1AbCdEfGh [--name "Q3 report"] [--parent <folder-id>]  # duplicate; keeps the source MIME type
-everything-cli google drive file upload ./report.pdf [--name "Q3 report" --parent 1AbCdEfGh]
+everything-cli google drive file upload ./report.pdf [--name "Q3 report" --parent 1AbCdEfGh]   # --convert-to folder|doc|sheet|slide converts
 everything-cli google drive file download 1AbCdEfGh --out report.pdf # Google-native files export instead: --export text/csv (or a shorthand: csv, pptx, docx, xlsx, pdf, ...)
 everything-cli google drive file trash 1AbCdEfGh                     # recoverable (drive file untrash)
 everything-cli google drive file delete 1AbCdEfGh --force            # permanent
