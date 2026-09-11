@@ -55,8 +55,8 @@ func TestListComposesQuery(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"query only", []string{"--query", "fullText = 'invoice'"}, "fullText = 'invoice' and trashed = false"},
-		{"query shorthand", []string{"-q", "owner = 'me'"}, "owner = 'me' and trashed = false"},
+		{"query only", []string{"--query", "fullText = 'invoice'"}, "(fullText = 'invoice') and trashed = false"},
+		{"query shorthand", []string{"-q", "owner = 'me'"}, "(owner = 'me') and trashed = false"},
 		{"name only", []string{"--name", "Q3 report"}, "name contains 'Q3 report' and trashed = false"},
 		{"name with quotes", []string{"--name", "O'Brien's"}, `name contains 'O\'Brien\'s' and trashed = false`},
 		{"parent only", []string{"--parent", "1AbC"}, "'1AbC' in parents and trashed = false"},
@@ -69,7 +69,7 @@ func TestListComposesQuery(t *testing.T) {
 		{"mime raw", []string{"--mime", "image/png"}, "mimeType = 'image/png' and trashed = false"},
 		{"trashed flag", []string{"--trashed"}, ""},
 		{"all combined", []string{"-q", "owner = 'me'", "--name", "note", "--parent", "1AbC", "--mime", "sheet"},
-			"owner = 'me' and name contains 'note' and '1AbC' in parents and " +
+			"(owner = 'me') and name contains 'note' and '1AbC' in parents and " +
 				"mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"},
 		{"no filters", nil, "trashed = false"},
 	}

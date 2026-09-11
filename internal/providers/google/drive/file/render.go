@@ -126,12 +126,16 @@ func escapeQ(s string) string {
 // composeQuery builds the API's q parameter from the raw --query passthrough
 // plus the composed shorthand terms, joined with an explicit " and ". Drive q
 // has no implicit conjunction, so space-joined terms are rejected with
-// "Invalid Value". --trashed=false adds trashed = false so trashed files are
-// excluded by default; --trashed leaves the term off so both are returned.
+// "Invalid Value". A non-empty raw --query is wrapped in parentheses because
+// Drive binds AND tighter than OR: without them an `or` inside the raw query
+// would scope the appended `and trashed = false` to only its last operand,
+// silently leaking trashed files instead of returning them filtered.
+// --trashed=false adds trashed = false so trashed files are excluded by
+// default; --trashed leaves the term off so both are returned.
 func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 	var terms []string
 	if query != "" {
-		terms = append(terms, query)
+		terms = append(terms, "("+query+")")
 	}
 	if name != "" {
 		terms = append(terms, "name contains '"+escapeQ(name)+"'")
