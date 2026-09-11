@@ -439,20 +439,25 @@ is the recoverable alternative to `google docs delete`.
 
 - `google docs get <doc-id>` — the document's raw text, streamed to
   stdout exactly as exported (bypasses `--format`); `--out <file>`
-  writes it there instead.
+  writes it there instead. `--tab <id-or-exact-title>` reads only that
+  tab's text (default: the whole document).
 - `google docs append <doc-id>` — add text at the very end of the body.
   Flags: `--text` | `--text-file <path>` (exactly one). A trailing
   newline is added when missing, so successive appends each start on
-  their own line.
+  their own line. `--tab <id-or-exact-title>` appends to that tab
+  (default: the first tab).
 - `google docs insert <doc-id>` — insert text immediately BEFORE the
   given `--index` (required, > 0 — a zero-based Docs-API content index
   in UTF-16 code units; `--index 1` puts the text at the very start of
   the body). Flags: `--text` | `--text-file` (exactly one). Unlike
   append, the text is sent verbatim — no newline is added.
+  `--tab <id-or-exact-title>` inserts into that tab (default: the first
+  tab).
 - `google docs replace <doc-id>` — replace every occurrence of `--find`
   (required) with `--replace-with` (empty deletes the matches).
   `--match-case` makes matching case-sensitive (default is
-  case-insensitive). Prints the replaced occurrence count.
+  case-insensitive). Prints the replaced occurrence count. Replace is
+  doc-wide — the API has no per-tab scoping.
 - `google docs delete <doc-id> [--force]` — permanently delete the
   document's Drive file; refuses without `--force`. Prefer `google drive
   file trash <doc-id>`.
@@ -473,6 +478,19 @@ is the recoverable alternative to `google docs delete`.
 - `google docs comment delete <doc-id> --comment <comment-id>
   [--force]` — permanently delete a comment; refuses without `--force`,
   mirroring `google docs delete`.
+- `google docs tabs list <doc-id>` — the document's tabs flattened
+  depth-first, a parent before its child tabs: tab_id, title, index,
+  nesting_level, parent_tab_id.
+- `google docs tabs create <doc-id> --title <title>` — append a new tab
+  and echo the tab id the API assigned it.
+- `google docs tabs delete <doc-id> --tab <id-or-exact-title>` — remove
+  a tab, its content and child tabs included.
+- `google docs tabs rename <doc-id> --tab <id-or-exact-title> --title
+  <new>` — retitle a tab.
+
+Every docs `--tab` key resolves the same way: an exact tab ID wins over
+a same-named title, and an ambiguous title errors naming the matching
+ids — `google docs tabs list` prints those ids.
 
 Comment operations ride the Drive API, not the Docs API: they require a
 drive or drive.file scope (accounts on the default profile already hold
@@ -483,10 +501,13 @@ is opaque and unreliable, so anchoring is out of scope.
 ```sh
 everything-cli google docs get 1AbCdEfGh --out notes.txt
 everything-cli google docs get 1AbCdEfGh | head -20
+everything-cli google docs get 1AbCdEfGh --tab t.1a2b3c
 everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
 everything-cli google docs append 1AbCdEfGh --text-file notes.txt
+everything-cli google docs append 1AbCdEfGh --tab t.1a2b3c --text "Notes"
 everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
 everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120
+everything-cli google docs insert 1AbCdEfGh --tab t.1a2b3c --index 40 --text "Sidebar"
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
 everything-cli google docs replace 1AbCdEfGh --find TODO --replace-with "TBD"
 everything-cli google docs comment list 1AbCdEfGh
@@ -496,15 +517,19 @@ everything-cli google docs comment reply 1AbCdEfGh --comment AAAAc4-0 --text "On
 everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
 everything-cli google docs comment reopen 1AbCdEfGh --comment AAAAc4-0
 everything-cli google docs comment delete 1AbCdEfGh --comment AAAAc4-0 --force
+everything-cli google docs tabs list 1AbCdEfGh --format json
+everything-cli google docs tabs create 1AbCdEfGh --title Appendix
+everything-cli google docs tabs rename 1AbCdEfGh --tab Appendix --title "Appendix v2"
+everything-cli google docs tabs delete 1AbCdEfGh --tab t.1a2b3c
 everything-cli google docs delete 1AbCdEfGh --force
 ```
 
 ## sheets
 
-Google Sheets metadata and cell values. Create spreadsheets with `google
-drive file create <name> --type sheet`; `google sheets delete` is a thin
-Drive delete — `google drive file trash <spreadsheet-id>` is the
-recoverable alternative.
+Google Sheets metadata, cell values, and worksheet tabs. Create
+spreadsheets with `google drive file create <name> --type sheet`;
+`google sheets delete` is a thin Drive delete — `google drive file trash
+<spreadsheet-id>` is the recoverable alternative.
 
 - `google sheets get <spreadsheet-id>` — one row per sheet tab:
   sheet_id, title, index, row_count, col_count, and a best-effort header
@@ -524,6 +549,13 @@ recoverable alternative.
 - `google sheets values clear <spreadsheet-id>` — empty every cell in
   `--range` (required; formatting kept). No `--force`: it is bounded to
   the range and recoverable via revision history.
+- `google sheets tabs create <spreadsheet-id> --title <title>` — append
+  a new worksheet tab and echo the sheet id the API assigned it.
+- `google sheets tabs rename <spreadsheet-id>` — retitle a tab:
+  `--tab <title>` matches the tab's current title exactly, `--title
+  <new>` is the new one.
+- `google sheets tabs delete <spreadsheet-id> --tab <title>` — remove a
+  tab, every cell on it included; the title matches exactly.
 - `google sheets delete <spreadsheet-id> [--force]` — permanently delete
   the spreadsheet's Drive file; refuses without `--force`. Prefer
   `google drive file trash <spreadsheet-id>`.
@@ -545,6 +577,9 @@ everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" \
 everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!C1" \
   --values '[[=SUM(A1:A2)]]' --input-option RAW
 everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+everything-cli google sheets tabs create 1AbCdEfGh --title Forecast
+everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
+everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes
 everything-cli google sheets delete 1AbCdEfGh --force
 ```
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/sheets/tabs"
 	"github.com/oskarhane/everything-cli/internal/providers/google/sheets/values"
 )
 
@@ -38,6 +39,9 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	}))
 	cmd.AddCommand(values.NewCmd(cfg, func(ctx context.Context) (service.SheetValuesService, error) {
 		return service.As[service.SheetValuesService](dial(ctx, cfg))
+	}))
+	cmd.AddCommand(tabs.NewCmd(cfg, func(ctx context.Context) (service.SheetTabService, error) {
+		return service.As[service.SheetTabService](dial(ctx, cfg))
 	}))
 	return cmd
 }

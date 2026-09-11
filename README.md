@@ -232,12 +232,17 @@ everything-cli google drive file share 1AbCdEfGh --role writer --domain example.
 everything-cli google drive file unshare 1AbCdEfGh --email a@x.com                  # or --permission <id>
 
 everything-cli google docs get 1AbCdEfGh --out notes.txt       # raw text; without --out it streams to stdout
-everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
-everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"   # before a Docs-API content index
-everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
+everything-cli google docs get 1AbCdEfGh --tab t.1a2b3c        # one tab's text (default: the whole document)
+everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar" [--tab t.1a2b3c]   # default: first tab
+everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan" [--tab t.1a2b3c]   # before a Docs-API content index
+everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"   # doc-wide; no per-tab scoping
 everything-cli google docs comment list 1AbCdEfGh --all          # comment threads; resolved included with --all
 everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"   # file-level comment
 everything-cli google docs comment resolve 1AbCdEfGh --comment AAAAc4-0
+everything-cli google docs tabs list 1AbCdEfGh                     # document tabs; child tabs under their parents
+everything-cli google docs tabs create 1AbCdEfGh --title Appendix  # add a tab; echoes its tab id
+everything-cli google docs tabs rename 1AbCdEfGh --tab Appendix --title "Appendix v2"
+everything-cli google docs tabs delete 1AbCdEfGh --tab t.1a2b3c    # child tabs deleted with it
 everything-cli google docs delete 1AbCdEfGh --force            # permanent; drive file trash is the recoverable path
 
 everything-cli google sheets get 1AbCdEfGh                     # sheet tabs, grid sizes, header row
@@ -245,6 +250,9 @@ everything-cli google sheets values get 1AbCdEfGh --range "Sheet1!A1:D10"
 everything-cli google sheets values append 1AbCdEfGh --range "Sheet1!A1:D" --values '[[1,"a",true],[2,"b",false]]'
 everything-cli google sheets values update 1AbCdEfGh --range "Sheet1!A1:B2" --values '[[1,"a"],[2,"b"]]'
 everything-cli google sheets values clear 1AbCdEfGh --range "Sheet1!A2:D10"
+everything-cli google sheets tabs create 1AbCdEfGh --title Forecast    # add a worksheet tab; echoes its sheet id
+everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
+everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes         # every cell on it included
 
 everything-cli google slides get 1AbCdEfGh --slide 3           # text per shape; --slide narrows to one slide
 everything-cli google slides replace 1AbCdEfGh --find Acme --replace-with Zenith
@@ -253,6 +261,8 @@ everything-cli google slides delete 1AbCdEfGh --force          # permanent
 ```
 
 `google docs comment …` and `google slides comment …` share one comment tree (list/add/reply/resolve/reopen/delete). Comments ride the Drive API — they need the drive or drive.file scope (not the documents/presentations scopes), and added comments are file-level rather than anchored to a text selection.
+
+Docs tabs: `google docs tabs list` prints the tab ids every docs `--tab` flag accepts; a `--tab` key matches an exact tab ID first, then an exact title, and an ambiguous title errors naming the matching ids. Sheets `--tab` values match a worksheet tab's title exactly.
 
 `--values` takes an inline JSON array of arrays; `--values-file` reads the same shape from a `.json`/`.csv`/`.tsv` file instead. Both `google sheets values append` and `google sheets values update` take `--input-option RAW|USER_ENTERED` (default `USER_ENTERED`, which parses formulas).
 

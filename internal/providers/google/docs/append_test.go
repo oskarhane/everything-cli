@@ -81,3 +81,31 @@ func TestAppendRequiresExactlyOneArg(t *testing.T) {
 
 	require.Contains(t, err.Error(), "accepts 1 arg")
 }
+
+func TestAppendTabByIDReachesService(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	cmdtest.RunCmd(t, newLeafCmd(newAppendCmd, svc, "json"),
+		"doc_1", "--text", "hi", "--tab", "t.def456")
+
+	require.Equal(t, "t.def456", svc.appendedTabID)
+	require.Equal(t, "hi\n", svc.appendedText)
+}
+
+func TestAppendTabByTitleForwardsKeyToService(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	cmdtest.RunCmd(t, newLeafCmd(newAppendCmd, svc, "json"),
+		"doc_1", "--text", "hi", "--tab", "Changelog")
+
+	// append forwards the --tab key as-is; AppendDocText resolves it (exact
+	// tab ID first, then exact title).
+	require.Equal(t, "Changelog", svc.appendedTabID)
+}
+
+func TestAppendUnknownTabWritesNothing(t *testing.T) {
+	svc := &fakeDocService{docTabs: seedDocTabs()}
+	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newAppendCmd, svc, "json"),
+		"doc_1", "--text", "hi", "--tab", "nope")
+
+	require.ErrorContains(t, err, `no tab with ID or title "nope"`)
+	require.Empty(t, svc.appendedID) // zero write calls
+}
