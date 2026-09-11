@@ -273,6 +273,10 @@ everything-cli google sheets tabs rename 1AbCdEfGh --tab Notes --title Archive
 everything-cli google sheets tabs delete 1AbCdEfGh --tab Notes         # every cell on it included
 
 everything-cli google slides get 1AbCdEfGh --slide 3           # text per shape; --slide narrows to one slide
+everything-cli google slides layouts 1AbCdEfGh                 # layout names/object ids for add --layout
+everything-cli google slides add 1AbCdEfGh --layout TITLE_AND_BODY        # append a slide; prints its object id
+everything-cli google slides add 1AbCdEfGh --layout TITLE_ONLY --index 0  # insert at the front
+everything-cli google slides set-text 1AbCdEfGh --slide 2 --placeholder-idx 0 --text "Q4 Roadmap"
 everything-cli google slides replace 1AbCdEfGh --find Acme --replace-with Zenith
 everything-cli google slides comment list 1AbCdEfGh             # same comment tree as docs
 everything-cli google slides delete 1AbCdEfGh --force          # permanent
@@ -281,6 +285,8 @@ everything-cli google slides delete 1AbCdEfGh --force          # permanent
 `google docs comment …` and `google slides comment …` share one comment tree (list/add/reply/resolve/reopen/delete). Comments ride the Drive API — they need the drive or drive.file scope (not the documents/presentations scopes), and added comments are file-level rather than anchored to a text selection.
 
 Docs tabs: `google docs tabs list` prints the tab ids every docs `--tab` flag accepts; a `--tab` key matches an exact tab ID first, then an exact title, and an ambiguous title errors naming the matching ids. Sheets `--tab` values match a worksheet tab's title exactly.
+
+Slides authoring: `google slides layouts` prints the layout `name`/`object_id` pairs `google slides add --layout` accepts (exact object ID first, then a case-insensitive display-name match; unknown keys error naming the value). `google slides set-text --slide` takes a 1-based slide number or a slide object ID, and `--placeholder-idx` is that placeholder's index on the slide; both resolve to the shape's object ID via a live read, and the text is inserted at index 0. Exactly one of `--text`/`--text-file` is required.
 
 `--values` takes an inline JSON array of arrays; `--values-file` reads the same shape from a `.json`/`.csv`/`.tsv` file instead. Both `google sheets values append` and `google sheets values update` take `--input-option RAW|USER_ENTERED` (default `USER_ENTERED`, which parses formulas).
 
