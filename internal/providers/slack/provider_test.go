@@ -10,12 +10,12 @@ import (
 	"github.com/oskarhane/everything-cli/internal/provider"
 )
 
-// TestProviderWiresAccountAndResourceStubs: the core scaffold self-registers
-// the provider; provider.go wires the real account subtree plus one
-// non-runnable stub parent for each future resource tree (search, channel,
-// user, thread) so help and drift guards stay inert until the owning node
-// replaces the stub file. provider.go itself is final from here on.
-func TestProviderWiresAccountAndResourceStubs(t *testing.T) {
+// TestProviderWiresAccountAndResourceTrees: the core scaffold self-registers
+// the provider; provider.go wires the real account subtree plus one parent
+// per resource tree. Every stub was replaced by its owning node, so the
+// trees are now runnable and their leaf wiring is pinned here. provider.go
+// itself is final from here on.
+func TestProviderWiresAccountAndResourceTrees(t *testing.T) {
 	reg, ok := provider.Get(providerID)
 	require.True(t, ok)
 	assert.Equal(t, providerID, reg.ID())
@@ -32,13 +32,12 @@ func TestProviderWiresAccountAndResourceStubs(t *testing.T) {
 		require.Contains(t, byName, name, "provider.go must wire %q", name)
 	}
 
-	for _, name := range []string{"search", "channel", "user", "thread"} {
-		sub := byName[name]
-		assert.Nil(t, sub.Run, "stub %q must have no Run", name)
-		assert.Nil(t, sub.RunE, "stub %q must have no RunE", name)
-		assert.False(t, sub.Runnable(), "stub %q must not be runnable", name)
-		assert.Empty(t, sub.Commands(), "stub %q must have no children", name)
+	// The resource trees are real: search, channel, and user are parents with
+	// leaves; thread is a runnable leaf.
+	for _, name := range []string{"search", "channel", "user"} {
+		assert.NotEmpty(t, byName[name].Commands(), "resource tree %q must wire its leaves", name)
 	}
+	assert.True(t, byName["thread"].Runnable(), "thread must be a runnable leaf")
 
 	// The account subtree is real: add plus the four shared leaves.
 	assert.Len(t, byName["account"].Commands(), 5)

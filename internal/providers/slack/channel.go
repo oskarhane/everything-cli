@@ -6,14 +6,15 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 )
 
-// newChannelCmd is a placeholder for the `slack channel` resource tree; the
-// slack-channel node replaces this file with the real parent wiring
-// `channel history` and `channel list`. The stub is deliberately non-runnable
-// (no Run/RunE and no children) so help and drift guards stay inert until
-// then.
-func newChannelCmd(_ *app.Config) *cobra.Command {
-	return &cobra.Command{
+// newChannelCmd returns the `slack channel` parent with every channel leaf
+// attached, one AddCommand line each: history reads one conversation's
+// messages, list enumerates the conversations the token can see.
+func newChannelCmd(cfg *app.Config) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "channel",
 		Short: "Read Slack channels and their history",
 	}
+	cmd.AddCommand(newChannelHistoryCmd(cfg))
+	cmd.AddCommand(newChannelListCmd(cfg))
+	return cmd
 }

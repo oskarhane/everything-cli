@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "channels": [
+    {
+      "id": "G0B3HMXFEUX",
+      "name": "secret-project",
+      "is_group": true,
+      "is_private": true
+    },
+    {
+      "id": "C0B3HMXFEUY",
+      "name": "random",
+      "is_channel": true,
+      "is_private": false
+    }
+  ],
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}

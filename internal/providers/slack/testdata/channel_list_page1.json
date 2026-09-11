@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "channels": [
+    {
+      "id": "C0B3HMXFEUV",
+      "name": "general",
+      "is_channel": true,
+      "is_private": false,
+      "is_archived": false,
+      "num_members": 42
+    },
+    {
+      "id": "D0B3HMXFEUW",
+      "is_im": true,
+      "is_private": false,
+      "user": "U02H6ECK2"
+    }
+  ],
+  "response_metadata": {
+    "next_cursor": "cursor-channel-2"
+  }
+}

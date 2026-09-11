@@ -1,0 +1,21 @@
+{
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "ts": "1512085900.000050",
+      "user": "U1",
+      "text": "third"
+    },
+    {
+      "type": "message",
+      "ts": "1512085800.000010",
+      "user": "U2",
+      "text": "fourth"
+    }
+  ],
+  "has_more": false,
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}
