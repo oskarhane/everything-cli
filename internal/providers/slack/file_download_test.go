@@ -340,9 +340,6 @@ func TestFileDownloadRefusesCrossHostRedirect(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cross-host redirect")
 	assert.NotContains(t, err.Error(), evil.URL)
-	for _, auth := range evilRec.requests() {
-		assert.NotContains(t, auth, testToken)
-	}
 	assert.Empty(t, evilRec.requests())
 }
 
@@ -353,18 +350,24 @@ func TestFileDownloadErrorHidesURL(t *testing.T) {
 	urlPrivate := dead.URL + "/files/" + testFileID
 	dead.Close()
 
+	srv, _ := newFileServer(t, fileServerConfig{infoBody: fileInfoBody(urlPrivate)})
+
 	// Permit the (now dead) loopback host so the failure is a dial error,
-	// not an allowlist rejection.
+	// not an allowlist rejection. Installed after newFileServer because the
+	// fixture's own stub would otherwise overwrite this one and reject the
+	// dead host before any dial happens.
 	saved := validateFileURL
 	validateFileURL = func(*url.URL) bool { return true }
 	t.Cleanup(func() { validateFileURL = saved })
 
-	srv, _ := newFileServer(t, fileServerConfig{infoBody: fileInfoBody(urlPrivate)})
 	_, root, out := newSlackEnv(t)
 	stubDial(t, newFileService(t, srv))
 
 	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
 	require.Error(t, err)
+	// The "calling slack file download" prefix only wraps the dial path,
+	// proving the allowlist let the request through to a real dial.
+	assert.Contains(t, err.Error(), "calling slack file download")
 	assert.NotContains(t, err.Error(), urlPrivate)
 }
 
