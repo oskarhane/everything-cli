@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "members": [
+    {
+      "id": "U02H6ECK2",
+      "name": "oskar",
+      "real_name": "Oskar Hane",
+      "is_bot": false,
+      "profile": {"display_name": "oskarh", "real_name": "Oskar Hane"}
+    },
+    {
+      "id": "U0ALICE01",
+      "name": "alice",
+      "real_name": "Alice Andersson",
+      "is_bot": false,
+      "profile": {"display_name": "ali", "real_name": "Alice Andersson"}
+    },
+    {
+      "id": "U0OZZY01",
+      "name": "bob",
+      "real_name": "Bob Berg",
+      "is_bot": false,
+      "profile": {"display_name": "OZZY-fan", "real_name": "Bob Berg"}
+    }
+  ],
+  "response_metadata": {"next_cursor": "dXNlcnM6cGFnZTI="}
+}

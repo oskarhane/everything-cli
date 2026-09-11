@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "members": [
+    {
+      "id": "U0CAROL01",
+      "name": "carol",
+      "real_name": "Carol Carlsson",
+      "is_bot": false,
+      "profile": {"display_name": "carol", "real_name": "Carol Carlsson"}
+    },
+    {
+      "id": "U0OZZY02",
+      "name": "dave",
+      "real_name": "Ozzy Dave",
+      "is_bot": false,
+      "profile": {"display_name": "dave", "real_name": "Ozzy Dave"}
+    },
+    {
+      "id": "U0QUINN01",
+      "name": "quinn",
+      "real_name": "Q Person",
+      "is_bot": false,
+      "profile": {"display_name": "qq", "real_name": "Q Person"}
+    },
+    {
+      "id": "U0REAL01",
+      "name": "x1",
+      "real_name": "UniqueRName Person",
+      "is_bot": false,
+      "profile": {"display_name": "y1", "real_name": "UniqueRName Person"}
+    }
+  ],
+  "response_metadata": {"next_cursor": ""}
+}

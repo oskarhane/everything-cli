@@ -6,13 +6,30 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 )
 
-// newUserCmd is a placeholder for the `slack user` resource tree; the
-// slack-user node replaces this file with the real parent wiring
-// `user get` and `user list`. The stub is deliberately non-runnable (no
-// Run/RunE and no children) so help and drift guards stay inert until then.
-func newUserCmd(_ *app.Config) *cobra.Command {
-	return &cobra.Command{
+// userFields is the workspace-member output field order for table output; the
+// same snake_case names are the JSON and TOON keys. `user get` and
+// `user list` share the shape so agents can move between them unchanged.
+var userFields = []string{"id", "name", "real_name", "display_name"}
+
+// userRow maps one User into its output row.
+func userRow(u User) map[string]any {
+	return map[string]any{
+		"id":           u.ID,
+		"name":         u.Name,
+		"real_name":    u.RealName,
+		"display_name": u.DisplayName,
+	}
+}
+
+// newUserCmd builds the `slack user` resource tree: `user get` looks up one
+// member by ID (users.info), `user list` pages and filters the workspace
+// directory (users.list).
+func newUserCmd(cfg *app.Config) *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "user",
 		Short: "Look up Slack workspace members",
 	}
+	cmd.AddCommand(newUserGetCmd(cfg))
+	cmd.AddCommand(newUserListCmd(cfg))
+	return cmd
 }

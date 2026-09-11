@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "user": {
+    "id": "U02H6ECK2",
+    "team_id": "T0B5K0M1AAC",
+    "name": "oskar",
+    "real_name": "Oskar Hane",
+    "tz": "Europe/Stockholm",
+    "is_bot": false,
+    "profile": {
+      "display_name": "oskarh",
+      "real_name": "Oskar Hane",
+      "real_name_normalized": "Oskar Hane",
+      "title": "Engineer",
+      "future_field": {"nested": true}
+    },
+    "future_top_level": "unmapped wire fields must be ignored"
+  }
+}
