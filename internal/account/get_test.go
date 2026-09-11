@@ -2,12 +2,15 @@ package account
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/auth"
+	"github.com/oskarhane/everything-cli/internal/config"
 )
 
 // TestGetIdentityShowsMetadataWithoutTokenValues: every output format shows
@@ -100,4 +103,84 @@ func TestGetUnknownAccountErrors(t *testing.T) {
 			assert.Contains(t, err.Error(), "ghost")
 		})
 	}
+}
+
+// seedKeyIdentityAccount persists a key-based provider account carrying an
+// Identity map (slack's auth.test metadata), bypassing the capture flow.
+func seedKeyIdentityAccount(t *testing.T, cfg *app.Config, provider, name, key string, identity map[string]string) {
+	t.Helper()
+	payload, err := json.Marshal(map[string]string{"api_key": key})
+	require.NoError(t, err)
+	require.NoError(t, newStore(t, cfg).Save(&config.Account{
+		Name:     name,
+		Provider: provider,
+		Identity: identity,
+		Auth:     payload,
+	}))
+}
+
+// TestGetPlainRendersStoredIdentity: a key-based provider account with a
+// non-empty Identity map renders every entry as an additional top-level
+// field — in every output format — beside name and provider, and never the
+// credential.
+func TestGetPlainRendersStoredIdentity(t *testing.T) {
+	for _, format := range []string{"json", "table", "toon"} {
+		t.Run(format, func(t *testing.T) {
+			cfg, root, out := newAccountEnv(t, linearSpec)
+			seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+				"user": "oskar",
+				"team": "Neo4j",
+			})
+
+			outStr, err := execute(t, root, out, "account", "get", "work", "--format", format)
+			require.NoError(t, err)
+
+			assert.Contains(t, outStr, "work")
+			assert.Contains(t, outStr, "linear")
+			assert.Contains(t, outStr, "oskar")
+			assert.Contains(t, outStr, "Neo4j")
+			assert.NotContains(t, outStr, "test-key-identity",
+				"format %s leaked the API key", format)
+		})
+	}
+}
+
+// TestGetPlainIdentityJSONKeysAreTopLevel: the identity entries are
+// flattened into the JSON object, not nested under an "identity" key.
+func TestGetPlainIdentityJSONKeysAreTopLevel(t *testing.T) {
+	cfg, root, out := newAccountEnv(t, linearSpec)
+	seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+		"user_id": "U02H6ECK2",
+		"team":    "Neo4j",
+	})
+
+	outStr, err := execute(t, root, out, "account", "get", "work", "--format", "json")
+	require.NoError(t, err)
+
+	var view map[string]any
+	require.NoError(t, json.Unmarshal([]byte(outStr), &view))
+	assert.Equal(t, "work", view["name"])
+	assert.Equal(t, "linear", view["provider"])
+	assert.Equal(t, "Neo4j", view["team"])
+	assert.Equal(t, "U02H6ECK2", view["user_id"])
+	assert.NotContains(t, view, "identity", "identity entries are top-level fields")
+}
+
+// TestGetPlainIdentityTableHeadersSorted: table columns are name, provider,
+// then the identity keys in sorted order, upper-cased by go-pretty.
+func TestGetPlainIdentityTableHeadersSorted(t *testing.T) {
+	cfg, root, out := newAccountEnv(t, linearSpec)
+	seedKeyIdentityAccount(t, cfg, linearSpec.ProviderID, "work", "test-key-identity", map[string]string{
+		"user_id": "U02H6ECK2",
+		"team":    "Neo4j",
+	})
+
+	outStr, err := execute(t, root, out, "account", "get", "work", "--format", "table")
+	require.NoError(t, err)
+
+	for _, header := range []string{"NAME", "PROVIDER", "TEAM", "USER_ID"} {
+		assert.Contains(t, outStr, header)
+	}
+	assert.Less(t, strings.Index(outStr, "TEAM"), strings.Index(outStr, "USER_ID"),
+		"identity columns are sorted deterministically")
 }

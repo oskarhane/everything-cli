@@ -1,6 +1,7 @@
 package account
 
 import (
+	"sort"
 	"strings"
 	"time"
 
@@ -19,14 +20,6 @@ type identityGetView struct {
 	Email       string   `json:"email"`
 	Scopes      []string `json:"scopes"`
 	TokenExpiry string   `json:"token_expiry"`
-}
-
-// getView is the rendered shape of account get for key-based providers:
-// account metadata only. The credential is deliberately absent from the
-// view, so no output format can leak it.
-type getView struct {
-	Name     string `json:"name"`
-	Provider string `json:"provider"`
 }
 
 // NewGetCmd builds account get for the provider described by spec: one
@@ -76,10 +69,26 @@ everything-cli ` + spec.ProviderID + ` account get work --format json`,
 				return nil
 			}
 
-			view := getView{Name: a.Name, Provider: a.Provider}
-			output.Print(cmd.OutOrStdout(), format,
-				[]string{"name", "provider"}, view,
-				[]map[string]any{{"name": view.Name, "provider": view.Provider}})
+			// Key-based providers: name and provider, plus any stored
+			// Identity entries (slack's auth.test metadata) as additional
+			// top-level fields in deterministic key order. Keys that would
+			// shadow name/provider are skipped. The credential is absent
+			// from the row, so no output format can leak it.
+			fields := []string{"name", "provider"}
+			row := map[string]any{"name": a.Name, "provider": a.Provider}
+			identityKeys := make([]string, 0, len(a.Identity))
+			for k := range a.Identity {
+				if k == "name" || k == "provider" {
+					continue
+				}
+				identityKeys = append(identityKeys, k)
+			}
+			sort.Strings(identityKeys)
+			for _, k := range identityKeys {
+				fields = append(fields, k)
+				row[k] = a.Identity[k]
+			}
+			output.Print(cmd.OutOrStdout(), format, fields, row, []map[string]any{row})
 			return nil
 		},
 	}

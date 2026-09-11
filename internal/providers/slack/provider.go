@@ -1,9 +1,9 @@
 // Package slack wires Slack (slack.com/api) as a provider of the CLI: the
-// Web API auth strategy (Authorization: Bearer xoxp-<token>) behind the
-// provider.Provider contract, plus the shared HTTP service and output types
-// every slack resource tree consumes. Registration happens at init time; the
-// root command discovers the provider once the side-effect import is added
-// to main.go.
+// provider-scoped account subtree, the Web API auth strategy
+// (Authorization: Bearer xoxp-<token>) behind the provider.Provider
+// contract, plus the shared HTTP service and output types every slack
+// resource tree consumes. Registration happens at init time; the root command
+// discovers the provider once the side-effect import is added to main.go.
 package slack
 
 import (
@@ -32,12 +32,19 @@ func init() {
 // ID returns the provider identifier.
 func (Provider) ID() string { return providerID }
 
-// NewCmd builds the `slack` command tree. The account subtree and the
-// resource subtrees (search, channel, thread, user) are wired by their own
-// nodes; the parent ships bare today.
+// NewCmd builds the `slack` command tree: the provider-scoped account
+// subtree and one parent per resource tree (search, channel, user, thread).
+// This is the final provider.go: later nodes replace their own non-runnable
+// stub file with the real parent/leaf, never this file.
 func (Provider) NewCmd(cfg *app.Config) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "slack",
 		Short: "Read Slack workspaces via the Slack Web API",
 	}
+	cmd.AddCommand(newAccountCmd(cfg))
+	cmd.AddCommand(newSearchCmd(cfg))
+	cmd.AddCommand(newChannelCmd(cfg))
+	cmd.AddCommand(newUserCmd(cfg))
+	cmd.AddCommand(newThreadCmd(cfg))
+	return cmd
 }
