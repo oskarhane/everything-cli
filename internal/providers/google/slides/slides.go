@@ -11,10 +11,10 @@ import (
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
 )
 
-// NewCmd returns the `slides` parent with its leaves attached. get and
-// replace ride the SlideService seam, delete the FileService one; both are
-// narrowed from the one dial by As, since the concrete drive service
-// implements every interface.
+// NewCmd returns the `slides` parent with its leaves attached. get, layouts,
+// replace, add, and set-text ride the SlideService seam, delete the
+// FileService one; both are narrowed from the one dial by As, since the
+// concrete drive service implements every interface.
 func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "slides",
@@ -27,6 +27,15 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 		return service.As[service.SlideService](newSvc(ctx))
 	}))
 	cmd.AddCommand(newReplaceCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
+		return service.As[service.SlideService](newSvc(ctx))
+	}))
+	cmd.AddCommand(newLayoutsCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
+		return service.As[service.SlideService](newSvc(ctx))
+	}))
+	cmd.AddCommand(newAddCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
+		return service.As[service.SlideService](newSvc(ctx))
+	}))
+	cmd.AddCommand(newSetTextCmd(cfg, func(ctx context.Context) (service.SlideService, error) {
 		return service.As[service.SlideService](newSvc(ctx))
 	}))
 	cmd.AddCommand(newDeleteCmd(cfg, func(ctx context.Context) (service.FileService, error) {
