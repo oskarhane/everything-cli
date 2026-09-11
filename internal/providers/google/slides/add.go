@@ -42,6 +42,9 @@ everything-cli google slides add 1AbCpresentationID --layout g1f2d3c4b5`,
 			if layout == "" {
 				return fmt.Errorf("--layout is required: give a layout name or object ID (run `everything-cli google slides layouts %s`)", args[0])
 			}
+			if cmd.Flags().Changed("index") && index < 0 {
+				return fmt.Errorf("invalid --index %d: must be non-negative", index)
+			}
 			svc, err := newSvc(cmd.Context())
 			if err != nil {
 				return err
