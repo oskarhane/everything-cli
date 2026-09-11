@@ -59,6 +59,16 @@ func TestAddIndexZeroIsForwarded(t *testing.T) {
 	require.EqualValues(t, 0, *svc.createIndex)
 }
 
+// TestAddNegativeIndexRefused is acceptance 1: --index -1 is a client-side
+// usage error naming the offending value, before any batchUpdate is issued.
+func TestAddNegativeIndexRefused(t *testing.T) {
+	svc := &fakeSlideService{layouts: seedLayouts()}
+	_, err := cmdtest.RunCmdErr(t, newSlideLeafCmd(newAddCmd, svc, "json"), "pres", "--layout", "TITLE_ONLY", "--index", "-1")
+
+	require.Contains(t, err.Error(), "-1")
+	require.Equal(t, 0, svc.createCalls, "no batchUpdate on a negative index")
+}
+
 // TestAddUnknownLayoutRefused is acceptance 4: an unknown layout key fails
 // naming the offending value, before any batchUpdate is issued.
 func TestAddUnknownLayoutRefused(t *testing.T) {
