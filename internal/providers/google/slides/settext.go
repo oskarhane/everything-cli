@@ -66,7 +66,7 @@ everything-cli google slides set-text 1AbCpresentationID --slide g1f2d3c4b5 --pl
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&text, "text", "", "Text to write (replaces the placeholder's content)")
+	f.StringVar(&text, "text", "", "Text to insert at the start of the placeholder's existing text (index 0)")
 	f.StringVar(&textFile, "text-file", "", "Read the text to write from this file instead of --text")
 	f.StringVar(&slide, "slide", "", "Slide to write to, by 1-based number or object ID (required)")
 	f.Int64Var(&placeholderIdx, "placeholder-idx", 0, "Index of the placeholder shape on the slide (required)")
