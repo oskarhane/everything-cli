@@ -15,6 +15,7 @@ type FileService interface {
 	ListFiles(ctx context.Context, query string, maxResults int64) ([]*drive.File, error)
 	GetFile(ctx context.Context, fileID string) (*drive.File, error)
 	CreateFile(ctx context.Context, f *drive.File) (*drive.File, error)
+	CopyFile(ctx context.Context, fileID string, f *drive.File) (*drive.File, error)
 	UploadFile(ctx context.Context, f *drive.File, mimeType string, content io.Reader) (*drive.File, error)
 	TrashFile(ctx context.Context, fileID string) (*drive.File, error)
 	UntrashFile(ctx context.Context, fileID string) (*drive.File, error)
@@ -66,6 +67,20 @@ func (s *realDriveService) CreateFile(ctx context.Context, f *drive.File) (*driv
 		return nil, fmt.Errorf("creating file: %w", err)
 	}
 	return created, nil
+}
+
+// CopyFile duplicates the file named by fileID, applying the supplied
+// metadata — the new name and/or parent folder. Drive keeps the source's
+// MIME type on a copy, so the metadata must never carry a MimeType.
+func (s *realDriveService) CopyFile(ctx context.Context, fileID string, f *drive.File) (*drive.File, error) {
+	if f == nil {
+		f = &drive.File{}
+	}
+	copied, err := s.drive.Files.Copy(fileID, f).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("copying file %s: %w", fileID, err)
+	}
+	return copied, nil
 }
 
 // UploadFile creates a file with content from r, labeled with mimeType

@@ -40,6 +40,8 @@ type fakeService struct {
 	listQ         string      // last ListFiles query
 	listMax       int64       // last ListFiles max
 	created       *drive.File // last CreateFile request
+	copiedFrom    string      // last CopyFile source id
+	copied        *drive.File // last CopyFile metadata request
 	uploaded      *drive.File // last UploadFile request
 	uploadMime    string      // last UploadFile mime type
 	uploadBytes   []byte      // bytes UploadFile received
@@ -92,6 +94,16 @@ func (f *fakeService) CreateFile(_ context.Context, file *drive.File) (*drive.Fi
 	created := *file
 	created.Id = "file_new"
 	return &created, nil
+}
+
+func (f *fakeService) CopyFile(_ context.Context, id string, metadata *drive.File) (*drive.File, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	f.copiedFrom, f.copied = id, metadata
+	copied := *metadata
+	copied.Id = "file_copy"
+	return &copied, nil
 }
 
 func (f *fakeService) UploadFile(_ context.Context, file *drive.File, mimeType string, content io.Reader) (*drive.File, error) {

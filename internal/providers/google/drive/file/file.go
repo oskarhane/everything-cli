@@ -12,9 +12,9 @@ import (
 )
 
 // NewCmd returns the `drive file` parent with every file leaf attached.
-// Each leaf lives in its own file: list.go, get.go, create.go, upload.go,
-// download.go, trash.go, untrash.go, delete.go, and the sharing leaves
-// (permissions, share, unshare), one AddCommand line each.
+// Each leaf lives in its own file: list.go, get.go, create.go, copy.go,
+// upload.go, download.go, trash.go, untrash.go, delete.go, and the sharing
+// leaves (permissions, share, unshare), one AddCommand line each.
 //
 // The sharing leaves get a narrowing dial: the base dialer accepts
 // drive.file accounts, but sharing any file on the account demands the full
@@ -30,6 +30,7 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *cobra.
 	cmd.AddCommand(newListCmd(cfg, newSvc))
 	cmd.AddCommand(newGetCmd(cfg, newSvc))
 	cmd.AddCommand(newCreateCmd(cfg, newSvc))
+	cmd.AddCommand(newCopyCmd(cfg, newSvc))
 	cmd.AddCommand(newUploadCmd(cfg, newSvc))
 	cmd.AddCommand(newDownloadCmd(cfg, newSvc))
 	cmd.AddCommand(newTrashCmd(cfg, newSvc))
