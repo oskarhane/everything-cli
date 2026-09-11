@@ -29,6 +29,28 @@ func TestListJSON(t *testing.T) {
 	require.Equal(t, []any{"folder_1"}, first["parent_ids"])
 }
 
+// TestListRendersTrashed pins the trashed column end to end: the seeded
+// trashed file must render trashed=true in JSON (the service wire tests guard
+// that the API projection actually returns the field), while an untrashed file
+// stays false.
+func TestListRendersTrashed(t *testing.T) {
+	svc := &fakeService{files: seedFiles()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
+
+	rows, ok := cmdtest.DecodeJSON(t, out).([]any)
+	require.True(t, ok, "expected a JSON array, got: %s", out)
+	require.Len(t, rows, 3)
+
+	trashed, ok := rows[2].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "file_3", trashed["id"])
+	require.Equal(t, true, trashed["trashed"])
+
+	first, ok := rows[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, false, first["trashed"])
+}
+
 func TestListTable(t *testing.T) {
 	svc := &fakeService{files: seedFiles()}
 	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "table"))
@@ -55,22 +77,22 @@ func TestListComposesQuery(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"query only", []string{"--query", "fullText = 'invoice'"}, "fullText = 'invoice' trashed = false"},
-		{"query shorthand", []string{"-q", "owner = 'me'"}, "owner = 'me' trashed = false"},
-		{"name only", []string{"--name", "Q3 report"}, "name contains 'Q3 report' trashed = false"},
-		{"name with quotes", []string{"--name", "O'Brien's"}, `name contains 'O\'Brien\'s' trashed = false`},
-		{"parent only", []string{"--parent", "1AbC"}, "'1AbC' in parents trashed = false"},
-		{"parent with quotes", []string{"--parent", `my'O'folder`}, `'my\'O\'folder' in parents trashed = false`},
-		{"mime with quotes", []string{"--mime", `we'ird`}, `mimeType = 'we\'ird' trashed = false`},
-		{"mime folder", []string{"--mime", "folder"}, "mimeType = 'application/vnd.google-apps.folder' trashed = false"},
-		{"mime doc", []string{"--mime", "doc"}, "mimeType = 'application/vnd.google-apps.document' trashed = false"},
-		{"mime sheet", []string{"--mime", "sheet"}, "mimeType = 'application/vnd.google-apps.spreadsheet' trashed = false"},
-		{"mime slide", []string{"--mime", "slide"}, "mimeType = 'application/vnd.google-apps.presentation' trashed = false"},
-		{"mime raw", []string{"--mime", "image/png"}, "mimeType = 'image/png' trashed = false"},
+		{"query only", []string{"--query", "fullText = 'invoice'"}, "(fullText = 'invoice') and trashed = false"},
+		{"query shorthand", []string{"-q", "owner = 'me'"}, "(owner = 'me') and trashed = false"},
+		{"name only", []string{"--name", "Q3 report"}, "name contains 'Q3 report' and trashed = false"},
+		{"name with quotes", []string{"--name", "O'Brien's"}, `name contains 'O\'Brien\'s' and trashed = false`},
+		{"parent only", []string{"--parent", "1AbC"}, "'1AbC' in parents and trashed = false"},
+		{"parent with quotes", []string{"--parent", `my'O'folder`}, `'my\'O\'folder' in parents and trashed = false`},
+		{"mime with quotes", []string{"--mime", `we'ird`}, `mimeType = 'we\'ird' and trashed = false`},
+		{"mime folder", []string{"--mime", "folder"}, "mimeType = 'application/vnd.google-apps.folder' and trashed = false"},
+		{"mime doc", []string{"--mime", "doc"}, "mimeType = 'application/vnd.google-apps.document' and trashed = false"},
+		{"mime sheet", []string{"--mime", "sheet"}, "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"},
+		{"mime slide", []string{"--mime", "slide"}, "mimeType = 'application/vnd.google-apps.presentation' and trashed = false"},
+		{"mime raw", []string{"--mime", "image/png"}, "mimeType = 'image/png' and trashed = false"},
 		{"trashed flag", []string{"--trashed"}, ""},
 		{"all combined", []string{"-q", "owner = 'me'", "--name", "note", "--parent", "1AbC", "--mime", "sheet"},
-			"owner = 'me' name contains 'note' '1AbC' in parents " +
-				"mimeType = 'application/vnd.google-apps.spreadsheet' trashed = false"},
+			"(owner = 'me') and name contains 'note' and '1AbC' in parents and " +
+				"mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"},
 		{"no filters", nil, "trashed = false"},
 	}
 	for _, tt := range tests {

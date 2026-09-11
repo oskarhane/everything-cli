@@ -292,7 +292,7 @@ everything-cli google calendar freebusy --from 2026-09-01T09:00:00Z --to 2026-09
 
 ## drive
 
-Generic Drive file operations — list, get, create, upload, download,
+Generic Drive file operations — list, get, create, copy, upload, download,
 trash, delete, and sharing. Create Google Docs/Sheets/Slides here; their
 content-level verbs live in the docs/sheets/slides sections below.
 
@@ -340,24 +340,45 @@ everything-cli google drive file create "Q3 budget" --type sheet --parent 1AbCdE
 everything-cli google drive file create "notes.md" --mime-type text/markdown
 ```
 
+### file copy
+
+- `google drive file copy <file-id>` — duplicate a file; `--name` renames
+  the copy (default: the source's name) and `--parent` places it in a
+  folder (default: the source's parent). Drive keeps the source's MIME
+  type, so Google-native Docs/Sheets/Slides stay native and are never
+  converted.
+
+```sh
+everything-cli google drive file copy 1AbCdEfGh --format json
+everything-cli google drive file copy 1AbCdEfGh --name "Q3 report" --parent 1AbCdEfGh
+```
+
 ### file upload
 
 - `google drive file upload <local-path>` — flags: `--name` (default:
   the local path's base name), `--parent`, `--mime-type` (default from
-  the extension, else `application/octet-stream`).
+  the extension, else `application/octet-stream`), `--convert-to`
+  (`folder|doc|sheet|slide`, or an `application/vnd.google-apps.*`
+  MIME type) to have Drive convert the upload into a Google-native
+  file — the media content-type still comes from the local file, and
+  `--convert-to` is mutually exclusive with `--mime-type`.
 
 ```sh
 everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh
+everything-cli google drive file upload ./deck.pptx --convert-to slide
 ```
 
 ### file download
 
 - `google drive file download <file-id>` — `--out <file>` (else bytes to
-  stdout for piping), `--export <mime>`. Binary files stream via
+  stdout for piping), `--export <mime|shorthand>`. Binary files stream via
   alt=media. Google-native types have no downloadable binary and must be
   exported. Export defaults when `--export` is unset: doc →
   `text/plain`, sheet → `text/csv`, slide → `text/plain`; other native
   types refuse until `--export` names a supported export MIME.
+- `--export` accepts shorthands (expanded to the full MIME) or a full
+  MIME string: `pdf`, `pptx`, `docx`, `xlsx`, `csv`, `tsv`, `md`, `txt`,
+  `odt`, `ods`, `odp`.
 - Export caveat: sheet exports (`text/csv`, `text/tab-separated-values`)
   cover the FIRST SHEET ONLY, and Drive caps exports at 10 MB (larger
   exports are truncated with a warning marker). Other supported exports:
@@ -370,6 +391,7 @@ everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent
 ```sh
 everything-cli google drive file download 1AbCdEfGh --out report.pdf
 everything-cli google drive file download 1AbCdEfGh --export text/csv > data.csv
+everything-cli google drive file download 1AbCdEfGh --export pptx > deck.pptx
 ```
 
 ### file trash / untrash
@@ -585,15 +607,33 @@ everything-cli google sheets delete 1AbCdEfGh --force
 
 ## slides
 
-Google Slides text operations. Create presentations with `google drive
-file create <name> --type slide`; `google slides delete` is a thin Drive
-delete — `google drive file trash <presentation-id>` is the recoverable
-alternative.
+Google Slides read and authoring operations. Create presentations with
+`google drive file create <name> --type slide`; `google slides delete` is a
+thin Drive delete — `google drive file trash <presentation-id>` is the
+recoverable alternative.
 
 - `google slides get <presentation-id>` — one row per text-bearing
   shape, in slide order (fields: slide, shape_id, text). `--slide <n>`
   narrows to one slide's shapes (1-based, matching the slide column;
   0 = all slides).
+- `google slides layouts <presentation-id>` — the presentation's
+  layouts, one row each (fields: object_id, name). This is the
+  discovery verb for `slides add --layout`; the `name` is the layout's
+  display name and `object_id` works as an exact key too.
+- `google slides add <presentation-id> --layout <name-or-object-id>
+  [--index <n>]` — append (or insert at the zero-based `--index`) a
+  slide built from that layout, and print the new slide's object ID.
+  The layout key is resolved against a live read first: an exact object
+  ID wins over a case-insensitive display-name match; an unknown key
+  errors naming it.
+- `google slides set-text <presentation-id> --slide <n-or-object-id>
+  --placeholder-idx <i> (--text <t> | --text-file <f>)` — write text
+  into the placeholder shape with index `i` on the chosen slide. The
+  slide key is a 1-based slide number or a slide object ID; it and the
+  placeholder index are resolved to the shape's object ID via a live
+  read, and the text is inserted at index 0 of that shape. Exactly one
+  of `--text`/`--text-file` is required; out-of-range slide or
+  placeholder index errors naming the offending value.
 - `google slides replace <presentation-id>` — replace every occurrence
   of `--find` (required) with `--replace-with` across every slide, in
   one API call. `--match-case` makes matching case-sensitive (default
@@ -625,6 +665,10 @@ and added comments are file-level, not anchored to a text selection.
 ```sh
 everything-cli google slides get 1AbCpresentationID --format json
 everything-cli google slides get 1AbCpresentationID --slide 3
+everything-cli google slides layouts 1AbCpresentationID --format json
+everything-cli google slides add 1AbCpresentationID --layout TITLE_AND_BODY
+everything-cli google slides add 1AbCpresentationID --layout TITLE_ONLY --index 0
+everything-cli google slides set-text 1AbCpresentationID --slide 2 --placeholder-idx 0 --text "Q4 Roadmap"
 everything-cli google slides replace 1AbCpresentationID --find Acme --replace-with Zenith
 everything-cli google slides replace 1AbCpresentationID --find KPI --replace-with OKR --match-case
 everything-cli google slides comment list 1AbCpresentationID

@@ -9,12 +9,26 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+// FileFields is the Drive file field projection shared by Files.List and
+// Files.Get. It mirrors exactly what file/render.go renders (fileRow plus the
+// fileView description), and pins trashed explicitly — the API default omits
+// it, so a listing without this projection would always report trashed=false.
+// Exported so the file package's drift-guard test can assert the rendered
+// keys against this projection.
+const FileFields = "id,name,mimeType,size,owners,parents,trashed,shared,modifiedTime,webViewLink,description"
+
+// fileListFields wraps FileFields in the Files.List envelope. The
+// nextPageToken is required or multi-page listings would be truncated to page
+// one.
+const fileListFields = "nextPageToken,files(" + FileFields + ")"
+
 // FileService is the Drive API surface the file leaves use. Thin wrappers
 // over Files, so fakes model file resources, not call objects.
 type FileService interface {
 	ListFiles(ctx context.Context, query string, maxResults int64) ([]*drive.File, error)
 	GetFile(ctx context.Context, fileID string) (*drive.File, error)
 	CreateFile(ctx context.Context, f *drive.File) (*drive.File, error)
+	CopyFile(ctx context.Context, fileID string, f *drive.File) (*drive.File, error)
 	UploadFile(ctx context.Context, f *drive.File, mimeType string, content io.Reader) (*drive.File, error)
 	TrashFile(ctx context.Context, fileID string) (*drive.File, error)
 	UntrashFile(ctx context.Context, fileID string) (*drive.File, error)
@@ -29,7 +43,7 @@ type FileService interface {
 // maxFilePageSize.
 func (s *realDriveService) ListFiles(ctx context.Context, query string, maxResults int64) ([]*drive.File, error) {
 	return pageAllBudgeted(maxResults, func(page string, remaining int64) ([]*drive.File, string, error) {
-		call := s.drive.Files.List()
+		call := s.drive.Files.List().Fields(fileListFields)
 		if query != "" {
 			call = call.Q(query)
 		}
@@ -47,10 +61,11 @@ func (s *realDriveService) ListFiles(ctx context.Context, query string, maxResul
 	})
 }
 
-// GetFile returns the file's metadata. The API returns full metadata by
-// default, so no Fields projection is needed here.
+// GetFile returns the file's metadata. Fields is pinned to the rendered field
+// set so trashed (and the fileView description) come back; nextPageToken does
+// not apply to a single resource.
 func (s *realDriveService) GetFile(ctx context.Context, fileID string) (*drive.File, error) {
-	file, err := s.drive.Files.Get(fileID).Context(ctx).Do()
+	file, err := s.drive.Files.Get(fileID).Fields(FileFields).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("getting file %s: %w", fileID, err)
 	}
@@ -66,6 +81,20 @@ func (s *realDriveService) CreateFile(ctx context.Context, f *drive.File) (*driv
 		return nil, fmt.Errorf("creating file: %w", err)
 	}
 	return created, nil
+}
+
+// CopyFile duplicates the file named by fileID, applying the supplied
+// metadata — the new name and/or parent folder. Drive keeps the source's
+// MIME type on a copy, so the metadata must never carry a MimeType.
+func (s *realDriveService) CopyFile(ctx context.Context, fileID string, f *drive.File) (*drive.File, error) {
+	if f == nil {
+		f = &drive.File{}
+	}
+	copied, err := s.drive.Files.Copy(fileID, f).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("copying file %s: %w", fileID, err)
+	}
+	return copied, nil
 }
 
 // UploadFile creates a file with content from r, labeled with mimeType

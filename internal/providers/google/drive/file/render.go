@@ -35,6 +35,24 @@ var mimeShorthands = map[string]string{
 	"slide":  "application/vnd.google-apps.presentation",
 }
 
+// exportShorthands maps --export shorthand values to full export MIME types.
+// Any other value passes through raw, so a full MIME string works too. Kept
+// distinct from mimeShorthands (upload/list --mime) because the two name
+// different things: one Drive-native type, one export representation.
+var exportShorthands = map[string]string{
+	"pdf":  "application/pdf",
+	"pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	"csv":  "text/csv",
+	"tsv":  "text/tab-separated-values",
+	"md":   "text/markdown",
+	"txt":  "text/plain",
+	"odt":  "application/vnd.oasis.opendocument.text",
+	"ods":  "application/vnd.oasis.opendocument.spreadsheet",
+	"odp":  "application/vnd.oasis.opendocument.presentation",
+}
+
 // defaultExportMimes maps the Google-native types with a text default to the
 // export MIME the download leaf uses when --export is not set. Sheet CSV/TSV
 // exports cover the FIRST SHEET ONLY (see download.go help text).
@@ -106,13 +124,18 @@ func escapeQ(s string) string {
 }
 
 // composeQuery builds the API's q parameter from the raw --query passthrough
-// plus the composed shorthand terms, ANDed (space-joined in Drive q syntax).
+// plus the composed shorthand terms, joined with an explicit " and ". Drive q
+// has no implicit conjunction, so space-joined terms are rejected with
+// "Invalid Value". A non-empty raw --query is wrapped in parentheses because
+// Drive binds AND tighter than OR: without them an `or` inside the raw query
+// would scope the appended `and trashed = false` to only its last operand,
+// silently leaking trashed files instead of returning them filtered.
 // --trashed=false adds trashed = false so trashed files are excluded by
 // default; --trashed leaves the term off so both are returned.
 func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 	var terms []string
 	if query != "" {
-		terms = append(terms, query)
+		terms = append(terms, "("+query+")")
 	}
 	if name != "" {
 		terms = append(terms, "name contains '"+escapeQ(name)+"'")
@@ -126,13 +149,23 @@ func composeQuery(query, name, parentID, mimeType string, trashed bool) string {
 	if !trashed {
 		terms = append(terms, "trashed = false")
 	}
-	return strings.Join(terms, " ")
+	return strings.Join(terms, " and ")
 }
 
 // resolveMime expands a --mime shorthand to its Drive MIME type; other values
 // pass through raw, so full MIME strings work.
 func resolveMime(value string) string {
 	if mime, ok := mimeShorthands[value]; ok {
+		return mime
+	}
+	return value
+}
+
+// resolveExportMime expands an --export shorthand (pdf, pptx, docx, ...) to
+// its full export MIME type; other values pass through raw, so full MIME
+// strings work.
+func resolveExportMime(value string) string {
+	if mime, ok := exportShorthands[value]; ok {
 		return mime
 	}
 	return value

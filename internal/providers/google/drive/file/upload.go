@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"mime"
 	"path/filepath"
+	"strings"
 
 	drive "google.golang.org/api/drive/v3"
 
@@ -17,9 +18,10 @@ import (
 // from a local path, read through the config's afero FS.
 func newUploadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *cobra.Command {
 	var (
-		name     string
-		parentID string
-		mimeType string
+		name      string
+		parentID  string
+		mimeType  string
+		convertTo string
 	)
 	cmd := &cobra.Command{
 		Use:   "upload <local-path>",
@@ -28,9 +30,24 @@ func newUploadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *
 everything-cli google drive file upload ./report.pdf --format json
 
 # Upload a file into a Drive folder under a new name
-everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh`,
+everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent 1AbCdEfGh
+
+# Upload a .pptx and have Drive convert it into a Google Slides presentation
+everything-cli google drive file upload ./deck.pptx --convert-to slide`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f := cmd.Flags()
+			if f.Changed("convert-to") && f.Changed("mime-type") {
+				return fmt.Errorf("--convert-to (%s) and --mime-type (%s) are mutually exclusive: --convert-to picks the Google-native target while --mime-type overrides the media content type", convertTo, mimeType)
+			}
+			var convertMime string
+			if f.Changed("convert-to") {
+				resolved, err := resolveConvertMime(convertTo)
+				if err != nil {
+					return err
+				}
+				convertMime = resolved
+			}
 			localPath := args[0]
 			content, err := cfg.Fs.Open(localPath)
 			if err != nil {
@@ -45,6 +62,11 @@ everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent
 			if parentID != "" {
 				file.Parents = []string{parentID}
 			}
+			if convertMime != "" {
+				// The metadata MimeType is the conversion target; the media
+				// content-type stays the real source type so Drive can convert.
+				file.MimeType = convertMime
+			}
 			uploaded, err := svc.UploadFile(cmd.Context(), file, resolveUploadMime(mimeType, localPath), content)
 			if err != nil {
 				return err
@@ -57,7 +79,20 @@ everything-cli google drive file upload ./report.pdf --name "Q3 report" --parent
 	f.StringVar(&name, "name", "", "Name for the Drive file (default: the local path's base name)")
 	f.StringVar(&parentID, "parent", "", "Id of the parent folder")
 	f.StringVar(&mimeType, "mime-type", "", "MIME type to declare (default: from the file extension, else application/octet-stream)")
+	f.StringVar(&convertTo, "convert-to", "", "Convert the upload to a Google-native type: folder, doc, sheet, slide, or an application/vnd.google-apps.* MIME type (mutually exclusive with --mime-type)")
 	return cmd
+}
+
+// resolveConvertMime maps --convert-to to the Google-native MIME type the
+// upload should become. Shorthands resolve through mimeShorthands; a raw value
+// is accepted only when it is itself Google-native, since Drive only converts
+// into its own types.
+func resolveConvertMime(value string) (string, error) {
+	target := resolveMime(value)
+	if !strings.HasPrefix(target, "application/vnd.google-apps.") {
+		return "", fmt.Errorf("unsupported --convert-to %q: want folder, doc, sheet, slide, or an application/vnd.google-apps.* MIME type", value)
+	}
+	return target, nil
 }
 
 // resolveUploadName returns --name, or the local path's base name when unset.
