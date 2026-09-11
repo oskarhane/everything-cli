@@ -78,6 +78,8 @@ type fileServerConfig struct {
 	infoStatus    int    // 0 => 200
 	infoBody      string // overrides the generated ok:true body when non-empty
 	noURL         bool   // omit url_private
+	redirectTo    string // bytes endpoint 302s here instead of serving
+	keepURLPolicy bool   // don't stub validateFileURL (rejection tests)
 }
 
 // newFileServer serves the two endpoints a download touches: /files.info
@@ -109,6 +111,10 @@ func newFileServer(t *testing.T, cfg fileServerConfig) (*httptest.Server, *fileR
 				testFileID, len(cfg.content), urlPrivate)
 		case "/files/" + testFileID:
 			rec.recordBytes(r.Header.Get("Authorization"))
+			if cfg.redirectTo != "" {
+				http.Redirect(w, r, cfg.redirectTo, http.StatusFound)
+				return
+			}
 			if cfg.contentStatus == http.StatusTooManyRequests {
 				w.Header().Set("Retry-After", cfg.retryAfter)
 				w.WriteHeader(cfg.contentStatus)
@@ -124,6 +130,17 @@ func newFileServer(t *testing.T, cfg fileServerConfig) (*httptest.Server, *fileR
 		}
 	}))
 	t.Cleanup(srv.Close)
+	// The generated url_private points at this server (plain http on a
+	// loopback port), which the production allowlist rejects — stub it to
+	// permit this host for the test's lifetime. keepURLPolicy tests exercise
+	// the production policy instead.
+	if !cfg.keepURLPolicy {
+		u, err := url.Parse(srv.URL)
+		require.NoError(t, err)
+		saved := validateFileURL
+		validateFileURL = func(v *url.URL) bool { return v.Host == u.Host }
+		t.Cleanup(func() { validateFileURL = saved })
+	}
 	return srv, rec
 }
 
@@ -236,6 +253,119 @@ func TestFileDownloadRateLimited(t *testing.T) {
 	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "retry after 42s")
+}
+
+// fileInfoBody renders an ok:true files.info body with a caller-chosen
+// url_private, for tests that must control the download URL itself.
+func fileInfoBody(urlPrivate string) string {
+	return fmt.Sprintf(
+		`{"ok":true,"file":{"id":%q,"name":"report.pdf","mimetype":"application/pdf","size":5,"url_private":%q}}`,
+		testFileID, urlPrivate)
+}
+
+// newAuthRecorder serves 200s and records the Authorization header of every
+// request it receives, so tests can prove a refused fetch never reached the
+// host — with or without the token.
+type authRecorder struct {
+	mu    sync.Mutex
+	auths []string
+}
+
+func newAuthRecorder(t *testing.T) (*httptest.Server, *authRecorder) {
+	t.Helper()
+	rec := &authRecorder{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec.mu.Lock()
+		rec.auths = append(rec.auths, r.Header.Get("Authorization"))
+		rec.mu.Unlock()
+	}))
+	t.Cleanup(srv.Close)
+	return srv, rec
+}
+
+func (r *authRecorder) requests() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.auths...)
+}
+
+// TestFileDownloadRejectsUntrustedHost: a url_private on a host outside the
+// allowlist fails before any request — the untrusted host never sees a byte.
+func TestFileDownloadRejectsUntrustedHost(t *testing.T) {
+	evil, evilRec := newAuthRecorder(t)
+	// The fixture's stub permits only the info server's host, so the evil
+	// host fails the allowlist even before the scheme is considered.
+	srv, rec := newFileServer(t, fileServerConfig{infoBody: fileInfoBody(evil.URL + "/files/" + testFileID)})
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newFileService(t, srv))
+
+	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), testFileID)
+	assert.NotContains(t, err.Error(), evil.URL)
+	assert.Empty(t, evilRec.requests())
+	assert.Equal(t, 0, rec.bytesHits)
+}
+
+// TestFileDownloadRejectsHTTPURL: a url_private without the https scheme is
+// rejected under the production allowlist, naming the file id and never the
+// URL.
+func TestFileDownloadRejectsHTTPURL(t *testing.T) {
+	const urlPrivate = "http://files.slack.com/files-pri/x/report.pdf"
+	srv, rec := newFileServer(t, fileServerConfig{
+		infoBody:      fileInfoBody(urlPrivate),
+		keepURLPolicy: true,
+	})
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newFileService(t, srv))
+
+	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), testFileID)
+	assert.NotContains(t, err.Error(), urlPrivate)
+	assert.Equal(t, 0, rec.bytesHits)
+}
+
+// TestFileDownloadRefusesCrossHostRedirect: a valid download host 302ing to
+// another host is refused, and the redirect target never receives a request
+// carrying the bearer token (the transport would re-stamp it after Go's
+// client strips it).
+func TestFileDownloadRefusesCrossHostRedirect(t *testing.T) {
+	evil, evilRec := newAuthRecorder(t)
+	srv, _ := newFileServer(t, fileServerConfig{redirectTo: evil.URL + "/stolen"})
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newFileService(t, srv))
+
+	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cross-host redirect")
+	assert.NotContains(t, err.Error(), evil.URL)
+	for _, auth := range evilRec.requests() {
+		assert.NotContains(t, auth, testToken)
+	}
+	assert.Empty(t, evilRec.requests())
+}
+
+// TestFileDownloadErrorHidesURL: a connection failure surfaces the cause but
+// never the url_private string (url.Error embeds it; the error is unwrapped).
+func TestFileDownloadErrorHidesURL(t *testing.T) {
+	dead, _ := newAuthRecorder(t)
+	urlPrivate := dead.URL + "/files/" + testFileID
+	dead.Close()
+
+	// Permit the (now dead) loopback host so the failure is a dial error,
+	// not an allowlist rejection.
+	saved := validateFileURL
+	validateFileURL = func(*url.URL) bool { return true }
+	t.Cleanup(func() { validateFileURL = saved })
+
+	srv, _ := newFileServer(t, fileServerConfig{infoBody: fileInfoBody(urlPrivate)})
+	_, root, out := newSlackEnv(t)
+	stubDial(t, newFileService(t, srv))
+
+	_, err := execute(t, root, out, "slack", "file", "download", testFileID)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), urlPrivate)
 }
 
 // TestFileDownloadRequiresExactlyOneArg: the file-id positional is mandatory.

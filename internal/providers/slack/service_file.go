@@ -2,12 +2,29 @@ package slack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
 )
+
+// validateFileURL is the url_private allowlist: only https on slack.com, a
+// .slack.com subdomain, or a .slack-edge.com subdomain may be fetched. It
+// gates the download before any request because the bearer-stamping client
+// would otherwise send the user's token to whatever absolute URL files.info
+// returned. It is a var (like validateBaseURL) so hermetic tests can permit
+// the httptest server host.
+var validateFileURL = func(u *url.URL) bool {
+	if u.Scheme != "https" {
+		return false
+	}
+	host := u.Hostname()
+	return host == "slack.com" ||
+		strings.HasSuffix(host, ".slack.com") ||
+		strings.HasSuffix(host, ".slack-edge.com")
+}
 
 // filesInfoResponse is the pinned subset of GET /files.info: the one file
 // object under "file".
@@ -57,10 +74,14 @@ func (s *httpService) fileInfoWire(ctx context.Context, fileID string) (wireFile
 // DownloadFileTo streams the file's bytes into w. files.info returns an
 // absolute url_private outside baseURL, so this bypasses apiCall: it GETs that
 // URL with the same authenticated client (the strategy stamps Authorization:
-// Bearer), then copies the body. The download is unbounded — Drive parity, no
-// size cap; the caller decides how much to consume. A 429 maps to the shared
-// rate-limit error and any other non-200 to the status plus a body capped at
-// maxErrBodyBytes.
+// Bearer), then copies the body. url_private is attacker-influenceable wire
+// data, so it is validated against validateFileURL before any request and
+// redirects off the original host are refused — Go's client strips
+// Authorization on cross-domain redirects, but the strategy's transport
+// re-stamps it on every RoundTrip. The download is unbounded — Drive parity,
+// no size cap; the caller decides how much to consume. A 429 maps to the
+// shared rate-limit error and any other non-200 to the status plus a body
+// capped at maxErrBodyBytes.
 func (s *httpService) DownloadFileTo(ctx context.Context, fileID string, w io.Writer) error {
 	info, err := s.fileInfoWire(ctx, fileID)
 	if err != nil {
@@ -69,12 +90,34 @@ func (s *httpService) DownloadFileTo(ctx context.Context, fileID string, w io.Wr
 	if info.URLPrivate == "" {
 		return fmt.Errorf("slack file %s has no download URL", fileID)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, info.URLPrivate, nil)
+	dlURL, err := url.Parse(info.URLPrivate)
+	if err != nil || !validateFileURL(dlURL) {
+		// Name the file id, never the URL: url_private must not leak into
+		// output even when it is the reason for the failure.
+		return fmt.Errorf("slack file %s has an untrusted download URL", fileID)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dlURL.String(), nil)
 	if err != nil {
 		return fmt.Errorf("building slack file download request: %w", err)
 	}
-	resp, err := s.client.Do(req)
+	// The bearer-stamping transport re-adds Authorization after Go strips it
+	// on cross-domain redirects, so refuse to follow a redirect off the
+	// download's original host rather than trusting the transport.
+	client := *s.client
+	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		if next.URL.Host != via[0].URL.Host {
+			return errors.New("slack file download refused cross-host redirect")
+		}
+		return nil
+	}
+	resp, err := client.Do(req)
 	if err != nil {
+		// url.Error's message embeds the request URL; unwrap to the cause so
+		// a network failure never echoes url_private.
+		var uerr *url.Error
+		if errors.As(err, &uerr) {
+			err = uerr.Err
+		}
 		return fmt.Errorf("calling slack file download: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
