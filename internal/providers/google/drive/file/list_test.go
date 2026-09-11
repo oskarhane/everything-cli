@@ -55,22 +55,22 @@ func TestListComposesQuery(t *testing.T) {
 		args []string
 		want string
 	}{
-		{"query only", []string{"--query", "fullText = 'invoice'"}, "fullText = 'invoice' trashed = false"},
-		{"query shorthand", []string{"-q", "owner = 'me'"}, "owner = 'me' trashed = false"},
-		{"name only", []string{"--name", "Q3 report"}, "name contains 'Q3 report' trashed = false"},
-		{"name with quotes", []string{"--name", "O'Brien's"}, `name contains 'O\'Brien\'s' trashed = false`},
-		{"parent only", []string{"--parent", "1AbC"}, "'1AbC' in parents trashed = false"},
-		{"parent with quotes", []string{"--parent", `my'O'folder`}, `'my\'O\'folder' in parents trashed = false`},
-		{"mime with quotes", []string{"--mime", `we'ird`}, `mimeType = 'we\'ird' trashed = false`},
-		{"mime folder", []string{"--mime", "folder"}, "mimeType = 'application/vnd.google-apps.folder' trashed = false"},
-		{"mime doc", []string{"--mime", "doc"}, "mimeType = 'application/vnd.google-apps.document' trashed = false"},
-		{"mime sheet", []string{"--mime", "sheet"}, "mimeType = 'application/vnd.google-apps.spreadsheet' trashed = false"},
-		{"mime slide", []string{"--mime", "slide"}, "mimeType = 'application/vnd.google-apps.presentation' trashed = false"},
-		{"mime raw", []string{"--mime", "image/png"}, "mimeType = 'image/png' trashed = false"},
+		{"query only", []string{"--query", "fullText = 'invoice'"}, "fullText = 'invoice' and trashed = false"},
+		{"query shorthand", []string{"-q", "owner = 'me'"}, "owner = 'me' and trashed = false"},
+		{"name only", []string{"--name", "Q3 report"}, "name contains 'Q3 report' and trashed = false"},
+		{"name with quotes", []string{"--name", "O'Brien's"}, `name contains 'O\'Brien\'s' and trashed = false`},
+		{"parent only", []string{"--parent", "1AbC"}, "'1AbC' in parents and trashed = false"},
+		{"parent with quotes", []string{"--parent", `my'O'folder`}, `'my\'O\'folder' in parents and trashed = false`},
+		{"mime with quotes", []string{"--mime", `we'ird`}, `mimeType = 'we\'ird' and trashed = false`},
+		{"mime folder", []string{"--mime", "folder"}, "mimeType = 'application/vnd.google-apps.folder' and trashed = false"},
+		{"mime doc", []string{"--mime", "doc"}, "mimeType = 'application/vnd.google-apps.document' and trashed = false"},
+		{"mime sheet", []string{"--mime", "sheet"}, "mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"},
+		{"mime slide", []string{"--mime", "slide"}, "mimeType = 'application/vnd.google-apps.presentation' and trashed = false"},
+		{"mime raw", []string{"--mime", "image/png"}, "mimeType = 'image/png' and trashed = false"},
 		{"trashed flag", []string{"--trashed"}, ""},
 		{"all combined", []string{"-q", "owner = 'me'", "--name", "note", "--parent", "1AbC", "--mime", "sheet"},
-			"owner = 'me' name contains 'note' '1AbC' in parents " +
-				"mimeType = 'application/vnd.google-apps.spreadsheet' trashed = false"},
+			"owner = 'me' and name contains 'note' and '1AbC' in parents and " +
+				"mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"},
 		{"no filters", nil, "trashed = false"},
 	}
 	for _, tt := range tests {
