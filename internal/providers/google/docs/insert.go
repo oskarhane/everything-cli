@@ -7,6 +7,7 @@ import (
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/textflag"
 )
 
 // newInsertCmd returns `docs insert`: insert text immediately before the
@@ -35,7 +36,7 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 			if index <= 0 {
 				return fmt.Errorf("--index is required and must be a positive Docs-API content index: the text is inserted before it")
 			}
-			body, err := resolveText(cfg.Fs, text, textFile, "insert")
+			body, err := textflag.Resolve(cfg.Fs, text, textFile, "insert")
 			if err != nil {
 				return err
 			}
