@@ -29,6 +29,28 @@ func TestListJSON(t *testing.T) {
 	require.Equal(t, []any{"folder_1"}, first["parent_ids"])
 }
 
+// TestListRendersTrashed pins the trashed column end to end: the seeded
+// trashed file must render trashed=true in JSON (the service wire tests guard
+// that the API projection actually returns the field), while an untrashed file
+// stays false.
+func TestListRendersTrashed(t *testing.T) {
+	svc := &fakeService{files: seedFiles()}
+	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "json"))
+
+	rows, ok := cmdtest.DecodeJSON(t, out).([]any)
+	require.True(t, ok, "expected a JSON array, got: %s", out)
+	require.Len(t, rows, 3)
+
+	trashed, ok := rows[2].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "file_3", trashed["id"])
+	require.Equal(t, true, trashed["trashed"])
+
+	first, ok := rows[0].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, false, first["trashed"])
+}
+
 func TestListTable(t *testing.T) {
 	svc := &fakeService{files: seedFiles()}
 	out := cmdtest.RunCmd(t, newLeafCmd(newListCmd, svc, "table"))
