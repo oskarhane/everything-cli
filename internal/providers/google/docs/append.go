@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/textflag"
 )
 
 // newAppendCmd returns `docs append`: add text at the very end of a tab's
@@ -27,7 +27,7 @@ everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar"
 everything-cli google docs append 1AbCdEfGh --text-file notes.txt`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := resolveText(cfg.Fs, text, textFile, "append")
+			body, err := textflag.Resolve(cfg.Fs, text, textFile, "append")
 			if err != nil {
 				return err
 			}
@@ -56,25 +56,4 @@ everything-cli google docs append 1AbCdEfGh --text-file notes.txt`,
 	f.StringVar(&textFile, "text-file", "", "Read the text to append from this file instead of --text")
 	f.StringVar(&tab, "tab", "", "Append to this tab, by tab ID or exact title (default: the first tab)")
 	return cmd
-}
-
-// resolveText validates the --text / --text-file pair (exactly one) and reads
-// the file variant through the config's afero FS. The text comes back
-// verbatim; only append newline-terminates it (an insert must not grow the
-// text by a byte the caller did not ask for).
-func resolveText(fs afero.Fs, text, textFile, action string) (string, error) {
-	if text != "" && textFile != "" {
-		return "", fmt.Errorf("--text and --text-file are mutually exclusive")
-	}
-	if text == "" && textFile == "" {
-		return "", fmt.Errorf("--text or --text-file is required: give the text to %s inline or via a file", action)
-	}
-	if textFile != "" {
-		b, err := afero.ReadFile(fs, textFile)
-		if err != nil {
-			return "", fmt.Errorf("reading --text-file %s: %w", textFile, err)
-		}
-		text = string(b)
-	}
-	return text, nil
 }

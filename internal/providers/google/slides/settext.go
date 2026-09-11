@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/spf13/afero"
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/google/drive/service"
+	"github.com/oskarhane/everything-cli/internal/providers/google/textflag"
 )
 
 // newSetTextCmd returns `slides set-text`: write text into one placeholder
@@ -40,7 +40,7 @@ everything-cli google slides set-text 1AbCpresentationID --slide g1f2d3c4b5 --pl
 			if !cmd.Flags().Changed("placeholder-idx") {
 				return fmt.Errorf("--placeholder-idx is required: give the placeholder's index on the slide (run `everything-cli google slides get %s` to inspect the slide)", args[0])
 			}
-			body, err := resolveText(cfg.Fs, text, textFile, "set")
+			body, err := textflag.Resolve(cfg.Fs, text, textFile, "set")
 			if err != nil {
 				return err
 			}
@@ -112,24 +112,4 @@ func resolvePlaceholder(placeholders []service.SlidePlaceholder, slideKey string
 		return "", fmt.Errorf("slide %s has no placeholder with index %d", slideKey, idx)
 	}
 	return "", fmt.Errorf("no slide with object ID %q in the presentation", slideKey)
-}
-
-// resolveText validates the --text / --text-file pair (exactly one) and reads
-// the file variant through the config's afero FS. The text comes back
-// verbatim: set-text writes exactly what the caller gave it.
-func resolveText(fs afero.Fs, text, textFile, action string) (string, error) {
-	if text != "" && textFile != "" {
-		return "", fmt.Errorf("--text and --text-file are mutually exclusive")
-	}
-	if text == "" && textFile == "" {
-		return "", fmt.Errorf("--text or --text-file is required: give the text to %s inline or via a file", action)
-	}
-	if textFile != "" {
-		b, err := afero.ReadFile(fs, textFile)
-		if err != nil {
-			return "", fmt.Errorf("reading --text-file %s: %w", textFile, err)
-		}
-		text = string(b)
-	}
-	return text, nil
 }
