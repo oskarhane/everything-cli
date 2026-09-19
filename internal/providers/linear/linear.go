@@ -32,6 +32,12 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		func(ctx context.Context) (service.ViewerService, error) {
 			return service.As[service.ViewerService](dial(ctx, cfg))
 		},
+		func(ctx context.Context) (service.CommentService, error) {
+			return service.As[service.CommentService](dial(ctx, cfg))
+		},
+		func(ctx context.Context) (service.AttachmentService, error) {
+			return service.As[service.AttachmentService](dial(ctx, cfg))
+		},
 	))
 	cmd.AddCommand(team.NewCmd(cfg, func(ctx context.Context) (service.TeamService, error) {
 		return service.As[service.TeamService](dial(ctx, cfg))
