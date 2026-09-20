@@ -30,6 +30,7 @@ Strict one-file-per-leaf layout under `internal/providers/<id>/<resource>/` (CLI
 - Leaf `<action>.go` — private constructor (`newListCmd(...)`) with the leaf's flags + `RunE`. No leaf bodies in the parent.
 - Colocated `<action>_test.go`; shared helpers in `<resource>_helpers_test.go`.
 - New leaf = `<action>.go` + `<action>_test.go` + one `AddCommand` line.
+- Nested sub-resources live in sub-packages under the resource package (e.g. `internal/providers/linear/issue/comment/`, `internal/providers/linear/issue/attachment/`). Sub-packages own their resource's rendering surface — the `comment` package owns comment rendering for both the `comment create` echo and the `issue comments` list leaf.
 
 ## CLI Conventions
 

@@ -319,6 +319,8 @@ everything-cli linear issue list [--team 9c1e2f3a-...] [--assignee <uuid|me>] \
     [--created-by <uuid|me>] [--updated-since -7d]       # one server-side filter; empty = workspace-wide
 everything-cli linear issue get BLA-123
 everything-cli linear issue comments BLA-123
+everything-cli linear issue comment create BLA-123 --body "Looking into this now" [--parent <comment-id>]
+everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
     [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-...]
 everything-cli linear issue update BLA-123 --state 8b9c0d1e-... [--title ... --assignee ...]

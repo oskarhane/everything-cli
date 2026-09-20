@@ -221,6 +221,45 @@ everything-cli linear issue comments BLA-123 --format json
 everything-cli linear issue comments 8c8a1b2c-0000-4000-8000-000000000001 --format table
 ```
 
+### issue comment create
+
+- `linear issue comment create <id>` — post a comment on one issue.
+  `<id>` accepts the issue's UUID or its human identifier (`BLA-123`),
+  like `issue get` / `issue comments`. Flags: `--body <text>` (required
+  — the comment text), `--parent <comment-id>` (threads the comment as
+  a reply to that comment).
+- Echoes the created comment as one object. JSON/TOON fields: `id`,
+  `body`, `created_at`, `updated_at`, `parent_id` (present only on
+  replies), `user` (`{id, name}`, omitted when null). Table columns:
+  `created_at`, `user` (display name), `body`.
+
+```sh
+everything-cli linear issue comment create BLA-123 --body "Looking into this now"
+everything-cli linear issue comment create BLA-123 --body "Fixed in #482" \
+  --parent 8c8a1b2c-0000-4000-8000-000000000042
+```
+
+### issue attachment create
+
+- `linear issue attachment create <id>` — link an attachment to one
+  issue. `<id>` accepts the issue's UUID or its human identifier
+  (`BLA-123`), like `issue get`. Flags: `--url <url>` (required — the
+  link target), `--title <title>` (required — the link label),
+  `--subtitle <text>` (optional — supporting text).
+- Linear treats the same `url` on the same issue as idempotent:
+  re-posting an existing URL updates that attachment rather than
+  creating a duplicate.
+- Echoes the created attachment as one object. JSON/TOON fields: `id`,
+  `title`, `url`, `subtitle` (omitted when empty), `created_at`. Table
+  columns: `created_at`, `title`, `url`.
+
+```sh
+everything-cli linear issue attachment create BLA-123 \
+  --url https://example.com/pr/482 --title "PR #482"
+everything-cli linear issue attachment create BLA-123 \
+  --url https://example.com/pr/482 --title "PR #482" --subtitle "Fix login redirect"
+```
+
 ## team
 
 - `linear team list` — list every team in the workspace. Fields: `id`
