@@ -1,7 +1,9 @@
 // Package comment builds the `linear issue comment` command tree: write
-// verbs for an issue's comments. It deliberately does not import the sibling
-// `issue` package — that parent will import this one, and importing back
-// would create a cycle — so it defines its own view types.
+// verbs for an issue's comments. It is also the single owner of comment
+// rendering — the parent `issue` package's comments list leaf consumes the
+// exported view surface — so both copies of the output shape cannot drift.
+// It deliberately does not import the sibling `issue` package: that parent
+// imports this one, and importing back would create a cycle.
 package comment
 
 import (
@@ -18,11 +20,10 @@ type refView struct {
 	Name string `json:"name"`
 }
 
-// commentView is the rendered shape of one created comment: output field
-// names are snake_case per the casing rule. A reply carries its parent
-// comment's ID; top-level comments leave ParentID empty so the JSON key is
-// omitted.
-type commentView struct {
+// View is the rendered shape of one comment: output field names are
+// snake_case per the casing rule. A reply carries its parent comment's ID;
+// top-level comments leave ParentID empty so the JSON key is omitted.
+type View struct {
 	ID        string   `json:"id"`
 	Body      string   `json:"body"`
 	CreatedAt string   `json:"created_at"`
@@ -31,8 +32,8 @@ type commentView struct {
 	User      *refView `json:"user,omitempty"`
 }
 
-// commentFields are the table columns of one created comment.
-var commentFields = []string{"created_at", "user", "body"}
+// Fields are the table columns of a comment.
+var Fields = []string{"created_at", "user", "body"}
 
 // NewCmd returns the `comment` parent with its leaves attached. Every leaf
 // lives in its own file with one AddCommand line per leaf.
@@ -45,9 +46,9 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.CommentService]) *cob
 	return cmd
 }
 
-// toCommentView maps a wire comment to its rendered shape.
-func toCommentView(c *service.Comment) commentView {
-	v := commentView{
+// ToView maps a wire comment to its rendered shape.
+func ToView(c *service.Comment) View {
+	v := View{
 		ID:        c.ID,
 		Body:      c.Body,
 		CreatedAt: c.CreatedAt,
@@ -70,9 +71,27 @@ func refName(r *refView) string {
 	return r.Name
 }
 
-// commentTableRow flattens a comment view into table-row cells; the author
+// JSONRow renders a comment view as a full JSON/TOON row: the user
+// reference keeps its id and name; parent_id appears only on replies.
+func JSONRow(v View) map[string]any {
+	row := map[string]any{
+		"id":         v.ID,
+		"body":       v.Body,
+		"created_at": v.CreatedAt,
+		"updated_at": v.UpdatedAt,
+	}
+	if v.ParentID != "" {
+		row["parent_id"] = v.ParentID
+	}
+	if v.User != nil {
+		row["user"] = map[string]any{"id": v.User.ID, "name": v.User.Name}
+	}
+	return row
+}
+
+// TableRow flattens a comment view into table-row cells; the author
 // reference renders as its display name.
-func commentTableRow(v commentView) map[string]any {
+func TableRow(v View) map[string]any {
 	return map[string]any{
 		"created_at": v.CreatedAt,
 		"user":       refName(v.User),
@@ -84,7 +103,7 @@ func commentTableRow(v commentView) map[string]any {
 // so JSON/TOON render it as a single object with its json tags, while rows
 // drive the table.
 func printComment(cmd *cobra.Command, cfg *app.Config, c *service.Comment) {
-	v := toCommentView(c)
-	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), commentFields, v,
-		[]map[string]any{commentTableRow(v)})
+	v := ToView(c)
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), Fields, v,
+		[]map[string]any{TableRow(v)})
 }

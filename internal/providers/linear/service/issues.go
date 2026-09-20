@@ -78,9 +78,9 @@ func (f IssueFilter) filterMap() map[string]any {
 }
 
 // IssueService is the issue surface the `linear issue` subtree consumes.
+// Comments live on CommentService — see comments.go.
 type IssueService interface {
 	ListIssues(ctx context.Context, f IssueFilter) ([]Issue, error)
-	ListComments(ctx context.Context, issueID string) ([]Comment, error)
 	GetIssue(ctx context.Context, id string) (*Issue, error)
 	CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue, error)
 	UpdateIssue(ctx context.Context, id string, in UpdateIssueInput) (*Issue, error)

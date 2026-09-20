@@ -34,7 +34,7 @@ func seedComments() []service.Comment {
 
 func TestCommentsJSON(t *testing.T) {
 	svc := &fakeService{comments: seedComments()}
-	out := cmdtest.RunCmd(t, newLeafCmd(newCommentsCmd, svc, "json"), "issue_1")
+	out := cmdtest.RunCmd(t, newCommentLeafCmd(svc, "json"), "issue_1")
 
 	require.Equal(t, "issue_1", svc.commentsIssueID)
 	got := cmdtest.DecodeJSON(t, out)
@@ -62,14 +62,14 @@ func TestCommentsJSON(t *testing.T) {
 
 func TestCommentsIssueIDPassthrough(t *testing.T) {
 	svc := &fakeService{comments: seedComments()}
-	cmdtest.RunCmd(t, newLeafCmd(newCommentsCmd, svc, "json"), "BLA-123")
+	cmdtest.RunCmd(t, newCommentLeafCmd(svc, "json"), "BLA-123")
 
 	require.Equal(t, "BLA-123", svc.commentsIssueID, "human identifiers pass through to the service")
 }
 
 func TestCommentsTable(t *testing.T) {
 	svc := &fakeService{comments: seedComments()}
-	out := cmdtest.RunCmd(t, newLeafCmd(newCommentsCmd, svc, "table"), "issue_1")
+	out := cmdtest.RunCmd(t, newCommentLeafCmd(svc, "table"), "issue_1")
 
 	// go-pretty StyleLight upper-cases header cells.
 	require.Contains(t, out, "CREATED_AT")
@@ -81,7 +81,7 @@ func TestCommentsTable(t *testing.T) {
 
 func TestCommentsToon(t *testing.T) {
 	svc := &fakeService{comments: seedComments()}
-	out := cmdtest.RunCmd(t, newLeafCmd(newCommentsCmd, svc, "toon"), "issue_1")
+	out := cmdtest.RunCmd(t, newCommentLeafCmd(svc, "toon"), "issue_1")
 
 	require.Contains(t, out, "body:")
 	require.Contains(t, out, "Top-level observation")
@@ -89,7 +89,7 @@ func TestCommentsToon(t *testing.T) {
 
 func TestCommentsEmpty(t *testing.T) {
 	svc := &fakeService{}
-	out := cmdtest.RunCmd(t, newLeafCmd(newCommentsCmd, svc, "json"), "issue_1")
+	out := cmdtest.RunCmd(t, newCommentLeafCmd(svc, "json"), "issue_1")
 
 	// An empty comment list is an empty array, not an error and not null.
 	got := cmdtest.DecodeJSON(t, out)
@@ -100,7 +100,7 @@ func TestCommentsEmpty(t *testing.T) {
 
 func TestCommentsError(t *testing.T) {
 	svc := &fakeService{err: errors.New("issue \"BLA-999\" not found")}
-	_, err := cmdtest.RunCmdErr(t, newLeafCmd(newCommentsCmd, svc, "json"), "BLA-999")
+	_, err := cmdtest.RunCmdErr(t, newCommentLeafCmd(svc, "json"), "BLA-999")
 
 	require.ErrorContains(t, err, `issue "BLA-999" not found`)
 }

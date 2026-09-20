@@ -25,7 +25,9 @@ func TestMain(m *testing.M) {
 }
 
 // fakeService is the hermetic service.IssueService double: it serves seeded
-// issues and comments and records every call for assertions.
+// issues and records every call for assertions. Its ListComments and
+// CreateComment stubs also satisfy service.CommentService, so the comments
+// leaf — which dials a CommentService — can reuse it.
 type fakeService struct {
 	issues   []service.Issue
 	comments []service.Comment
@@ -53,6 +55,15 @@ func (f *fakeService) ListComments(_ context.Context, issueID string) ([]service
 		return nil, f.err
 	}
 	return f.comments, nil
+}
+
+// CreateComment is a stub: the issue-package leaves never create comments,
+// but the fake must satisfy service.CommentService for the comments leaf.
+func (f *fakeService) CreateComment(_ context.Context, _ string, _ service.CreateCommentInput) (*service.Comment, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return nil, nil
 }
 
 func (f *fakeService) GetIssue(_ context.Context, id string) (*service.Issue, error) {
@@ -118,6 +129,18 @@ func seedIssue() service.Issue {
 // newLeafCmd builds a leaf against a fake service, ready to execute.
 func newLeafCmd(build func(*app.Config, service.Dialer[service.IssueService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(cmdtest.NewTestConfig(format), fakeNewSvc(svc))
+}
+
+// fakeNewCommentSvc hands out svc as a service.CommentService so the
+// comments leaf runs hermetically.
+func fakeNewCommentSvc(svc *fakeService) service.Dialer[service.CommentService] {
+	return func(context.Context) (service.CommentService, error) { return svc, nil }
+}
+
+// newCommentLeafCmd builds the comments leaf against a fake service, ready
+// to execute.
+func newCommentLeafCmd(svc *fakeService, format string) *cobra.Command {
+	return newCommentsCmd(cmdtest.NewTestConfig(format), fakeNewCommentSvc(svc))
 }
 
 // serverSvc returns a dialer bound to the real service against srv — the
