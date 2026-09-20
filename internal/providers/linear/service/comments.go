@@ -22,7 +22,8 @@ type Comment struct {
 	User      *NamedRef `json:"user"`
 }
 
-// CommentService is the comment surface the `linear comment` subtree consumes.
+// CommentService is the comment surface the `linear issue comment` subtree
+// consumes.
 type CommentService interface {
 	ListComments(ctx context.Context, issueID string) ([]Comment, error)
 	CreateComment(ctx context.Context, issueID string, in CreateCommentInput) (*Comment, error)
@@ -31,7 +32,7 @@ type CommentService interface {
 // Compile-time proof that Service satisfies the comment surface.
 var _ CommentService = (*Service)(nil)
 
-// CreateCommentInput carries the fields of `linear comment create`. Body is
+// CreateCommentInput carries the fields of `linear issue comment create`. Body is
 // required by the API; ParentID is optional — when empty the comment is
 // top-level rather than a reply.
 type CreateCommentInput struct {

@@ -16,7 +16,7 @@ type Attachment struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
-// CreateAttachmentInput carries the fields of `linear attachment create`.
+// CreateAttachmentInput carries the fields of `linear issue attachment create`.
 // URL and Title are required by AttachmentCreateInput; Subtitle is optional
 // and omitted from the mutation when empty.
 type CreateAttachmentInput struct {
@@ -25,7 +25,7 @@ type CreateAttachmentInput struct {
 	Subtitle string
 }
 
-// AttachmentService is the attachment surface the `linear attachment`
+// AttachmentService is the attachment surface the `linear issue attachment`
 // subtree consumes.
 type AttachmentService interface {
 	CreateAttachment(ctx context.Context, issueID string, in CreateAttachmentInput) (*Attachment, error)

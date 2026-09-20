@@ -440,3 +440,27 @@ func TestMutationFailureSurfaces(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "success: false"))
 }
+
+func TestMutationDecodeErrorsNameTheFailingHalf(t *testing.T) {
+	// A malformed payload must say which half failed to decode — the
+	// success flag or the node — so the two failures are distinguishable.
+	tests := []struct {
+		name    string
+		payload map[string]any
+		want    string
+	}{
+		{"success half", map[string]any{"success": "not-a-bool", "issue": nil}, "decoding issueCreate success"},
+		{"node half", map[string]any{"success": true, "issue": "not-an-object"}, "decoding issueCreate issue"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, _ := mockGraphQL(t, func(gqlCall) any {
+				return map[string]any{"issueCreate": tt.payload}
+			})
+			svc := newTestService(srv)
+
+			_, err := svc.CreateIssue(context.Background(), CreateIssueInput{TeamID: "team_1", Title: "X"})
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}

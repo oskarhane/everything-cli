@@ -148,7 +148,7 @@ func mutationPayload[T any](ctx context.Context, s *Service, query string, varia
 	}
 	var success bool
 	if err := json.Unmarshal(rawSuccess, &success); err != nil {
-		return nil, fmt.Errorf("decoding %s payload: %w", key, err)
+		return nil, fmt.Errorf("decoding %s success: %w", key, err)
 	}
 	rawNode, err := dig(data, key, field)
 	if err != nil {
@@ -156,7 +156,7 @@ func mutationPayload[T any](ctx context.Context, s *Service, query string, varia
 	}
 	var node *T
 	if err := json.Unmarshal(rawNode, &node); err != nil {
-		return nil, fmt.Errorf("decoding %s payload: %w", key, err)
+		return nil, fmt.Errorf("decoding %s %s: %w", key, field, err)
 	}
 	if !success || node == nil {
 		return nil, fmt.Errorf("linear API reported %s success: false", key)
