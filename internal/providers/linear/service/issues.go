@@ -164,7 +164,7 @@ func (s *Service) CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue,
 	if in.StateID != "" {
 		input["stateId"] = in.StateID
 	}
-	return s.issuePayload(ctx, mutation, map[string]any{"input": input}, "issueCreate")
+	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"input": input}, "issueCreate", "issue")
 }
 
 // UpdateIssue updates the issue id (UUID or "BLA-123") with the non-empty
@@ -186,29 +186,5 @@ func (s *Service) UpdateIssue(ctx context.Context, id string, in UpdateIssueInpu
 	if in.StateID != "" {
 		input["stateId"] = in.StateID
 	}
-	return s.issuePayload(ctx, mutation, map[string]any{"id": id, "input": input}, "issueUpdate")
-}
-
-// issuePayload runs one issue mutation and returns its issue, failing when
-// the payload reports success: false.
-func (s *Service) issuePayload(ctx context.Context, query string, variables map[string]any, key string) (*Issue, error) {
-	data, err := s.exec(ctx, query, variables)
-	if err != nil {
-		return nil, err
-	}
-	raw, err := dig(data, key)
-	if err != nil {
-		return nil, err
-	}
-	var payload struct {
-		Success bool   `json:"success"`
-		Issue   *Issue `json:"issue"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return nil, fmt.Errorf("decoding %s payload: %w", key, err)
-	}
-	if !payload.Success || payload.Issue == nil {
-		return nil, fmt.Errorf("linear API reported %s success: false", key)
-	}
-	return payload.Issue, nil
+	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"id": id, "input": input}, "issueUpdate", "issue")
 }

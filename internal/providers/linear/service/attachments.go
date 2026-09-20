@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 )
 
 // Attachment is one issue link attachment as decoded from the GraphQL API.
@@ -50,23 +48,5 @@ func (s *Service) CreateAttachment(ctx context.Context, issueID string, in Creat
 	if in.Subtitle != "" {
 		input["subtitle"] = in.Subtitle
 	}
-	data, err := s.exec(ctx, mutation, map[string]any{"input": input})
-	if err != nil {
-		return nil, err
-	}
-	raw, err := dig(data, "attachmentCreate")
-	if err != nil {
-		return nil, err
-	}
-	var payload struct {
-		Success    bool        `json:"success"`
-		Attachment *Attachment `json:"attachment"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return nil, fmt.Errorf("decoding attachmentCreate payload: %w", err)
-	}
-	if !payload.Success || payload.Attachment == nil {
-		return nil, fmt.Errorf("linear API reported attachmentCreate success: false")
-	}
-	return payload.Attachment, nil
+	return mutationPayload[Attachment](ctx, s, mutation, map[string]any{"input": input}, "attachmentCreate", "attachment")
 }

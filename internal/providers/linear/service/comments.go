@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 )
 
 // IDRef is a linked Linear object reference identified by ID only, such as
@@ -68,23 +66,5 @@ func (s *Service) CreateComment(ctx context.Context, issueID string, in CreateCo
 	if in.ParentID != "" {
 		input["parentId"] = in.ParentID
 	}
-	data, err := s.exec(ctx, mutation, map[string]any{"input": input})
-	if err != nil {
-		return nil, err
-	}
-	raw, err := dig(data, "commentCreate")
-	if err != nil {
-		return nil, err
-	}
-	var payload struct {
-		Success bool     `json:"success"`
-		Comment *Comment `json:"comment"`
-	}
-	if err := json.Unmarshal(raw, &payload); err != nil {
-		return nil, fmt.Errorf("decoding commentCreate payload: %w", err)
-	}
-	if !payload.Success || payload.Comment == nil {
-		return nil, fmt.Errorf("linear API reported commentCreate success: false")
-	}
-	return payload.Comment, nil
+	return mutationPayload[Comment](ctx, s, mutation, map[string]any{"input": input}, "commentCreate", "comment")
 }

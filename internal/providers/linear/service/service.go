@@ -133,6 +133,37 @@ func truncateBody(b []byte) string {
 	return s
 }
 
+// mutationPayload runs one mutation and returns its created/updated node,
+// failing when the payload reports success: false or carries a null node.
+// Every Linear mutation payload is { success, <field> } under the mutation
+// key; dig locates both halves without per-mutation payload structs.
+func mutationPayload[T any](ctx context.Context, s *Service, query string, variables map[string]any, key, field string) (*T, error) {
+	data, err := s.exec(ctx, query, variables)
+	if err != nil {
+		return nil, err
+	}
+	rawSuccess, err := dig(data, key, "success")
+	if err != nil {
+		return nil, err
+	}
+	var success bool
+	if err := json.Unmarshal(rawSuccess, &success); err != nil {
+		return nil, fmt.Errorf("decoding %s payload: %w", key, err)
+	}
+	rawNode, err := dig(data, key, field)
+	if err != nil {
+		return nil, err
+	}
+	var node *T
+	if err := json.Unmarshal(rawNode, &node); err != nil {
+		return nil, fmt.Errorf("decoding %s payload: %w", key, err)
+	}
+	if !success || node == nil {
+		return nil, fmt.Errorf("linear API reported %s success: false", key)
+	}
+	return node, nil
+}
+
 // dig walks data down the given key path and returns the raw JSON found
 // there. It locates nested results such as issue.comments. A null at an
 // intermediate step leaves nowhere left to walk and is an error; a null at
