@@ -14,22 +14,18 @@ import (
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
-// refView is the rendered shape of a comment's author.
-type refView struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
 // View is the rendered shape of one comment: output field names are
 // snake_case per the casing rule. A reply carries its parent comment's ID;
 // top-level comments leave ParentID empty so the JSON key is omitted.
+// User is service.NamedRef directly: its id/name JSON tags already match
+// the rendered shape, so no local view type is needed for the author.
 type View struct {
-	ID        string   `json:"id"`
-	Body      string   `json:"body"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
-	ParentID  string   `json:"parent_id,omitempty"`
-	User      *refView `json:"user,omitempty"`
+	ID        string            `json:"id"`
+	Body      string            `json:"body"`
+	CreatedAt string            `json:"created_at"`
+	UpdatedAt string            `json:"updated_at"`
+	ParentID  string            `json:"parent_id,omitempty"`
+	User      *service.NamedRef `json:"user,omitempty"`
 }
 
 // Fields are the table columns of a comment.
@@ -58,17 +54,9 @@ func ToView(c *service.Comment) View {
 		v.ParentID = c.Parent.ID
 	}
 	if c.User != nil {
-		v.User = &refView{ID: c.User.ID, Name: c.User.Name}
+		v.User = c.User
 	}
 	return v
-}
-
-// refName renders a possibly-absent reference as its display name.
-func refName(r *refView) string {
-	if r == nil {
-		return ""
-	}
-	return r.Name
 }
 
 // JSONRow renders a comment view as a full JSON/TOON row: the user
@@ -92,9 +80,13 @@ func JSONRow(v View) map[string]any {
 // TableRow flattens a comment view into table-row cells; the author
 // reference renders as its display name.
 func TableRow(v View) map[string]any {
+	user := ""
+	if v.User != nil {
+		user = v.User.Name
+	}
 	return map[string]any{
 		"created_at": v.CreatedAt,
-		"user":       refName(v.User),
+		"user":       user,
 		"body":       v.Body,
 	}
 }
