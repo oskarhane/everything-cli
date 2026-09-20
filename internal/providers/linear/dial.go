@@ -28,3 +28,9 @@ func dial(ctx context.Context, cfg *app.Config) (*service.Service, error) {
 	}
 	return service.New(client), nil
 }
+
+// dialAs narrows dial's shared *service.Service seam to one subtree's
+// typed surface, so every subtree dialer is the same one-liner.
+func dialAs[T any](cfg *app.Config) service.Dialer[T] {
+	return func(ctx context.Context) (T, error) { return service.As[T](dial(ctx, cfg)) }
+}

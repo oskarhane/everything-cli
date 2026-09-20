@@ -1,8 +1,6 @@
 package linear
 
 import (
-	"context"
-
 	"github.com/spf13/cobra"
 
 	"github.com/oskarhane/everything-cli/internal/app"
@@ -18,7 +16,7 @@ import (
 // newLinearCmd returns the `linear` parent command with its subtrees
 // attached. Each subtree lives in its own package; every leaf lives in its
 // own file with one AddCommand line per leaf. The concrete service
-// implements every linear interface; service.As narrows the shared seam to
+// implements every linear interface; dialAs narrows the shared seam to
 // each subtree's own surface.
 func newLinearCmd(cfg *app.Config) *cobra.Command {
 	cmd := &cobra.Command{
@@ -26,28 +24,14 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Short: "Interact with Linear from the command line",
 	}
 	cmd.AddCommand(issue.NewCmd(cfg, issue.Dialers{
-		Issue: func(ctx context.Context) (service.IssueService, error) {
-			return service.As[service.IssueService](dial(ctx, cfg))
-		},
-		Viewer: func(ctx context.Context) (service.ViewerService, error) {
-			return service.As[service.ViewerService](dial(ctx, cfg))
-		},
-		Comment: func(ctx context.Context) (service.CommentService, error) {
-			return service.As[service.CommentService](dial(ctx, cfg))
-		},
-		Attachment: func(ctx context.Context) (service.AttachmentService, error) {
-			return service.As[service.AttachmentService](dial(ctx, cfg))
-		},
+		Issue:      dialAs[service.IssueService](cfg),
+		Viewer:     dialAs[service.ViewerService](cfg),
+		Comment:    dialAs[service.CommentService](cfg),
+		Attachment: dialAs[service.AttachmentService](cfg),
 	}))
-	cmd.AddCommand(team.NewCmd(cfg, func(ctx context.Context) (service.TeamService, error) {
-		return service.As[service.TeamService](dial(ctx, cfg))
-	}))
-	cmd.AddCommand(project.NewCmd(cfg, func(ctx context.Context) (service.ProjectService, error) {
-		return service.As[service.ProjectService](dial(ctx, cfg))
-	}))
-	cmd.AddCommand(account.NewCmd(cfg, ID, newAccountStrategy, func(ctx context.Context) (service.ViewerService, error) {
-		return service.As[service.ViewerService](dial(ctx, cfg))
-	}))
+	cmd.AddCommand(team.NewCmd(cfg, dialAs[service.TeamService](cfg)))
+	cmd.AddCommand(project.NewCmd(cfg, dialAs[service.ProjectService](cfg)))
+	cmd.AddCommand(account.NewCmd(cfg, ID, newAccountStrategy, dialAs[service.ViewerService](cfg)))
 	return cmd
 }
 
