@@ -31,6 +31,7 @@ func TestMain(m *testing.M) {
 type fakeService struct {
 	issues   []service.Issue
 	comments []service.Comment
+	states   []service.State
 	err      error // when set, every call fails
 
 	listFilter      service.IssueFilter
@@ -39,6 +40,12 @@ type fakeService struct {
 	created         service.CreateIssueInput
 	updatedID       string
 	updated         service.UpdateIssueInput
+
+	// calls records method names in invocation order so tests can pin
+	// sequencing (e.g. update's GetIssue-before-ListStates lookup).
+	calls           []string
+	listStatesTeam  string
+	listStatesCalls int
 }
 
 func (f *fakeService) ListIssues(_ context.Context, filter service.IssueFilter) ([]service.Issue, error) {
@@ -67,6 +74,7 @@ func (f *fakeService) CreateComment(_ context.Context, _ string, _ service.Creat
 }
 
 func (f *fakeService) GetIssue(_ context.Context, id string) (*service.Issue, error) {
+	f.calls = append(f.calls, "GetIssue")
 	f.gotID = id
 	if f.err != nil {
 		return nil, f.err
@@ -77,6 +85,18 @@ func (f *fakeService) GetIssue(_ context.Context, id string) (*service.Issue, er
 		}
 	}
 	return nil, fmt.Errorf("issue %q not found", id)
+}
+
+// ListStates is the service.StateService side of the double: it serves the
+// seeded team states and records the team it was asked about.
+func (f *fakeService) ListStates(_ context.Context, teamID string) ([]service.State, error) {
+	f.calls = append(f.calls, "ListStates")
+	f.listStatesTeam = teamID
+	f.listStatesCalls++
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.states, nil
 }
 
 func (f *fakeService) CreateIssue(_ context.Context, in service.CreateIssueInput) (*service.Issue, error) {
@@ -129,6 +149,18 @@ func seedIssue() service.Issue {
 // newLeafCmd builds a leaf against a fake service, ready to execute.
 func newLeafCmd(build func(*app.Config, service.Dialer[service.IssueService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
 	return build(cmdtest.NewTestConfig(format), fakeNewSvc(svc))
+}
+
+// fakeNewStateSvc hands out svc as a service.StateService so state-name
+// resolution runs hermetically.
+func fakeNewStateSvc(svc *fakeService) service.Dialer[service.StateService] {
+	return func(context.Context) (service.StateService, error) { return svc, nil }
+}
+
+// newStateLeafCmd builds a leaf that dials both the issue and state
+// services (create/update) against one fake double.
+func newStateLeafCmd(build func(*app.Config, service.Dialer[service.IssueService], service.Dialer[service.StateService]) *cobra.Command, svc *fakeService, format string) *cobra.Command {
+	return build(cmdtest.NewTestConfig(format), fakeNewSvc(svc), fakeNewStateSvc(svc))
 }
 
 // fakeNewCommentSvc hands out svc as a service.CommentService so the

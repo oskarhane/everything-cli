@@ -173,12 +173,15 @@ everything-cli linear issue get 8b9c0d1e-... --format table
 - `linear issue create` — create an issue in a team. Flags: `--team
   <team-id>` (required, UUID), `--title <text>` (required — the CLI
   demands it even though the API marks it nullable), `--description
-  <markdown>`, `--assignee <user-id>` (UUID), `--state <state-id>`
-  (workflow state UUID). With no `--state`, the issue lands in the
-  team's first Backlog state (or Triage, if the team has it enabled).
-  Echoes the created issue with the `issue get` field set — state with
-  its `type`, `creator`, `started_at`, `completed_at`, `canceled_at`
-  included — capture `identifier` and `url` from the JSON.
+  <markdown>`, `--assignee <user-id>` (UUID), `--state <uuid|name>`
+  (workflow state UUID or state name). A UUID passes through untouched;
+  a name is matched case-insensitively against the team's states (list
+  them with `linear state list --team <team-id>`), and an unknown name
+  errors listing the team's valid state names. With no `--state`, the
+  issue lands in the team's first Backlog state (or Triage, if the team
+  has it enabled). Echoes the created issue with the `issue get` field
+  set — state with its `type`, `creator`, `started_at`, `completed_at`,
+  `canceled_at` included — capture `identifier` and `url` from the JSON.
 
 ```sh
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect"
@@ -191,9 +194,12 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --for
 
 - `linear issue update <id>` — update one issue (UUID or `BLA-123`).
   Flags: `--title`, `--description` (markdown), `--assignee <user-id>`,
-  `--state <state-id>`. Only the flags given are sent — omitted fields
-  are untouched. Echoes the updated issue with the `issue get` field
-  set.
+  `--state <uuid|name>`. A state UUID passes through untouched; a state
+  name is resolved case-insensitively within the issue's team, so the
+  name path performs an extra lookup of the issue first (a UUID or
+  `BLA-123`; discover the team's states with `linear state list`). Only
+  the flags given are sent — omitted fields are untouched. Echoes the
+  updated issue with the `issue get` field set.
 
 ```sh
 everything-cli linear issue update BLA-123 --state 8b9c0d1e-...
@@ -271,6 +277,20 @@ everything-cli linear team list --format json
 everything-cli linear team list --format table
 ```
 
+## state
+
+- `linear state list --team <team-id>` — list one team's workflow states,
+  ordered by position. `--team` is required (a team UUID — resolve one via
+  `linear team list`). Fields: `id` (a UUID `--state` accepts), `name`,
+  `type` (the workflow-state kind: triage/backlog/unstarted/started/
+  completed/canceled/duplicate), `position` (the state's order in the
+  team's workflow).
+
+```sh
+everything-cli linear state list --team 9c1e2f3a-... --format json
+everything-cli linear state list --team 9c1e2f3a-... --format table
+```
+
 ## project
 
 - `linear project list` — list every project in the workspace. Fields:
@@ -324,14 +344,17 @@ issues — scope it on large workspaces.
   `--team` takes the team UUID. Run `linear team list` to map key →
   `id` before scoping or creating.
 - `issue get`/`issue update` accept both the UUID and the `BLA-123`
-  human identifier; `issue create --team`, `--assignee`, and `--state`
-  take UUIDs only. Discover state and assignee UUIDs from an existing
-  issue's JSON (`issue get BLA-123 --format json` → `state.id`,
-  `assignee.id`); the state object now also carries `type`
-  (unstarted/started/completed/canceled), and its lifecycle timestamps
-  `started_at`/`completed_at`/`canceled_at` tell you when it moved.
-  `linear account whoami` covers your OWN user id only — there is
-  still no user-listing command for other users' UUIDs.
+  human identifier. `--state` on `issue create`/`issue update` takes a
+  workflow-state UUID or its name (matched case-insensitively within the
+  team; `issue update` looks the issue up first, an extra API call only
+  on the name path). Discover a team's state names and UUIDs with
+  `linear state list --team <team-id>`. `--team` and `--assignee` still
+  take UUIDs only; discover assignee UUIDs from an existing issue's JSON
+  (`issue get BLA-123 --format json` → `assignee.id`). The state object
+  also carries `type` (unstarted/started/completed/canceled), and its
+  lifecycle timestamps `started_at`/`completed_at`/`canceled_at` tell you
+  when it moved. `linear account whoami` covers your OWN user id only —
+  there is still no user-listing command for other users' UUIDs.
 - `--title` is required on `issue create` even though the API allows
   untitled issues.
 - `issue create`/`issue update` echo the full issue; use `--format
