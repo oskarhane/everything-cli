@@ -57,8 +57,11 @@ func resolveStateID(ctx context.Context, states service.StateService, teamID, va
 			matches = append(matches, s)
 		}
 	}
-	if len(matches) != 1 {
+	if len(matches) == 0 {
 		return "", fmt.Errorf("unknown state %q; valid states: %s", value, stateNames(all))
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("ambiguous state %q; valid states: %s", value, stateNames(all))
 	}
 	return matches[0].ID, nil
 }

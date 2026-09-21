@@ -72,7 +72,7 @@ func TestResolveStateIDAmbiguousName(t *testing.T) {
 
 	_, err := resolveStateID(context.Background(), svc, "team_1", "DONE")
 
-	require.ErrorContains(t, err, `unknown state "DONE"`)
+	require.ErrorContains(t, err, `ambiguous state "DONE"`)
 	require.ErrorContains(t, err, "Done, done")
 }
 

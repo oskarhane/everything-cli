@@ -282,8 +282,9 @@ everything-cli linear team list --format table
 - `linear state list --team <team-id>` — list one team's workflow states,
   ordered by position. `--team` is required (a team UUID — resolve one via
   `linear team list`). Fields: `id` (a UUID `--state` accepts), `name`,
-  `type` (the workflow-state kind: unstarted/started/completed/canceled/
-  backlog/triage), `position` (the state's order in the team's workflow).
+  `type` (the workflow-state kind: triage/backlog/unstarted/started/
+  completed/canceled/duplicate), `position` (the state's order in the
+  team's workflow).
 
 ```sh
 everything-cli linear state list --team 9c1e2f3a-... --format json

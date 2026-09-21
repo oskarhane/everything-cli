@@ -9,8 +9,8 @@ import (
 
 // State is one Linear workflow state — a column on a team's board — as
 // decoded from the GraphQL API. Position orders the state within its team;
-// Type is the workflow category ("backlog", "unstarted", "started",
-// "completed", "canceled").
+// Type is the workflow category: "triage", "backlog", "unstarted",
+// "started", "completed", "canceled", or "duplicate".
 type State struct {
 	ID       string  `json:"id"`
 	Name     string  `json:"name"`
