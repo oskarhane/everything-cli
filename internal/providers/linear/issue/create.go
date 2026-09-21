@@ -10,13 +10,13 @@ import (
 // newCreateCmd returns `linear issue create`: create an issue in a team.
 // --title is required as CLI UX even though the API's IssueCreateInput marks
 // it nullable; an untitled issue is never useful output.
-func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) *cobra.Command {
+func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService], newState service.Dialer[service.StateService]) *cobra.Command {
 	var (
 		teamID      string
 		title       string
 		description string
 		assigneeID  string
-		stateID     string
+		stateValue  string
 	)
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -30,6 +30,10 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())
+			if err != nil {
+				return err
+			}
+			stateID, err := resolveStateIDForTeam(cmd.Context(), newState, teamID, stateValue)
 			if err != nil {
 				return err
 			}
@@ -52,7 +56,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
 	f.StringVar(&title, "title", "", "Issue title (required)")
 	f.StringVar(&description, "description", "", "Issue description (markdown)")
 	f.StringVar(&assigneeID, "assignee", "", "Assignee user ID")
-	f.StringVar(&stateID, "state", "", "Workflow state ID")
+	f.StringVar(&stateValue, "state", "", "New workflow state (UUID or name)")
 	_ = cmd.MarkFlagRequired("team")
 	_ = cmd.MarkFlagRequired("title")
 	return cmd

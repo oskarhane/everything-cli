@@ -12,12 +12,12 @@ import (
 // newUpdateCmd returns `linear issue update`: change an issue's title,
 // description, assignee, or state. Only flags actually passed are sent, so
 // unset fields are left untouched.
-func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService]) *cobra.Command {
+func newUpdateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService], newState service.Dialer[service.StateService]) *cobra.Command {
 	var (
 		title       string
 		description string
 		assigneeID  string
-		stateID     string
+		stateValue  string
 	)
 	cmd := &cobra.Command{
 		Use:   "update <id>",
@@ -38,6 +38,20 @@ everything-cli linear issue update BLA-123 --title "Fix login redirect (regressi
 			if err != nil {
 				return err
 			}
+			stateID := stateValue
+			if f.Changed("state") && stateLookupRequired(stateValue) {
+				current, err := svc.GetIssue(cmd.Context(), args[0])
+				if err != nil {
+					return err
+				}
+				if current.Team == nil || current.Team.ID == "" {
+					return fmt.Errorf("issue %q has no team; cannot resolve --state by name", args[0])
+				}
+				stateID, err = resolveStateIDForTeam(cmd.Context(), newState, current.Team.ID, stateValue)
+				if err != nil {
+					return err
+				}
+			}
 			issue, err := svc.UpdateIssue(cmd.Context(), args[0], service.UpdateIssueInput{
 				Title:       title,
 				Description: description,
@@ -55,6 +69,6 @@ everything-cli linear issue update BLA-123 --title "Fix login redirect (regressi
 	f.StringVar(&title, "title", "", "New issue title")
 	f.StringVar(&description, "description", "", "New issue description (markdown)")
 	f.StringVar(&assigneeID, "assignee", "", "New assignee user ID")
-	f.StringVar(&stateID, "state", "", "New workflow state ID")
+	f.StringVar(&stateValue, "state", "", "New workflow state (UUID or name)")
 	return cmd
 }
