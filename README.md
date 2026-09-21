@@ -313,6 +313,7 @@ Issues, teams, and projects over Linear's GraphQL API.
 
 ```sh
 everything-cli linear team list                              # find a team ID
+everything-cli linear state list --team 9c1e2f3a-...         # workflow states for a team
 everything-cli linear project list
 
 everything-cli linear issue list [--team 9c1e2f3a-...] [--assignee <uuid|me>] \
@@ -323,7 +324,7 @@ everything-cli linear issue comment create BLA-123 --body "Looking into this now
 everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
     [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-...]
-everything-cli linear issue update BLA-123 --state 8b9c0d1e-... [--title ... --assignee ...]
+everything-cli linear issue update BLA-123 --state "In Progress" [--title ... --assignee ...]
 everything-cli linear account whoami                         # id, name, email of the acting account
 ```
 
