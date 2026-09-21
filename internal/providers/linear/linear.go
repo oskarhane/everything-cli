@@ -10,6 +10,7 @@ import (
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/project"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/state"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/team"
 )
 
@@ -28,9 +29,11 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Viewer:     dialAs[service.ViewerService](cfg),
 		Comment:    dialAs[service.CommentService](cfg),
 		Attachment: dialAs[service.AttachmentService](cfg),
+		State:      dialAs[service.StateService](cfg),
 	}))
 	cmd.AddCommand(team.NewCmd(cfg, dialAs[service.TeamService](cfg)))
 	cmd.AddCommand(project.NewCmd(cfg, dialAs[service.ProjectService](cfg)))
+	cmd.AddCommand(state.NewCmd(cfg, dialAs[service.StateService](cfg)))
 	cmd.AddCommand(account.NewCmd(cfg, ID, newAccountStrategy, dialAs[service.ViewerService](cfg)))
 	return cmd
 }
