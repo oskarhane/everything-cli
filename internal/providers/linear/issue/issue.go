@@ -7,6 +7,7 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/attachment"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/comment"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/relation"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
@@ -21,6 +22,8 @@ type Dialers struct {
 	Label      service.Dialer[service.LabelService]
 	Cycle      service.Dialer[service.CycleService]
 	Milestone  service.Dialer[service.MilestoneService]
+	Relation   service.Dialer[service.RelationService]
+	Search     service.Dialer[service.SearchService]
 }
 
 // NewCmd returns the `linear issue` parent command with its leaves
@@ -38,5 +41,7 @@ func NewCmd(cfg *app.Config, d Dialers) *cobra.Command {
 	cmd.AddCommand(newCommentsCmd(cfg, d.Comment))
 	cmd.AddCommand(comment.NewCmd(cfg, d.Comment))
 	cmd.AddCommand(attachment.NewCmd(cfg, d.Attachment))
+	cmd.AddCommand(relation.NewCmd(cfg, d.Relation))
+	cmd.AddCommand(newSearchCmd(cfg, d.Search))
 	return cmd
 }

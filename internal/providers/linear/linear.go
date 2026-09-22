@@ -7,7 +7,9 @@ import (
 	"github.com/oskarhane/everything-cli/internal/auth"
 	"github.com/oskarhane/everything-cli/internal/config"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/account"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/api"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/label"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/project"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/state"
@@ -33,10 +35,14 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Label:      dialAs[service.LabelService](cfg),
 		Cycle:      dialAs[service.CycleService](cfg),
 		Milestone:  dialAs[service.MilestoneService](cfg),
+		Relation:   dialAs[service.RelationService](cfg),
+		Search:     dialAs[service.SearchService](cfg),
 	}))
 	cmd.AddCommand(team.NewCmd(cfg, dialAs[service.TeamService](cfg)))
 	cmd.AddCommand(project.NewCmd(cfg, dialAs[service.ProjectService](cfg)))
 	cmd.AddCommand(state.NewCmd(cfg, dialAs[service.StateService](cfg)))
+	cmd.AddCommand(label.NewCmd(cfg, dialAs[service.LabelService](cfg)))
+	cmd.AddCommand(api.NewCmd(cfg, dialAs[service.GraphQLService](cfg)))
 	cmd.AddCommand(account.NewCmd(cfg, ID, newAccountStrategy, dialAs[service.ViewerService](cfg)))
 	return cmd
 }
