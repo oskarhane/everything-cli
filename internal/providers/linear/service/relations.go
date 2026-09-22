@@ -12,13 +12,6 @@ const (
 	RelationIncoming = "incoming" // the queried issue is the relation's target
 )
 
-// RelationIssue is the issue reference embedded in a Relation.
-type RelationIssue struct {
-	ID         string `json:"id"`
-	Identifier string `json:"identifier"`
-	Title      string `json:"title"`
-}
-
 // Relation is one Linear issue relation as decoded from the GraphQL API.
 // Type is the wire IssueRelationType: "blocks", "duplicate", "related", or
 // "similar". Linear auto-creates the inverse relation, so there is no
@@ -28,11 +21,11 @@ type RelationIssue struct {
 // (the queried issue is Issue) and RelationIncoming when it came from
 // issue.inverseRelations (the queried issue is RelatedIssue).
 type Relation struct {
-	ID           string         `json:"id"`
-	Type         string         `json:"type"`
-	Issue        *RelationIssue `json:"issue"`
-	RelatedIssue *RelationIssue `json:"relatedIssue"`
-	Direction    string         `json:"-"`
+	ID           string    `json:"id"`
+	Type         string    `json:"type"`
+	Issue        *IssueRef `json:"issue"`
+	RelatedIssue *IssueRef `json:"relatedIssue"`
+	Direction    string    `json:"-"`
 }
 
 // RelationService is the relation surface the `linear issue relation`

@@ -33,7 +33,7 @@ everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --
 everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type duplicates`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			issueID, relatedID, wireType, direction, err := resolveCreate(issue, related, relType)
+			plan, err := resolveCreate(issue, related, relType)
 			if err != nil {
 				return err
 			}
@@ -41,13 +41,13 @@ everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --
 			if err != nil {
 				return err
 			}
-			rel, err := svc.CreateRelation(cmd.Context(), issueID, relatedID, wireType)
+			rel, err := svc.CreateRelation(cmd.Context(), plan.issueID, plan.relatedID, plan.wireType)
 			if err != nil {
 				return err
 			}
 			// The wire relation carries no direction; the echo reads from
 			// --issue's perspective, which resolveCreate already computed.
-			rel.Direction = direction
+			rel.Direction = plan.direction
 			printRelation(cmd, cfg, rel)
 			return nil
 		},
@@ -62,22 +62,30 @@ everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --
 	return cmd
 }
 
-// resolveCreate maps the create flags to the wire call: the source and
-// target issue, the wire relation type, and the direction the created
-// relation reads from --issue's perspective. blocked-by inverts: the
-// related issue blocks --issue, so --related is the wire source.
-func resolveCreate(issue, related, relType string) (issueID, relatedID, wireType, direction string, err error) {
+// createPlan is the resolved wire call for a create: the source and target
+// issue, the wire relation type, and the direction the created relation
+// reads from --issue's perspective.
+type createPlan struct {
+	issueID   string
+	relatedID string
+	wireType  string
+	direction string
+}
+
+// resolveCreate maps the create flags to a createPlan. blocked-by inverts:
+// the related issue blocks --issue, so --related is the wire source.
+func resolveCreate(issue, related, relType string) (createPlan, error) {
 	switch relType {
 	case typeBlocks:
-		return issue, related, typeBlocks, service.RelationOutgoing, nil
+		return createPlan{issue, related, typeBlocks, service.RelationOutgoing}, nil
 	case typeBlockedBy:
-		return related, issue, typeBlocks, service.RelationIncoming, nil
+		return createPlan{related, issue, typeBlocks, service.RelationIncoming}, nil
 	case typeDuplicates:
-		return issue, related, "duplicate", service.RelationOutgoing, nil
+		return createPlan{issue, related, "duplicate", service.RelationOutgoing}, nil
 	case typeRelated:
-		return issue, related, typeRelated, service.RelationOutgoing, nil
+		return createPlan{issue, related, typeRelated, service.RelationOutgoing}, nil
 	}
-	return "", "", "", "", fmt.Errorf("invalid --type %q: want one of blocks, blocked-by, duplicates, related", relType)
+	return createPlan{}, fmt.Errorf("invalid --type %q: want one of blocks, blocked-by, duplicates, related", relType)
 }
 
 // printRelation renders one created relation as a single object under the

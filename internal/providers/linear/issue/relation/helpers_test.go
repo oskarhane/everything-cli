@@ -89,10 +89,10 @@ func seedRelations() []service.Relation {
 			ID:        "rel_1",
 			Type:      "blocks",
 			Direction: service.RelationOutgoing,
-			Issue: &service.RelationIssue{
+			Issue: &service.IssueRef{
 				ID: "issue_1", Identifier: "ENG-1", Title: "First",
 			},
-			RelatedIssue: &service.RelationIssue{
+			RelatedIssue: &service.IssueRef{
 				ID: "issue_2", Identifier: "ENG-2", Title: "Second",
 			},
 		},
@@ -100,10 +100,10 @@ func seedRelations() []service.Relation {
 			ID:        "rel_2",
 			Type:      "blocks",
 			Direction: service.RelationIncoming,
-			Issue: &service.RelationIssue{
+			Issue: &service.IssueRef{
 				ID: "issue_3", Identifier: "ENG-3", Title: "Third",
 			},
-			RelatedIssue: &service.RelationIssue{
+			RelatedIssue: &service.IssueRef{
 				ID: "issue_1", Identifier: "ENG-1", Title: "First",
 			},
 		},
