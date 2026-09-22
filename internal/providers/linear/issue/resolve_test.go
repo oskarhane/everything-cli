@@ -18,7 +18,7 @@ import (
 type writeFakes struct {
 	labels     []service.Label
 	cycles     []service.Cycle
-	milestones []service.Milestone
+	milestones []service.NamedRef
 	err        error // when set, every call fails
 
 	calls                 *[]string
@@ -51,7 +51,7 @@ func (f *writeFakes) ListCycles(_ context.Context, teamID string) ([]service.Cyc
 	return f.cycles, nil
 }
 
-func (f *writeFakes) ListProjectMilestones(_ context.Context, projectID string) ([]service.Milestone, error) {
+func (f *writeFakes) ListProjectMilestones(_ context.Context, projectID string) ([]service.NamedRef, error) {
 	f.record("ListProjectMilestones")
 	f.listMilestonesProject = projectID
 	if f.err != nil {
@@ -103,8 +103,8 @@ func seedCycles() []service.Cycle {
 	}
 }
 
-func seedMilestones() []service.Milestone {
-	return []service.Milestone{
+func seedMilestones() []service.NamedRef {
+	return []service.NamedRef{
 		{ID: "milestone_1", Name: "Beta"},
 		{ID: "milestone_2", Name: "GA"},
 	}
@@ -145,16 +145,21 @@ func TestResolvePriorityRejectsOutOfRange(t *testing.T) {
 	}
 }
 
+// staticTeam adapts a fixed team ID to the resolvers' lazy-team shape.
+func staticTeam(teamID string) func() (string, error) {
+	return func() (string, error) { return teamID, nil }
+}
+
 func TestResolveLabelIDsShortCircuitsUUIDs(t *testing.T) {
 	// A nil dialer proves the all-UUID path never dials.
-	ids, err := resolveLabelIDs(context.Background(), nil, "team_1", stateUUID+", "+stateUUID)
+	ids, err := resolveLabelIDs(context.Background(), nil, staticTeam("team_1"), stateUUID+", "+stateUUID)
 	require.NoError(t, err)
 	require.Equal(t, []string{stateUUID, stateUUID}, ids)
 }
 
 func TestResolveLabelIDsReportsTheUnknownName(t *testing.T) {
 	wf := &writeFakes{labels: seedLabels()}
-	_, err := resolveLabelIDs(context.Background(), fakeNewLabelSvc(wf), "team_1", "Bug, Nope")
+	_, err := resolveLabelIDs(context.Background(), fakeNewLabelSvc(wf), staticTeam("team_1"), "Bug, Nope")
 	require.ErrorContains(t, err, `unknown label "Nope"`)
 	require.Equal(t, "team_1", wf.listLabelsTeam)
 }

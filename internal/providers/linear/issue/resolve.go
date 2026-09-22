@@ -12,8 +12,7 @@ import (
 )
 
 // isUUID reports whether value is UUID-shaped, so already-resolved IDs skip
-// the lookup dial entirely — the same short-circuit stateLookupRequired
-// gives --state.
+// the lookup dial entirely.
 func isUUID(value string) bool {
 	_, err := uuid.Parse(value)
 	return err == nil
@@ -29,6 +28,43 @@ func splitList(value string) []string {
 		}
 	}
 	return entries
+}
+
+// joinNames joins item names for an unknown/ambiguous error, falling back
+// to "none" so an empty list still reads sensibly.
+func joinNames[T any](items []T, name func(T) string) string {
+	if len(items) == 0 {
+		return "none"
+	}
+	names := make([]string, len(items))
+	for i, item := range items {
+		names[i] = name(item)
+	}
+	return strings.Join(names, ", ")
+}
+
+// resolveByName is the shared list→match→resolve engine behind the --state,
+// --cycle, and --milestone name lookups: it lists candidates, keeps those
+// matching value, and fails on zero or several matches so an ambiguous
+// value never picks the wrong one. `what` is the error noun ("state", ...).
+func resolveByName[T any](ctx context.Context, list func(context.Context) ([]T, error), value, what string, match func(T, string) bool, name func(T) string, id func(T) string) (string, error) {
+	all, err := list(ctx)
+	if err != nil {
+		return "", err
+	}
+	var matches []T
+	for _, item := range all {
+		if match(item, value) {
+			matches = append(matches, item)
+		}
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("unknown %s %q; valid %ss: %s", what, value, what, joinNames(all, name))
+	}
+	if len(matches) > 1 {
+		return "", fmt.Errorf("ambiguous %s %q; valid %ss: %s", what, value, what, joinNames(all, name))
+	}
+	return id(matches[0]), nil
 }
 
 // resolveParentID turns a --parent value into an issue UUID. Empty and
@@ -59,8 +95,9 @@ func labelLookupRequired(value string) bool {
 // resolveLabelIDs turns a comma-separated --labels value into label UUIDs.
 // UUID entries pass through in place; names resolve case-insensitively
 // against the team's labels, and an unknown name errors naming the
-// offending entry rather than silently dropping it.
-func resolveLabelIDs(ctx context.Context, newLabel service.Dialer[service.LabelService], teamID, value string) ([]string, error) {
+// offending entry rather than silently dropping it. teamID is lazy: it is
+// only called once an entry actually needs a lookup.
+func resolveLabelIDs(ctx context.Context, newLabel service.Dialer[service.LabelService], teamID func() (string, error), value string) ([]string, error) {
 	entries := splitList(value)
 	if len(entries) == 0 {
 		return nil, nil
@@ -68,11 +105,15 @@ func resolveLabelIDs(ctx context.Context, newLabel service.Dialer[service.LabelS
 	if !labelLookupRequired(value) {
 		return entries, nil
 	}
+	team, err := teamID()
+	if err != nil {
+		return nil, err
+	}
 	labels, err := newLabel(ctx)
 	if err != nil {
 		return nil, err
 	}
-	all, err := labels.ListTeamLabels(ctx, teamID)
+	all, err := labels.ListTeamLabels(ctx, team)
 	if err != nil {
 		return nil, err
 	}
@@ -88,24 +129,11 @@ func resolveLabelIDs(ctx context.Context, newLabel service.Dialer[service.LabelS
 		}
 		id, ok := byName[strings.ToLower(entry)]
 		if !ok {
-			return nil, fmt.Errorf("unknown label %q; valid labels: %s", entry, labelNames(all))
+			return nil, fmt.Errorf("unknown label %q; valid labels: %s", entry, joinNames(all, func(l service.Label) string { return l.Name }))
 		}
 		ids[i] = id
 	}
 	return ids, nil
-}
-
-// labelNames joins the team's label names for the unknown-label error,
-// falling back to "none" so a team with no labels still reads sensibly.
-func labelNames(labels []service.Label) string {
-	if len(labels) == 0 {
-		return "none"
-	}
-	names := make([]string, len(labels))
-	for i, l := range labels {
-		names[i] = l.Name
-	}
-	return strings.Join(names, ", ")
 }
 
 // resolvePriority maps a --priority value to Linear's scale: urgent, high,
@@ -135,33 +163,28 @@ func resolvePriority(value string) (int, error) {
 
 // resolveCycleID turns a --cycle value into a cycle UUID. Empty and
 // UUID-shaped values pass through; any other value matches a cycle name or
-// number within the team, failing on zero or several matches so an
-// ambiguous value never picks the wrong cycle.
-func resolveCycleID(ctx context.Context, newCycle service.Dialer[service.CycleService], teamID, value string) (string, error) {
+// number within the team. teamID is lazy: it is only called when the value
+// needs a lookup.
+func resolveCycleID(ctx context.Context, newCycle service.Dialer[service.CycleService], teamID func() (string, error), value string) (string, error) {
 	if value == "" || isUUID(value) {
 		return value, nil
+	}
+	team, err := teamID()
+	if err != nil {
+		return "", err
 	}
 	cycles, err := newCycle(ctx)
 	if err != nil {
 		return "", err
 	}
-	all, err := cycles.ListCycles(ctx, teamID)
-	if err != nil {
-		return "", err
-	}
-	var matches []service.Cycle
-	for _, c := range all {
-		if strings.EqualFold(c.Name, value) || strconv.Itoa(c.Number) == value {
-			matches = append(matches, c)
-		}
-	}
-	if len(matches) == 0 {
-		return "", fmt.Errorf("unknown cycle %q", value)
-	}
-	if len(matches) > 1 {
-		return "", fmt.Errorf("ambiguous cycle %q", value)
-	}
-	return matches[0].ID, nil
+	return resolveByName(ctx, func(ctx context.Context) ([]service.Cycle, error) {
+		return cycles.ListCycles(ctx, team)
+	}, value, "cycle",
+		func(c service.Cycle, v string) bool {
+			return strings.EqualFold(c.Name, v) || strconv.Itoa(c.Number) == v
+		},
+		func(c service.Cycle) string { return c.Name },
+		func(c service.Cycle) string { return c.ID })
 }
 
 // resolveMilestoneID turns a --milestone value into a milestone UUID.
@@ -178,21 +201,10 @@ func resolveMilestoneID(ctx context.Context, newMilestone service.Dialer[service
 	if err != nil {
 		return "", err
 	}
-	all, err := milestones.ListProjectMilestones(ctx, projectID)
-	if err != nil {
-		return "", err
-	}
-	var matches []service.Milestone
-	for _, m := range all {
-		if strings.EqualFold(m.Name, value) {
-			matches = append(matches, m)
-		}
-	}
-	if len(matches) == 0 {
-		return "", fmt.Errorf("unknown milestone %q", value)
-	}
-	if len(matches) > 1 {
-		return "", fmt.Errorf("ambiguous milestone %q", value)
-	}
-	return matches[0].ID, nil
+	return resolveByName(ctx, func(ctx context.Context) ([]service.NamedRef, error) {
+		return milestones.ListProjectMilestones(ctx, projectID)
+	}, value, "milestone",
+		func(m service.NamedRef, v string) bool { return strings.EqualFold(m.Name, v) },
+		func(m service.NamedRef) string { return m.Name },
+		func(m service.NamedRef) string { return m.ID })
 }

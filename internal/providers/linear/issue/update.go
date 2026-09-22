@@ -68,10 +68,11 @@ everything-cli linear issue update BLA-123 --parent "" --due-date "" --labels ""
 			team := func(flag string) (string, error) {
 				if !fetched {
 					fetched = true
-					current, err = svc.GetIssue(cmd.Context(), args[0])
+					issue, err := svc.GetIssue(cmd.Context(), args[0])
 					if err != nil {
 						return "", err
 					}
+					current = issue
 				}
 				if current.Team == nil || current.Team.ID == "" {
 					return "", fmt.Errorf("issue %q has no team; cannot resolve --%s by name", args[0], flag)
@@ -80,11 +81,7 @@ everything-cli linear issue update BLA-123 --parent "" --due-date "" --labels ""
 			}
 			stateID := stateValue
 			if f.Changed("state") && stateLookupRequired(stateValue) {
-				teamID, err := team("state")
-				if err != nil {
-					return err
-				}
-				stateID, err = resolveStateIDForTeam(cmd.Context(), newState, teamID, stateValue)
+				stateID, err = resolveStateIDForTeam(cmd.Context(), newState, func() (string, error) { return team("state") }, stateValue)
 				if err != nil {
 					return err
 				}
@@ -106,18 +103,9 @@ everything-cli linear issue update BLA-123 --parent "" --due-date "" --labels ""
 			if f.Changed("labels") {
 				// "" stays a nil slice so the service sends labelIds: []
 				// (clear); all-UUID values skip the team lookup entirely.
-				var ids []string
-				if labelLookupRequired(labelsValue) {
-					teamID, err := team("labels")
-					if err != nil {
-						return err
-					}
-					ids, err = resolveLabelIDs(cmd.Context(), newLabel, teamID, labelsValue)
-					if err != nil {
-						return err
-					}
-				} else {
-					ids = splitList(labelsValue)
+				ids, err := resolveLabelIDs(cmd.Context(), newLabel, func() (string, error) { return team("labels") }, labelsValue)
+				if err != nil {
+					return err
 				}
 				in.LabelIDs = &ids
 			}
@@ -135,16 +123,9 @@ everything-cli linear issue update BLA-123 --parent "" --due-date "" --labels ""
 				in.Estimate = &estimate
 			}
 			if f.Changed("cycle") {
-				cycleID := cycleValue
-				if cycleValue != "" && !isUUID(cycleValue) {
-					teamID, err := team("cycle")
-					if err != nil {
-						return err
-					}
-					cycleID, err = resolveCycleID(cmd.Context(), newCycle, teamID, cycleValue)
-					if err != nil {
-						return err
-					}
+				cycleID, err := resolveCycleID(cmd.Context(), newCycle, func() (string, error) { return team("cycle") }, cycleValue)
+				if err != nil {
+					return err
 				}
 				in.CycleID = &cycleID
 			}

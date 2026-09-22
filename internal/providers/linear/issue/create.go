@@ -48,7 +48,11 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up on red
 			if err != nil {
 				return err
 			}
-			stateID, err := resolveStateIDForTeam(cmd.Context(), newState, teamID, stateValue)
+			// The team comes straight from the required --team flag; the lazy
+			// shape matches update's fetch-once closure so the resolvers share
+			// one signature.
+			team := func() (string, error) { return teamID, nil }
+			stateID, err := resolveStateIDForTeam(cmd.Context(), newState, team, stateValue)
 			if err != nil {
 				return err
 			}
@@ -56,7 +60,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up on red
 			if err != nil {
 				return err
 			}
-			labelIDs, err := resolveLabelIDs(cmd.Context(), newLabel, teamID, labelsValue)
+			labelIDs, err := resolveLabelIDs(cmd.Context(), newLabel, team, labelsValue)
 			if err != nil {
 				return err
 			}
@@ -64,7 +68,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up on red
 			if err != nil {
 				return err
 			}
-			cycleID, err := resolveCycleID(cmd.Context(), newCycle, teamID, cycleValue)
+			cycleID, err := resolveCycleID(cmd.Context(), newCycle, team, cycleValue)
 			if err != nil {
 				return err
 			}

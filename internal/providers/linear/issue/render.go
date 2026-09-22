@@ -227,7 +227,9 @@ func jsonRow(v issueView) map[string]any {
 	}
 	// Detail-only fields: populated by GetIssue's wider selection set. Absent
 	// references and empty values must not surface as empty keys.
-	row["priority"] = v.Priority
+	if v.Priority != 0 {
+		row["priority"] = v.Priority
+	}
 	if v.PriorityLabel != "" {
 		row["priority_label"] = v.PriorityLabel
 	}

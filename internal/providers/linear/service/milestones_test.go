@@ -31,7 +31,7 @@ func TestListProjectMilestonesFollowsCursorAcrossTwoPages(t *testing.T) {
 
 	milestones, err := svc.ListProjectMilestones(context.Background(), "project_1")
 	require.NoError(t, err)
-	require.Equal(t, []Milestone{
+	require.Equal(t, []NamedRef{
 		{ID: "milestone_1", Name: "Alpha"},
 		{ID: "milestone_2", Name: "Beta"},
 	}, milestones)

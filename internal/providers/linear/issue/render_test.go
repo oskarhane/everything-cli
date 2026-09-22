@@ -185,7 +185,7 @@ func TestJSONRowDetailFields(t *testing.T) {
 
 	t.Run("sparse issue", func(t *testing.T) {
 		row := jsonRow(toView(&service.Issue{ID: "issue_2", Identifier: "ENG-2", Title: "Sparse"}))
-		assert.Equal(t, 0, row["priority"])
+		assert.NotContains(t, row, "priority")
 		assert.NotContains(t, row, "priority_label")
 		assert.NotContains(t, row, "due_date")
 		assert.NotContains(t, row, "estimate")
