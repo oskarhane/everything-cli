@@ -18,11 +18,12 @@ func TestUpdateRequiresAChange(t *testing.T) {
 func TestUpdatePassesPositionalIDAndFlags(t *testing.T) {
 	svc := &fakeService{issues: []service.Issue{seedIssue()}, states: seedStates()}
 	out := cmdtest.RunCmd(t, newStateLeafCmd(newUpdateCmd, svc, "json"),
-		"ENG-1", "--title", "Retitled", "--state", "In Progress")
+		"ENG-1", "--title", "Retitled", "--state", "In Progress", "--project", "proj_1")
 
 	require.Equal(t, "ENG-1", svc.updatedID)
 	require.Equal(t, "Retitled", svc.updated.Title)
 	require.Equal(t, "state_2", svc.updated.StateID)
+	require.Equal(t, "proj_1", svc.updated.ProjectID)
 	require.Empty(t, svc.updated.Description)
 	require.Empty(t, svc.updated.AssigneeID)
 
@@ -53,6 +54,15 @@ func TestUpdateStateNameMissingTeamFails(t *testing.T) {
 
 	require.ErrorContains(t, err, "has no team")
 	require.Zero(t, svc.listStatesCalls)
+}
+
+func TestUpdateProjectOnlyCountsAsAChange(t *testing.T) {
+	svc := &fakeService{issues: []service.Issue{seedIssue()}}
+
+	cmdtest.RunCmd(t, newStateLeafCmd(newUpdateCmd, svc, "json"), "ENG-1", "--project", "proj_1")
+
+	require.Equal(t, "proj_1", svc.updated.ProjectID)
+	require.Empty(t, svc.calls, "a --project update needs no state lookup")
 }
 
 func TestUpdateUUIDStateSkipsLookup(t *testing.T) {

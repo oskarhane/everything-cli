@@ -323,8 +323,8 @@ everything-cli linear issue comments BLA-123
 everything-cli linear issue comment create BLA-123 --body "Looking into this now" [--parent <comment-id>]
 everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
-    [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-...]
-everything-cli linear issue update BLA-123 --state "In Progress" [--title ... --assignee ...]
+    [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-... --project 2f4a6c8e-...]
+everything-cli linear issue update BLA-123 --state "In Progress" [--title ... --assignee ... --project 2f4a6c8e-...]
 everything-cli linear account whoami                         # id, name, email of the acting account
 ```
 

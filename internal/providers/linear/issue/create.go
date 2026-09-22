@@ -17,6 +17,7 @@ func newCreateCmd(cfg *app.Config, newSvc service.Dialer[service.IssueService], 
 		description string
 		assigneeID  string
 		stateValue  string
+		projectID   string
 	)
 	cmd := &cobra.Command{
 		Use:   "create",
@@ -26,7 +27,8 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
 
 # Create with a description, assignee, and workflow state
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
-  --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-...`,
+  --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-... \
+  --project 2f4a6c8e-...`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			svc, err := newSvc(cmd.Context())
@@ -43,6 +45,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
 				Description: description,
 				AssigneeID:  assigneeID,
 				StateID:     stateID,
+				ProjectID:   projectID,
 			})
 			if err != nil {
 				return err
@@ -57,6 +60,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
 	f.StringVar(&description, "description", "", "Issue description (markdown)")
 	f.StringVar(&assigneeID, "assignee", "", "Assignee user ID")
 	f.StringVar(&stateValue, "state", "", "New workflow state (UUID or name)")
+	f.StringVar(&projectID, "project", "", "Project ID to attach the issue to")
 	_ = cmd.MarkFlagRequired("team")
 	_ = cmd.MarkFlagRequired("title")
 	return cmd
