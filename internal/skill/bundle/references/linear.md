@@ -159,9 +159,20 @@ everything-cli linear issue list --updated-since 2026-09-02T00:00:00Z --format j
 - `linear issue get <id>` — show one issue by UUID or human identifier
   (`BLA-123`). Same JSON fields as list (state with `type`, `creator`,
   `started_at`, `completed_at`, `canceled_at` included, with the same
-  omit-when-null/empty semantics); the table adds `id`, `description`,
-  `creator`, `started_at`, `completed_at`, `canceled_at`, `url`, and
-  `created_at` to the column set.
+  omit-when-null/empty semantics), plus the detail fields: `parent`
+  (`{id, identifier, title}` — omitted when the issue has no parent),
+  `children` (a list of the same compact `{id, identifier, title}`
+  shape — omitted when there are none), `priority` (Linear's 0-4
+  number, always present), `priority_label` (e.g. `Urgent`, `High` —
+  omitted when the priority is 0), `due_date` (`YYYY-MM-DD`, omitted
+  when unset), `estimate` (points, omitted when unset), `cycle` (`{id,
+  name}` — omitted when the issue is in no cycle), and `milestone`
+  (`{id, name}` — omitted when unset). The table column set grows to
+  `id`, `identifier`, `title`, `description`, `state`, `assignee`,
+  `creator`, `started_at`, `completed_at`, `canceled_at`, `parent`
+  (the parent's identifier), `children` (comma-separated child
+  identifiers), `priority`, `due_date`, `estimate`, `cycle`,
+  `milestone`, `team`, `url`, `created_at`, `updated_at`.
 
 ```sh
 everything-cli linear issue get BLA-123 --format json
@@ -175,15 +186,29 @@ everything-cli linear issue get 8b9c0d1e-... --format table
   demands it even though the API marks it nullable), `--description
   <markdown>`, `--assignee <user-id>` (UUID), `--state <uuid|name>`
   (workflow state UUID or state name), `--project <project-id>` (UUID —
-  discover projects with `linear project list`). A UUID passes through
-  untouched;
+  discover projects with `linear project list`), `--parent
+  <uuid|identifier>` (parent issue — a human identifier like `ENG-123`
+  resolves through one extra lookup, making the new issue a
+  sub-issue), `--labels <csv>` (comma-separated label names or UUIDs —
+  names resolve case-insensitively against the team's labels, an
+  unknown name errors listing the valid ones, all-UUID values skip the
+  lookup; discover names with `linear label list --team <team-id>`),
+  `--priority <urgent|high|medium|low|none|0-4>` (Linear's priority
+  scale — digits 0-4 pass through for scripts), `--due-date
+  <YYYY-MM-DD>`, `--estimate <points>` (integer), `--cycle
+  <uuid|name|number>` (a name or number resolves against the team's
+  cycles, erroring on zero or several matches), `--milestone
+  <uuid|name>` (a name resolves within one project, so it needs
+  `--project` alongside). A UUID passes through untouched;
   a name is matched case-insensitively against the team's states (list
   them with `linear state list --team <team-id>`), and an unknown name
   errors listing the team's valid state names. With no `--state`, the
   issue lands in the team's first Backlog state (or Triage, if the team
   has it enabled). Echoes the created issue with the `issue get` field
   set — state with its `type`, `creator`, `started_at`, `completed_at`,
-  `canceled_at` included — capture `identifier` and `url` from the JSON.
+  `canceled_at`, plus the detail fields (`parent`, `children`,
+  `priority`, `priority_label`, `due_date`, `estimate`, `cycle`,
+  `milestone`) — capture `identifier` and `url` from the JSON.
 
 ```sh
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect"
@@ -191,6 +216,11 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redire
   --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-... \
   --project 2f4a6c8e-...
 everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --format json
+
+# high-priority sub-issue with labels, due in a named cycle
+everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up on redirect" \
+  --parent ENG-123 --labels "Bug, Regression" --priority high --due-date 2026-10-01 \
+  --cycle "Sprint 12"
 ```
 
 ### issue update
@@ -198,11 +228,22 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --for
 - `linear issue update <id>` — update one issue (UUID or `BLA-123`).
   Flags: `--title`, `--description` (markdown), `--assignee <user-id>`,
   `--state <uuid|name>`, `--project <project-id>` (UUID — moves the
-  issue into that project). A state UUID passes through untouched; a state
+  issue into that project), `--parent <uuid|identifier>`,
+  `--labels <csv>`, `--priority <urgent|high|medium|low|none|0-4>`,
+  `--due-date <YYYY-MM-DD>`, `--estimate <points>`, `--cycle
+  <uuid|name|number>`, `--milestone <uuid|name>` — same resolution
+  rules as `issue create`. A state UUID passes through untouched; a state
   name is resolved case-insensitively within the issue's team, so the
   name path performs an extra lookup of the issue first (a UUID or
   `BLA-123`; discover the team's states with `linear state list`). Only
-  the flags given are sent — omitted fields are untouched. Echoes the
+  the flags given are sent — omitted fields are untouched; calling with
+  no flags at all errors with "nothing to update". The `--labels` and
+  `--cycle` name lookups share the state lookup's one lazy fetch of the
+  issue to learn its team; a `--milestone` name needs `--project`
+  passed alongside. Passing an explicit empty string clears a field:
+  `--parent ""` un-parents the issue, `--labels ""` clears all labels,
+  `--due-date ""` clears the due date, `--cycle ""` removes the issue
+  from its cycle, `--milestone ""` clears the milestone. Echoes the
   updated issue with the `issue get` field set.
 
 ```sh
@@ -210,6 +251,10 @@ everything-cli linear issue update BLA-123 --state 8b9c0d1e-...
 everything-cli linear issue update BLA-123 --title "Fix login redirect (regression)" \
   --assignee 4d5e6f7a-...
 everything-cli linear issue update BLA-123 --project 2f4a6c8e-...
+
+# reparent, label, and prioritize; pass "" to clear a field again
+everything-cli linear issue update BLA-123 --parent BLA-100 --labels "Bug" --priority urgent
+everything-cli linear issue update BLA-123 --parent "" --due-date "" --labels ""
 ```
 
 ### issue comments
@@ -271,6 +316,54 @@ everything-cli linear issue attachment create BLA-123 \
   --url https://example.com/pr/482 --title "PR #482" --subtitle "Fix login redirect"
 ```
 
+### issue search
+
+- `linear issue search --query <text>` — full-text search over issue
+  titles, descriptions, and comments, ranked by relevance. `--query`
+  is required. Results render through the `issue list` surface — same
+  JSON fields and table columns, one row per matching issue.
+
+```sh
+everything-cli linear issue search --query "login redirect" --format json
+everything-cli linear issue search --query "login redirect" --format table
+```
+
+### issue relation
+
+Relations between two issues. Linear's wire model has no "blocked-by"
+type — it is the inverse of blocks — so the CLI maps `--type
+blocked-by` onto a blocks relation in the opposite direction, and list
+renders every relation from the queried issue's perspective.
+
+- `linear issue relation create --issue <id> --related <id> --type
+  blocks|blocked-by|duplicates|related` — relate `--issue` to
+  `--related`; all three flags are required, and both issues accept a
+  UUID or a human identifier (`BLA-123`). An unknown `--type` fails
+  fast, before any API call. Echoes the created relation (fields
+  below), read from `--issue`'s perspective.
+- `linear issue relation list --issue <id>` — every relation touching
+  the issue, outgoing and incoming. `--issue` is required and accepts
+  a UUID or a human identifier.
+- `linear issue relation delete <relation-id>` — delete one relation
+  by its relation UUID (the `id` field of `relation list` output — not
+  an issue ID). Linear also removes the auto-created inverse relation.
+
+Output: one row per relation. Fields: `id` (the relation UUID
+`relation delete` wants), `type` (`blocks`, `blocked-by`,
+`duplicates`, or `related`, rendered from the queried issue's side),
+`direction` (`outgoing` when the queried issue is the relation's
+source, `incoming` when it is the target), `identifier` and `title`
+(the OTHER issue). The view is flat, so the same shape serves JSON,
+TOON, and table.
+
+```sh
+everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type blocks
+everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type blocked-by
+everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type duplicates
+everything-cli linear issue relation list --issue BLA-123 --format json
+everything-cli linear issue relation delete 3f4a2b1c-0000-4000-8000-0000000000aa
+```
+
 ## team
 
 - `linear team list` — list every team in the workspace. Fields: `id`
@@ -306,13 +399,44 @@ everything-cli linear project list --format json
 everything-cli linear project list --format table
 ```
 
+## label
+
+- `linear label list --team <team-id>` — list one team's issue labels.
+  `--team` is required (a team UUID — resolve one via `linear team
+  list`). Fields: `id` (a UUID `--labels` accepts), `name` (what a
+  `--labels` name entry matches, case-insensitively), `color`.
+
+```sh
+everything-cli linear label list --team 9c1e2f3a-... --format json
+everything-cli linear label list --team 9c1e2f3a-... --format table
+```
+
+## api
+
+- `linear api <query> [--variables <json>|@file]` — an authenticated
+  GraphQL passthrough to `https://api.linear.app/graphql`, gh
+  api-style: run one raw query or mutation and print the raw `data`
+  document as JSON. There is no root-level `everything-cli api` — the
+  passthrough is provider-scoped. `--variables` takes inline JSON
+  (`'{"id": "ENG-1"}'`) or a file reference (`@vars.json`); malformed
+  JSON errors before any API call. Use it for anything the typed
+  commands do not cover.
+
+```sh
+everything-cli linear api '{ viewer { id name email } }'
+everything-cli linear api 'query($id: String!) { issue(id: $id) { id title } }' \
+  --variables '{"id": "ENG-1"}'
+everything-cli linear api 'query($id: String!) { issue(id: $id) { id title } }' \
+  --variables @vars.json
+```
+
 ## Pagination
 
 Linear uses Relay-style cursor pagination (`first`/`after`,
 `pageInfo { hasNextPage endCursor }`). The CLI requests 50 items per
 call and follows cursors automatically until the listing is exhausted,
-so `issue list`, `team list`, and `project list` always return the full
-result set — there is no `--max` flag on linear commands (unlike the
+so `issue list`, `issue search`, `team list`, `project list`, and
+`label list` always return the full result set — there is no `--max` flag on linear commands (unlike the
 google provider). A runaway-cursor guard stops a listing after 1000
 pages rather than looping forever. Archived resources are excluded by
 the API default. `issue list` scopes server-side: the
@@ -362,9 +486,25 @@ issues — scope it on large workspaces.
   there is still no user-listing command for other users' UUIDs.
 - `--title` is required on `issue create` even though the API allows
   untitled issues.
+- `issue create`/`issue update` share the extra field flags
+  `--parent`, `--labels`, `--priority`, `--due-date`, `--estimate`,
+  `--cycle`, `--milestone`. On `issue update`, an explicit empty
+  string clears: `--parent ""` un-parents, `--labels ""` clears all
+  labels, `--due-date ""`/`--cycle ""`/`--milestone ""` clear their
+  fields. Label names resolve against the team's labels (discover them
+  with `linear label list --team <team-id>`); cycle names/numbers and
+  milestone names error on zero or ambiguous matches, and a milestone
+  name needs `--project` alongside.
+- `issue relation delete` takes the RELATION id from `relation list`
+  output, not an issue id; deleting it also removes Linear's
+  auto-created inverse relation.
+- Anything the typed commands do not cover goes through `linear api
+  '<graphql>' [--variables ...]` — the raw `data` document comes back
+  as JSON.
 - `issue create`/`issue update` echo the full issue; use `--format
   json` to capture the new `identifier`/`url` programmatically.
-- There are no delete/trash verbs on linear resources — move issues
+- There are no delete/trash verbs on issues themselves — move issues
   through workflow states instead (`issue update <id> --state
-  <completed-state-id>`).
+  <completed-state-id>`). `issue relation delete` removes only the
+  link between two issues, never an issue.
 - `linear account remove` refuses without `--force`.

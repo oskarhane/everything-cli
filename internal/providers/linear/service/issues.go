@@ -20,24 +20,61 @@ type StateRef struct {
 	Type string `json:"type"`
 }
 
+// IssueRef is a compact issue reference used for parent/children links:
+// enough to render a mention without embedding a full issue.
+type IssueRef struct {
+	ID         string `json:"id"`
+	Identifier string `json:"identifier"`
+	Title      string `json:"title"`
+}
+
 // Issue is one Linear issue as decoded from the GraphQL API. The JSON tags
 // are the wire shape (camelCase); leaves map it to snake_case views. A wire
-// null decodes to the zero value (nil refs, empty timestamps).
+// null decodes to the zero value (nil refs, empty timestamps). The detail
+// fields (children, priority, due date, estimate, cycle, milestone) are only
+// populated by GetIssue's wider selection set; list and mutation payloads
+// leave them zero.
 type Issue struct {
-	ID          string    `json:"id"`
-	Identifier  string    `json:"identifier"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	State       *StateRef `json:"state"`
-	Assignee    *NamedRef `json:"assignee"`
-	Creator     *NamedRef `json:"creator"`
-	Team        *Team     `json:"team"`
-	URL         string    `json:"url"`
-	CreatedAt   string    `json:"createdAt"`
-	UpdatedAt   string    `json:"updatedAt"`
-	StartedAt   string    `json:"startedAt"`
-	CompletedAt string    `json:"completedAt"`
-	CanceledAt  string    `json:"canceledAt"`
+	ID            string     `json:"id"`
+	Identifier    string     `json:"identifier"`
+	Title         string     `json:"title"`
+	Description   string     `json:"description"`
+	State         *StateRef  `json:"state"`
+	Assignee      *NamedRef  `json:"assignee"`
+	Creator       *NamedRef  `json:"creator"`
+	Team          *Team      `json:"team"`
+	URL           string     `json:"url"`
+	CreatedAt     string     `json:"createdAt"`
+	UpdatedAt     string     `json:"updatedAt"`
+	StartedAt     string     `json:"startedAt"`
+	CompletedAt   string     `json:"completedAt"`
+	CanceledAt    string     `json:"canceledAt"`
+	Parent        *IssueRef  `json:"parent"`
+	Children      []IssueRef `json:"-"`
+	Priority      int        `json:"priority"`
+	PriorityLabel string     `json:"priorityLabel"`
+	DueDate       string     `json:"dueDate"`
+	Estimate      *int       `json:"estimate"`
+	Cycle         *NamedRef  `json:"cycle"`
+	Milestone     *NamedRef  `json:"projectMilestone"`
+}
+
+// UnmarshalJSON flattens the children Relay connection (`children { nodes }`)
+// into the flat Children slice; every other field decodes by tag.
+func (i *Issue) UnmarshalJSON(data []byte) error {
+	type plain Issue
+	var wire struct {
+		plain
+		Children struct {
+			Nodes []IssueRef `json:"nodes"`
+		} `json:"children"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	*i = Issue(wire.plain)
+	i.Children = wire.Children.Nodes
+	return nil
 }
 
 // IssueFilter narrows a ListIssues call. Every field is optional; set
@@ -89,30 +126,56 @@ type IssueService interface {
 // CreateIssueInput carries the fields of `linear issue create`. TeamID and
 // Title are required (the CLI requires --title as UX even though the API's
 // IssueCreateInput marks it nullable); empty optional fields are omitted
-// from the mutation.
+// from the mutation. Priority 0 is the API's "no priority" default, so a
+// zero Priority is omitted rather than sent.
 type CreateIssueInput struct {
-	TeamID      string
-	Title       string
-	Description string
-	AssigneeID  string
-	StateID     string
-	ProjectID   string
+	TeamID             string
+	Title              string
+	Description        string
+	AssigneeID         string
+	StateID            string
+	ProjectID          string
+	ParentID           string
+	LabelIDs           []string
+	Priority           int
+	DueDate            string
+	Estimate           int
+	CycleID            string
+	ProjectMilestoneID string
 }
 
-// UpdateIssueInput carries the changed fields of `linear issue update`;
-// empty fields are omitted from the mutation.
+// UpdateIssueInput carries the changed fields of `linear issue update`.
+// Empty string fields are omitted from the mutation. The pointer fields
+// distinguish omit from clear: nil omits the key, a non-nil pointer sends
+// it — an empty string sends null (un-parent, clear the due date, leave the
+// cycle/milestone) and an empty LabelIDs slice sends [] (remove all labels).
 type UpdateIssueInput struct {
-	Title       string
-	Description string
-	AssigneeID  string
-	StateID     string
-	ProjectID   string
+	Title              string
+	Description        string
+	AssigneeID         string
+	StateID            string
+	ProjectID          string
+	ParentID           *string
+	LabelIDs           *[]string
+	Priority           *int
+	DueDate            *string
+	Estimate           *int
+	CycleID            *string
+	ProjectMilestoneID *string
 }
 
 // issueFields is the selection set every issue query and mutation returns.
 const issueFields = `id identifier title description url createdAt updatedAt
 	startedAt completedAt canceledAt
-	state { id name type } assignee { id name } creator { id name } team { id name key }`
+	state { id name type } assignee { id name } creator { id name } team { id name key }
+	parent { id identifier title }`
+
+// issueDetailFields is GetIssue's wider selection set: the shared fields
+// plus the detail-only fields (children, priority, due date, estimate,
+// cycle, milestone) that list and mutation payloads do not need.
+const issueDetailFields = issueFields + `
+	children { nodes { id identifier title } } priority priorityLabel dueDate estimate
+	cycle { id name } projectMilestone { id name }`
 
 // ListIssues lists issues, most recently updated first. A zero filter lists
 // the whole workspace; set filter fields compose into one GraphQL filter.
@@ -130,9 +193,10 @@ func (s *Service) ListIssues(ctx context.Context, f IssueFilter) ([]Issue, error
 	return collectPages[Issue](ctx, s, query, variables, "issues")
 }
 
-// GetIssue returns one issue by UUID or human identifier ("BLA-123").
+// GetIssue returns one issue by UUID or human identifier ("BLA-123"),
+// selecting the full detail field set.
 func (s *Service) GetIssue(ctx context.Context, id string) (*Issue, error) {
-	const query = `query($id: String!) { issue(id: $id) { ` + issueFields + ` } }`
+	const query = `query($id: String!) { issue(id: $id) { ` + issueDetailFields + ` } }`
 	data, err := s.exec(ctx, query, map[string]any{"id": id})
 	if err != nil {
 		return nil, err
@@ -169,6 +233,27 @@ func (s *Service) CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue,
 	if in.ProjectID != "" {
 		input["projectId"] = in.ProjectID
 	}
+	if in.ParentID != "" {
+		input["parentId"] = in.ParentID
+	}
+	if len(in.LabelIDs) > 0 {
+		input["labelIds"] = in.LabelIDs
+	}
+	if in.Priority != 0 {
+		input["priority"] = in.Priority
+	}
+	if in.DueDate != "" {
+		input["dueDate"] = in.DueDate
+	}
+	if in.Estimate != 0 {
+		input["estimate"] = in.Estimate
+	}
+	if in.CycleID != "" {
+		input["cycleId"] = in.CycleID
+	}
+	if in.ProjectMilestoneID != "" {
+		input["projectMilestoneId"] = in.ProjectMilestoneID
+	}
 	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"input": input}, "issueCreate", "issue")
 }
 
@@ -193,6 +278,37 @@ func (s *Service) UpdateIssue(ctx context.Context, id string, in UpdateIssueInpu
 	}
 	if in.ProjectID != "" {
 		input["projectId"] = in.ProjectID
+	}
+	// Pointer fields: nil omits the key; a pointer to "" clears the link by
+	// sending null (Linear clears parent/dueDate/cycle/milestone on null).
+	setNullable := func(key string, v *string) {
+		if v == nil {
+			return
+		}
+		if *v == "" {
+			input[key] = nil
+			return
+		}
+		input[key] = *v
+	}
+	setNullable("parentId", in.ParentID)
+	setNullable("dueDate", in.DueDate)
+	setNullable("cycleId", in.CycleID)
+	setNullable("projectMilestoneId", in.ProjectMilestoneID)
+	if in.LabelIDs != nil {
+		// A pointer to an empty (or nil) slice sends labelIds: [], which
+		// removes every label; normalize so the wire value is never null.
+		ids := *in.LabelIDs
+		if ids == nil {
+			ids = []string{}
+		}
+		input["labelIds"] = ids
+	}
+	if in.Priority != nil {
+		input["priority"] = *in.Priority
+	}
+	if in.Estimate != nil {
+		input["estimate"] = *in.Estimate
 	}
 	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"id": id, "input": input}, "issueUpdate", "issue")
 }

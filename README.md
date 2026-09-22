@@ -315,16 +315,25 @@ Issues, teams, and projects over Linear's GraphQL API.
 everything-cli linear team list                              # find a team ID
 everything-cli linear state list --team 9c1e2f3a-...         # workflow states for a team
 everything-cli linear project list
+everything-cli linear label list --team 9c1e2f3a-...         # a team's issue labels
 
 everything-cli linear issue list [--team 9c1e2f3a-...] [--assignee <uuid|me>] \
     [--created-by <uuid|me>] [--updated-since -7d]       # one server-side filter; empty = workspace-wide
-everything-cli linear issue get BLA-123
+everything-cli linear issue search --query "login redirect"  # full-text over titles, descriptions, comments
+everything-cli linear issue get BLA-123                    # incl. parent/children, priority, due_date, estimate, cycle, milestone
 everything-cli linear issue comments BLA-123
 everything-cli linear issue comment create BLA-123 --body "Looking into this now" [--parent <comment-id>]
 everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
+everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type blocks|blocked-by|duplicates|related
+everything-cli linear issue relation list --issue BLA-123
+everything-cli linear issue relation delete <relation-id>  # relation id from relation list, not an issue id
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
-    [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-... --project 2f4a6c8e-...]
-everything-cli linear issue update BLA-123 --state "In Progress" [--title ... --assignee ... --project 2f4a6c8e-...]
+    [--description "..." --assignee 4d5e6f7a-... --state 8b9c0d1e-... --project 2f4a6c8e-...] \
+    [--parent ENG-123 --labels "Bug, Regression" --priority high --due-date 2026-10-01 \
+     --estimate 3 --cycle "Sprint 12" --milestone "v1.0"]
+everything-cli linear issue update BLA-123 --state "In Progress" [--title ... --assignee ... --project 2f4a6c8e-...] \
+    [--parent "" --labels "" --due-date ""]              # "" clears parent/labels/due date/cycle/milestone
+everything-cli linear api '{ viewer { id name email } }' [--variables '{"id": "ENG-1"}'|--variables @vars.json]
 everything-cli linear account whoami                         # id, name, email of the acting account
 ```
 

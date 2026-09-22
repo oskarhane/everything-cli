@@ -43,7 +43,7 @@ reference file — this document covers only the shared conventions.
 | `email` | Regular email: IMAP reads (mailboxes, message list/get) and SMTP send; username/password accounts | [references/email.md](references/email.md) |
 | `google` | Gmail, Calendar, Drive, Docs, Sheets, Slides, YouTube metadata/transcripts; OAuth accounts | [references/google.md](references/google.md) |
 | `granola` | Granola notes via the Granola public API; API-key accounts | [references/granola.md](references/granola.md) |
-| `linear` | Linear issues, teams, projects; API key or OAuth | [references/linear.md](references/linear.md) |
+| `linear` | Linear issues (search, relations, labels, comments/attachments), teams, projects, raw GraphQL via `api`; API key or OAuth | [references/linear.md](references/linear.md) |
 | `podcast` | Podcast episode transcripts from an Apple/Spotify episode URL; no account | [references/podcast.md](references/podcast.md) |
 | `slack` | Slack message search, channel history/list, threads, workspace members, and attachment/file download (read-only); xoxp user-token accounts | [references/slack.md](references/slack.md) |
 

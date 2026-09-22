@@ -94,7 +94,7 @@ func TestResolveStateIDForTeamSkipsDialForUUID(t *testing.T) {
 		return &fakeService{states: seedStates()}, nil
 	}
 
-	got, err := resolveStateIDForTeam(context.Background(), newState, "team_1", stateUUID)
+	got, err := resolveStateIDForTeam(context.Background(), newState, staticTeam("team_1"), stateUUID)
 
 	require.NoError(t, err)
 	require.Equal(t, stateUUID, got)

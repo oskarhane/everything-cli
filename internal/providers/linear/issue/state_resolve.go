@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
 
@@ -14,25 +12,25 @@ import (
 // and UUID-shaped values pass through, so callers can skip dialing the state
 // service entirely for them.
 func stateLookupRequired(value string) bool {
-	if value == "" {
-		return false
-	}
-	_, err := uuid.Parse(value)
-	return err != nil
+	return value != "" && !isUUID(value)
 }
 
-// resolveStateIDForTeam is the leaf entry point: it dials the state service
-// only when value actually needs a name lookup, so UUID and empty --state
-// values never dial at all.
-func resolveStateIDForTeam(ctx context.Context, newState service.Dialer[service.StateService], teamID, value string) (string, error) {
+// resolveStateIDForTeam is the leaf entry point: it resolves the team lazily
+// and dials the state service only when value actually needs a name lookup,
+// so UUID and empty --state values neither fetch the team nor dial.
+func resolveStateIDForTeam(ctx context.Context, newState service.Dialer[service.StateService], teamID func() (string, error), value string) (string, error) {
 	if !stateLookupRequired(value) {
 		return value, nil
+	}
+	team, err := teamID()
+	if err != nil {
+		return "", err
 	}
 	states, err := newState(ctx)
 	if err != nil {
 		return "", err
 	}
-	return resolveStateID(ctx, states, teamID, value)
+	return resolveStateID(ctx, states, team, value)
 }
 
 // resolveStateID turns a --state value into a workflow-state UUID. Empty and
@@ -47,34 +45,10 @@ func resolveStateID(ctx context.Context, states service.StateService, teamID, va
 	if states == nil {
 		return "", fmt.Errorf("state %q: no state service available", value)
 	}
-	all, err := states.ListStates(ctx, teamID)
-	if err != nil {
-		return "", err
-	}
-	var matches []service.State
-	for _, s := range all {
-		if strings.EqualFold(s.Name, value) {
-			matches = append(matches, s)
-		}
-	}
-	if len(matches) == 0 {
-		return "", fmt.Errorf("unknown state %q; valid states: %s", value, stateNames(all))
-	}
-	if len(matches) > 1 {
-		return "", fmt.Errorf("ambiguous state %q; valid states: %s", value, stateNames(all))
-	}
-	return matches[0].ID, nil
-}
-
-// stateNames joins the team's state names for the unknown-state error. It
-// falls back to "none" so a team with no states still reads sensibly.
-func stateNames(states []service.State) string {
-	if len(states) == 0 {
-		return "none"
-	}
-	names := make([]string, len(states))
-	for i, s := range states {
-		names[i] = s.Name
-	}
-	return strings.Join(names, ", ")
+	return resolveByName(ctx, func(ctx context.Context) ([]service.State, error) {
+		return states.ListStates(ctx, teamID)
+	}, value, "state",
+		func(s service.State, v string) bool { return strings.EqualFold(s.Name, v) },
+		func(s service.State) string { return s.Name },
+		func(s service.State) string { return s.ID })
 }
