@@ -18,6 +18,9 @@ type Dialers struct {
 	Comment    service.Dialer[service.CommentService]
 	Attachment service.Dialer[service.AttachmentService]
 	State      service.Dialer[service.StateService]
+	Label      service.Dialer[service.LabelService]
+	Cycle      service.Dialer[service.CycleService]
+	Milestone  service.Dialer[service.MilestoneService]
 }
 
 // NewCmd returns the `linear issue` parent command with its leaves
@@ -30,8 +33,8 @@ func NewCmd(cfg *app.Config, d Dialers) *cobra.Command {
 	}
 	cmd.AddCommand(newListCmd(cfg, d.Issue, d.Viewer))
 	cmd.AddCommand(newGetCmd(cfg, d.Issue))
-	cmd.AddCommand(newCreateCmd(cfg, d.Issue, d.State))
-	cmd.AddCommand(newUpdateCmd(cfg, d.Issue, d.State))
+	cmd.AddCommand(newCreateCmd(cfg, d.Issue, d.State, d.Label, d.Cycle, d.Milestone))
+	cmd.AddCommand(newUpdateCmd(cfg, d.Issue, d.State, d.Label, d.Cycle, d.Milestone))
 	cmd.AddCommand(newCommentsCmd(cfg, d.Comment))
 	cmd.AddCommand(comment.NewCmd(cfg, d.Comment))
 	cmd.AddCommand(attachment.NewCmd(cfg, d.Attachment))

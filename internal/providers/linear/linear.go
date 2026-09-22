@@ -30,6 +30,9 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Comment:    dialAs[service.CommentService](cfg),
 		Attachment: dialAs[service.AttachmentService](cfg),
 		State:      dialAs[service.StateService](cfg),
+		Label:      dialAs[service.LabelService](cfg),
+		Cycle:      dialAs[service.CycleService](cfg),
+		Milestone:  dialAs[service.MilestoneService](cfg),
 	}))
 	cmd.AddCommand(team.NewCmd(cfg, dialAs[service.TeamService](cfg)))
 	cmd.AddCommand(project.NewCmd(cfg, dialAs[service.ProjectService](cfg)))
