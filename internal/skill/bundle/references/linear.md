@@ -174,7 +174,9 @@ everything-cli linear issue get 8b9c0d1e-... --format table
   <team-id>` (required, UUID), `--title <text>` (required — the CLI
   demands it even though the API marks it nullable), `--description
   <markdown>`, `--assignee <user-id>` (UUID), `--state <uuid|name>`
-  (workflow state UUID or state name). A UUID passes through untouched;
+  (workflow state UUID or state name), `--project <project-id>` (UUID —
+  discover projects with `linear project list`). A UUID passes through
+  untouched;
   a name is matched case-insensitively against the team's states (list
   them with `linear state list --team <team-id>`), and an unknown name
   errors listing the team's valid state names. With no `--state`, the
@@ -186,7 +188,8 @@ everything-cli linear issue get 8b9c0d1e-... --format table
 ```sh
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect"
 everything-cli linear issue create --team 9c1e2f3a-... --title "Fix login redirect" \
-  --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-...
+  --description "Users land on / after logout" --assignee 4d5e6f7a-... --state 8b9c0d1e-... \
+  --project 2f4a6c8e-...
 everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --format json
 ```
 
@@ -194,7 +197,8 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --for
 
 - `linear issue update <id>` — update one issue (UUID or `BLA-123`).
   Flags: `--title`, `--description` (markdown), `--assignee <user-id>`,
-  `--state <uuid|name>`. A state UUID passes through untouched; a state
+  `--state <uuid|name>`, `--project <project-id>` (UUID — moves the
+  issue into that project). A state UUID passes through untouched; a state
   name is resolved case-insensitively within the issue's team, so the
   name path performs an extra lookup of the issue first (a UUID or
   `BLA-123`; discover the team's states with `linear state list`). Only
@@ -205,6 +209,7 @@ everything-cli linear issue create --team 9c1e2f3a-... --title "Follow up" --for
 everything-cli linear issue update BLA-123 --state 8b9c0d1e-...
 everything-cli linear issue update BLA-123 --title "Fix login redirect (regression)" \
   --assignee 4d5e6f7a-...
+everything-cli linear issue update BLA-123 --project 2f4a6c8e-...
 ```
 
 ### issue comments

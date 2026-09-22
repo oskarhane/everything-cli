@@ -306,6 +306,7 @@ func TestCreateIssue(t *testing.T) {
 		Title:       "Fourth",
 		Description: "details",
 		StateID:     "state_1",
+		ProjectID:   "proj_1",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "ENG-4", issue.Identifier)
@@ -316,6 +317,7 @@ func TestCreateIssue(t *testing.T) {
 	require.Equal(t, "Fourth", input["title"])
 	require.Equal(t, "details", input["description"])
 	require.Equal(t, "state_1", input["stateId"])
+	require.Equal(t, "proj_1", input["projectId"])
 	// Optional fields left empty are omitted from the mutation.
 	require.NotContains(t, input, "assigneeId")
 }
@@ -336,6 +338,22 @@ func TestUpdateIssueSendsOnlyChangedFields(t *testing.T) {
 	input, ok := (*calls)[0].Variables["input"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, map[string]any{"title": "Retitled"}, input)
+}
+
+func TestUpdateIssueSendsProjectID(t *testing.T) {
+	srv, calls := mockGraphQL(t, func(gqlCall) any {
+		return map[string]any{"issueUpdate": map[string]any{
+			"success": true, "issue": issueNode("issue_1", "ENG-1", "Fix login redirect"),
+		}}
+	})
+	svc := newTestService(srv)
+
+	_, err := svc.UpdateIssue(context.Background(), "ENG-1", UpdateIssueInput{ProjectID: "proj_1"})
+	require.NoError(t, err)
+
+	input, ok := (*calls)[0].Variables["input"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, map[string]any{"projectId": "proj_1"}, input)
 }
 
 func TestListTeamsPaginates(t *testing.T) {

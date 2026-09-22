@@ -96,6 +96,7 @@ type CreateIssueInput struct {
 	Description string
 	AssigneeID  string
 	StateID     string
+	ProjectID   string
 }
 
 // UpdateIssueInput carries the changed fields of `linear issue update`;
@@ -105,6 +106,7 @@ type UpdateIssueInput struct {
 	Description string
 	AssigneeID  string
 	StateID     string
+	ProjectID   string
 }
 
 // issueFields is the selection set every issue query and mutation returns.
@@ -164,6 +166,9 @@ func (s *Service) CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue,
 	if in.StateID != "" {
 		input["stateId"] = in.StateID
 	}
+	if in.ProjectID != "" {
+		input["projectId"] = in.ProjectID
+	}
 	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"input": input}, "issueCreate", "issue")
 }
 
@@ -185,6 +190,9 @@ func (s *Service) UpdateIssue(ctx context.Context, id string, in UpdateIssueInpu
 	}
 	if in.StateID != "" {
 		input["stateId"] = in.StateID
+	}
+	if in.ProjectID != "" {
+		input["projectId"] = in.ProjectID
 	}
 	return mutationPayload[Issue](ctx, s, mutation, map[string]any{"id": id, "input": input}, "issueUpdate", "issue")
 }
