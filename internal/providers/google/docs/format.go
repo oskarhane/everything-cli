@@ -54,17 +54,9 @@ everything-cli google docs format 1AbCdEfGh --start 120 --end 240 --heading 2 --
 			if err != nil {
 				return err
 			}
-			// FormatDocRange forwards the tab ID as-is and makes no read to
-			// resolve a title, so a --tab key is resolved here first via
-			// the service's shared resolution; an empty tab lets the API
-			// apply the format to the first tab.
-			tabID := ""
-			if tab != "" {
-				resolved, err := svc.ResolveDocTab(cmd.Context(), args[0], tab)
-				if err != nil {
-					return err
-				}
-				tabID = resolved.TabID
+			tabID, err := resolveTabID(cmd.Context(), svc, args[0], tab)
+			if err != nil {
+				return err
 			}
 			format := service.DocRangeFormat{
 				StartIndex:    start,
