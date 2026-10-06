@@ -50,6 +50,10 @@ type fakeDocService struct {
 	replaceWith   string
 	replaceCase   bool
 	replaceCount  int
+
+	insertTableID    string               // recorded by InsertDocTable
+	insertTableSpec  service.DocTableSpec // recorded by InsertDocTable
+	insertTableStart int64                // start index InsertDocTable returns
 }
 
 func (f *fakeDocService) GetDocText(_ context.Context, docID string) (string, error) {
@@ -84,6 +88,21 @@ func (f *fakeDocService) ReplaceDocText(_ context.Context, docID, find, replaceW
 	}
 	f.replaceID, f.replaceFind, f.replaceWith, f.replaceCase = docID, find, replaceWith, matchCase
 	return f.replaceCount, nil
+}
+
+// InsertDocTable records the spec and serves the seeded start index; like
+// AppendDocText it applies the seeded tab-key contract (the real service
+// resolves the key itself), so unknown-key tests exercise error propagation
+// the way a real dial would.
+func (f *fakeDocService) InsertDocTable(_ context.Context, docID string, spec service.DocTableSpec) (int64, error) {
+	if f.err != nil {
+		return 0, f.err
+	}
+	if err := f.resolveTabKey(spec.TabKey); err != nil {
+		return 0, err
+	}
+	f.insertTableID, f.insertTableSpec = docID, spec
+	return f.insertTableStart, nil
 }
 
 // ListDocTabs serves the seeded tab list; the leaves read it to resolve a
