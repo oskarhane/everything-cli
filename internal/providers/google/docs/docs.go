@@ -41,6 +41,9 @@ func NewCmd(cfg *app.Config) *cobra.Command {
 	cmd.AddCommand(newReplaceCmd(cfg, func(ctx context.Context) (service.DocService, error) {
 		return service.As[service.DocService](newSvc(ctx))
 	}))
+	cmd.AddCommand(newFormatCmd(cfg, func(ctx context.Context) (service.DocService, error) {
+		return service.As[service.DocService](newSvc(ctx))
+	}))
 	cmd.AddCommand(newDeleteCmd(cfg, func(ctx context.Context) (service.FileService, error) {
 		return service.As[service.FileService](newSvc(ctx))
 	}))

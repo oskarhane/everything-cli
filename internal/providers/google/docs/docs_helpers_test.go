@@ -33,27 +33,28 @@ func TestMain(m *testing.M) {
 type fakeDocService struct {
 	service.DocService
 
-	err           error            // when set, every call fails
-	docText       string           // served by GetDocText
-	docTabs       []service.DocTab // served by ListDocTabs
-	docTabText    string           // served by GetDocTabText
-	tabReadID     string           // tab key the last GetDocTabText received
-	appendedID    string
-	appendedText  string
-	appendedTabID string
-	insertID      string
-	insertText    string
-	insertIndex   int64
-	insertTabID   string
-	replaceID     string
-	replaceFind   string
-	replaceWith   string
-	replaceCase   bool
-	replaceCount  int
-
+	err              error            // when set, every call fails
+	docText          string           // served by GetDocText
+	docTabs          []service.DocTab // served by ListDocTabs
+	docTabText       string           // served by GetDocTabText
+	tabReadID        string           // tab key the last GetDocTabText received
+	appendedID       string
+	appendedText     string
+	appendedTabID    string
+	insertID         string
+	insertText       string
+	insertIndex      int64
+	insertTabID      string
+	replaceID        string
+	replaceFind      string
+	replaceWith      string
+	replaceCase      bool
+	replaceCount     int
 	insertTableID    string               // recorded by InsertDocTable
 	insertTableSpec  service.DocTableSpec // recorded by InsertDocTable
 	insertTableStart int64                // start index InsertDocTable returns
+	formatID         string
+	formatSpec       service.DocRangeFormat
 }
 
 func (f *fakeDocService) GetDocText(_ context.Context, docID string) (string, error) {
@@ -103,6 +104,14 @@ func (f *fakeDocService) InsertDocTable(_ context.Context, docID string, spec se
 	}
 	f.insertTableID, f.insertTableSpec = docID, spec
 	return f.insertTableStart, nil
+}
+
+func (f *fakeDocService) FormatDocRange(_ context.Context, docID string, format service.DocRangeFormat) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.formatID, f.formatSpec = docID, format
+	return nil
 }
 
 // ListDocTabs serves the seeded tab list; the leaves read it to resolve a
