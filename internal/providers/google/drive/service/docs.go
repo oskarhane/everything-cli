@@ -24,8 +24,11 @@ import (
 // title) because it reads the tabs tree anyway; InsertDocText makes no read
 // and forwards the tab ID as-is, so a title key must be resolved first via
 // ResolveDocTab. InsertDocTable resolves its tab key like AppendDocText and
-// optionally fills the new table's cells; FormatDocRange styles a range in
-// one tab and, like InsertDocText, forwards the tab ID as-is.
+// optionally fills the new table's cells — spec.Index must be >= 0: only 0
+// computes the tab's end-of-body index, a negative index is an error.
+// FormatDocRange styles a range in one tab and, like InsertDocText,
+// forwards the tab ID as-is — at least one style bool or a heading level
+// must be set: an empty format errors before any batchUpdate is issued.
 type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	ListDocTabs(ctx context.Context, docID string) ([]DocTab, error)
@@ -299,10 +302,11 @@ func (s *realDriveService) ReplaceDocText(ctx context.Context, docID, find, repl
 
 // DocTableSpec describes an InsertDocTable call: Rows and Columns give the
 // grid shape; Index is the Docs-API content index the table inserts before
-// (<=0 computes the chosen tab's end-of-body index, the same endBodyIndex
-// rule AppendDocText uses); TabKey resolves the target tab (exact tab ID
-// first, then exact title; "" = first tab); Cells carries row-major cell
-// texts — empty or nil leaves the table empty and skips the fill pass.
+// (0 computes the chosen tab's end-of-body index, the same endBodyIndex
+// rule AppendDocText uses; a negative index is an error); TabKey resolves
+// the target tab (exact tab ID first, then exact title; "" = first tab);
+// Cells carries row-major cell texts — empty or nil leaves the table empty
+// and skips the fill pass.
 type DocTableSpec struct {
 	Rows    int64
 	Columns int64
@@ -313,12 +317,17 @@ type DocTableSpec struct {
 
 // InsertDocTable inserts a spec.Rows x spec.Columns table into a tab in ONE
 // batchUpdate and returns the table's start index: the insertion index + 1,
-// since the API inserts a newline ahead of the table itself. When
-// spec.Cells is non-empty, a fill pass re-reads the (updated) tabs tree,
-// finds the inserted table's structural element at that start index, and
-// writes the cell texts. The tab key is resolved against the tabs tree like
-// AppendDocText does, so a title key pins the real tab ID on the wire.
+// since the API inserts a newline ahead of the table itself. Only
+// spec.Index == 0 computes the tab's end-of-body index; a negative index
+// errors before any API call. When spec.Cells is non-empty, a fill pass
+// re-reads the (updated) tabs tree, finds the inserted table's structural
+// element at that start index, and writes the cell texts. The tab key is
+// resolved against the tabs tree like AppendDocText does, so a title key
+// pins the real tab ID on the wire.
 func (s *realDriveService) InsertDocTable(ctx context.Context, docID string, spec DocTableSpec) (int64, error) {
+	if spec.Index < 0 {
+		return 0, fmt.Errorf("inserting table into document %s: index %d is negative: 0 inserts at the end of the tab body", docID, spec.Index)
+	}
 	doc, err := s.getDocumentTabs(ctx, docID)
 	if err != nil {
 		return 0, err
@@ -328,7 +337,7 @@ func (s *realDriveService) InsertDocTable(ctx context.Context, docID string, spe
 		return 0, fmt.Errorf("choosing tab in document %s: %w", docID, err)
 	}
 	index := spec.Index
-	if index <= 0 {
+	if index == 0 {
 		body, err := tabBody(tab)
 		if err != nil {
 			return 0, fmt.Errorf("computing table index for document %s: %w", docID, err)
@@ -448,7 +457,9 @@ func specCellText(cells [][]string, r, c int) string {
 // bound the range (Docs-API content indexes, zero-based UTF-16 code units);
 // TabID pins the range to a tab ("" = the API's first-tab default); Bold,
 // Italic, Strikethrough, and Underline switch those text styles on;
-// HeadingLevel > 0 restyles the covered paragraphs as HEADING_<n>.
+// HeadingLevel > 0 restyles the covered paragraphs as HEADING_<n>. At least
+// one style bool or a heading level must be set: an empty format is an
+// error, not an empty batchUpdate.
 type DocRangeFormat struct {
 	StartIndex    int64
 	EndIndex      int64
@@ -464,10 +475,15 @@ type DocRangeFormat struct {
 // UpdateTextStyleRequest whose TextStyle carries only the requested style
 // bools true and whose fields mask names exactly those fields (so
 // unrequested styles stay untouched), plus — when HeadingLevel is set — one
-// UpdateParagraphStyleRequest naming HEADING_<n>. The tab ID is forwarded
-// as-is: like InsertDocText, this call makes no read, so a title key must be
-// resolved first via ResolveDocTab.
+// UpdateParagraphStyleRequest naming HEADING_<n>. With no style bool set
+// and HeadingLevel 0 there is nothing to send, so the call errors before
+// any batchUpdate is issued. The tab ID is forwarded as-is: like
+// InsertDocText, this call makes no read, so a title key must be resolved
+// first via ResolveDocTab.
 func (s *realDriveService) FormatDocRange(ctx context.Context, docID string, format DocRangeFormat) error {
+	if !format.Bold && !format.Italic && !format.Strikethrough && !format.Underline && format.HeadingLevel <= 0 {
+		return fmt.Errorf("formatting range in document %s: no style requested: set at least one style bool or a heading level", docID)
+	}
 	rng := &docs.Range{StartIndex: format.StartIndex, EndIndex: format.EndIndex, TabId: format.TabID}
 	var requests []*docs.Request
 	style, fields := textStyleOf(format)
