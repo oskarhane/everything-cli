@@ -255,6 +255,7 @@ everything-cli google docs get 1AbCdEfGh --tab t.1a2b3c        # one tab's text 
 everything-cli google docs append 1AbCdEfGh --text "Reviewed by Oskar" [--tab t.1a2b3c]   # default: first tab
 everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan" [--tab t.1a2b3c]   # before a Docs-API content index
 everything-cli google docs insert-table 1AbCdEfGh --rows 3 --columns 4 [--tab t.1a2b3c]   # or --csv/--csv-file for a filled table
+everything-cli google docs format 1AbCdEfGh --start 1 --end 12 --bold [--tab t.1a2b3c]   # range [start, end); also --italic/--underline/--strikethrough/--heading 1-6
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"   # doc-wide; no per-tab scoping
 everything-cli google docs comment list 1AbCdEfGh --all          # comment threads; resolved included with --all
 everything-cli google docs comment add 1AbCdEfGh --text "Please review section 2"   # file-level comment
