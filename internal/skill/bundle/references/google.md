@@ -475,6 +475,23 @@ is the recoverable alternative to `google docs delete`.
   append, the text is sent verbatim — no newline is added.
   `--tab <id-or-exact-title>` inserts into that tab (default: the first
   tab).
+- `google docs insert-table <doc-id>` — insert a table before `--index`
+  (default 0 = the end of the tab body). Empty table: `--rows <n>`
+  `--columns <n>` (both required, >= 1). Filled table: `--csv <data>` |
+  `--csv-file <path>` (exactly one; a real CSV parse, so quoted commas
+  work) — the dimensions derive from the data (rows = record count,
+  columns = the widest record), so `--rows`/`--columns` must not be set;
+  ragged rows leave their missing cells empty.
+  `--tab <id-or-exact-title>` inserts into that tab (default: the first
+  tab). Prints the effective dimensions and the table's start index.
+- `google docs format <doc-id>` — style the content range [`--start`,
+  `--end`): both required (`--start` >= 1, `--end` > `--start`),
+  zero-based Docs-API UTF-16 content indices, the end exclusive. At
+  least one style switch is required: `--bold`, `--italic`,
+  `--underline`, `--strikethrough`, or `--heading <n>` (restyle the
+  covered paragraphs as HEADING_<n>, 1-6; 0 = unset); only the named
+  styles are touched. `--tab <id-or-exact-title>` formats within that
+  tab (default: the first tab). Prints the formatted range.
 - `google docs replace <doc-id>` — replace every occurrence of `--find`
   (required) with `--replace-with` (empty deletes the matches).
   `--match-case` makes matching case-sensitive (default is
@@ -530,6 +547,11 @@ everything-cli google docs append 1AbCdEfGh --tab t.1a2b3c --text "Notes"
 everything-cli google docs insert 1AbCdEfGh --index 1 --text "Q4 plan"
 everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120
 everything-cli google docs insert 1AbCdEfGh --tab t.1a2b3c --index 40 --text "Sidebar"
+everything-cli google docs insert-table 1AbCdEfGh --rows 3 --columns 4
+everything-cli google docs insert-table 1AbCdEfGh --csv "name,role" --index 40
+everything-cli google docs insert-table 1AbCdEfGh --csv-file cells.csv --tab Appendix
+everything-cli google docs format 1AbCdEfGh --start 1 --end 12 --bold
+everything-cli google docs format 1AbCdEfGh --start 120 --end 240 --heading 2 --italic --tab Changelog
 everything-cli google docs replace 1AbCdEfGh --find "Project Falcon" --replace-with "Project Falcon 2"
 everything-cli google docs replace 1AbCdEfGh --find TODO --replace-with "TBD"
 everything-cli google docs comment list 1AbCdEfGh

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	docs "google.golang.org/api/docs/v1"
@@ -22,7 +23,12 @@ import (
 // changed. AppendDocText resolves its tab key (exact tab ID, then exact
 // title) because it reads the tabs tree anyway; InsertDocText makes no read
 // and forwards the tab ID as-is, so a title key must be resolved first via
-// ResolveDocTab.
+// ResolveDocTab. InsertDocTable resolves its tab key like AppendDocText and
+// optionally fills the new table's cells — spec.Index must be >= 0: only 0
+// computes the tab's end-of-body index, a negative index is an error.
+// FormatDocRange styles a range in one tab and, like InsertDocText,
+// forwards the tab ID as-is — at least one style bool or a heading level
+// must be set: an empty format errors before any batchUpdate is issued.
 type DocService interface {
 	GetDocText(ctx context.Context, docID string) (string, error)
 	ListDocTabs(ctx context.Context, docID string) ([]DocTab, error)
@@ -34,6 +40,8 @@ type DocService interface {
 	AppendDocText(ctx context.Context, docID, text, tabKey string) (err error)
 	InsertDocText(ctx context.Context, docID, text string, index int64, tabID string) (err error)
 	ReplaceDocText(ctx context.Context, docID, find, replaceWith string, matchCase bool) (int, error)
+	InsertDocTable(ctx context.Context, docID string, spec DocTableSpec) (int64, error)
+	FormatDocRange(ctx context.Context, docID string, format DocRangeFormat) error
 }
 
 // DocTab is one tab of a document, output-facing (snake_case JSON keys, the
@@ -290,6 +298,245 @@ func (s *realDriveService) ReplaceDocText(ctx context.Context, docID, find, repl
 		}
 	}
 	return int(count), nil
+}
+
+// DocTableSpec describes an InsertDocTable call: Rows and Columns give the
+// grid shape; Index is the Docs-API content index the table inserts before
+// (0 computes the chosen tab's end-of-body index, the same endBodyIndex
+// rule AppendDocText uses; a negative index is an error); TabKey resolves
+// the target tab (exact tab ID first, then exact title; "" = first tab);
+// Cells carries row-major cell texts — empty or nil leaves the table empty
+// and skips the fill pass.
+type DocTableSpec struct {
+	Rows    int64
+	Columns int64
+	Index   int64
+	TabKey  string
+	Cells   [][]string
+}
+
+// InsertDocTable inserts a spec.Rows x spec.Columns table into a tab in ONE
+// batchUpdate and returns the table's start index: the insertion index + 1,
+// since the API inserts a newline ahead of the table itself. Only
+// spec.Index == 0 computes the tab's end-of-body index; a negative index
+// errors before any API call. When spec.Cells is non-empty, a fill pass
+// re-reads the (updated) tabs tree, finds the inserted table's structural
+// element at that start index, and writes the cell texts. The tab key is
+// resolved against the tabs tree like AppendDocText does, so a title key
+// pins the real tab ID on the wire.
+func (s *realDriveService) InsertDocTable(ctx context.Context, docID string, spec DocTableSpec) (int64, error) {
+	if spec.Index < 0 {
+		return 0, fmt.Errorf("inserting table into document %s: index %d is negative: 0 inserts at the end of the tab body", docID, spec.Index)
+	}
+	doc, err := s.getDocumentTabs(ctx, docID)
+	if err != nil {
+		return 0, err
+	}
+	tab, err := chooseTab(doc, spec.TabKey)
+	if err != nil {
+		return 0, fmt.Errorf("choosing tab in document %s: %w", docID, err)
+	}
+	index := spec.Index
+	if index == 0 {
+		body, err := tabBody(tab)
+		if err != nil {
+			return 0, fmt.Errorf("computing table index for document %s: %w", docID, err)
+		}
+		index, err = endBodyIndex(body)
+		if err != nil {
+			return 0, fmt.Errorf("computing table index for document %s: %w", docID, err)
+		}
+	}
+	if _, err := s.docs.Documents.BatchUpdate(docID, &docs.BatchUpdateDocumentRequest{
+		Requests: []*docs.Request{{
+			InsertTable: &docs.InsertTableRequest{
+				Rows:     spec.Rows,
+				Columns:  spec.Columns,
+				Location: tabLocation(index, spec.TabKey, tab),
+			},
+		}},
+	}).Context(ctx).Do(); err != nil {
+		return 0, fmt.Errorf("inserting table into document %s: %w", docID, err)
+	}
+	start := index + 1
+	if len(spec.Cells) == 0 {
+		return start, nil
+	}
+	if err := s.fillDocTableCells(ctx, docID, spec, start); err != nil {
+		return 0, err
+	}
+	return start, nil
+}
+
+// fillDocTableCells writes spec.Cells into the table whose structural
+// element starts at start. The insert shifted every index after it, so the
+// tabs tree is re-read and the tab re-resolved before locating the table.
+// The texts go out in ONE batchUpdate of InsertTextRequests, one per
+// non-empty cell at the cell's first-paragraph start index, ordered by
+// DESCENDING index so an earlier insert cannot shift a later one's index.
+func (s *realDriveService) fillDocTableCells(ctx context.Context, docID string, spec DocTableSpec, start int64) error {
+	doc, err := s.getDocumentTabs(ctx, docID)
+	if err != nil {
+		return err
+	}
+	tab, err := chooseTab(doc, spec.TabKey)
+	if err != nil {
+		return fmt.Errorf("choosing tab in document %s: %w", docID, err)
+	}
+	body, err := tabBody(tab)
+	if err != nil {
+		return fmt.Errorf("filling table in document %s: %w", docID, err)
+	}
+	table := tableElementAt(body, start)
+	if table == nil {
+		return fmt.Errorf("filling table in document %s: no table element at index %d", docID, start)
+	}
+	type cellInsert struct {
+		index int64
+		text  string
+	}
+	var inserts []cellInsert
+	for r, row := range table.TableRows {
+		if row == nil {
+			continue
+		}
+		for c, cell := range row.TableCells {
+			text := specCellText(spec.Cells, r, c)
+			if text == "" || cell == nil || len(cell.Content) == 0 || cell.Content[0] == nil {
+				continue
+			}
+			inserts = append(inserts, cellInsert{index: cell.Content[0].StartIndex, text: text})
+		}
+	}
+	sort.Slice(inserts, func(i, j int) bool { return inserts[i].index > inserts[j].index })
+	if len(inserts) == 0 {
+		return nil
+	}
+	requests := make([]*docs.Request, 0, len(inserts))
+	for _, ins := range inserts {
+		requests = append(requests, &docs.Request{
+			InsertText: &docs.InsertTextRequest{
+				Location: tabLocation(ins.index, spec.TabKey, tab),
+				Text:     ins.text,
+			},
+		})
+	}
+	if _, err := s.docs.Documents.BatchUpdate(docID, &docs.BatchUpdateDocumentRequest{
+		Requests: requests,
+	}).Context(ctx).Do(); err != nil {
+		return fmt.Errorf("filling table cells in document %s: %w", docID, err)
+	}
+	return nil
+}
+
+// tableElementAt returns the table of the body structural element starting
+// at index start, or nil when no such element exists or it is not a table.
+func tableElementAt(body *docs.Body, start int64) *docs.Table {
+	if body == nil {
+		return nil
+	}
+	for _, el := range body.Content {
+		if el != nil && el.StartIndex == start && el.Table != nil {
+			return el.Table
+		}
+	}
+	return nil
+}
+
+// specCellText returns the text for the cell at row r, column c: spec rows
+// shorter than the column count (or missing entirely) read as empty, which
+// the fill pass skips.
+func specCellText(cells [][]string, r, c int) string {
+	if r >= len(cells) || c >= len(cells[r]) {
+		return ""
+	}
+	return cells[r][c]
+}
+
+// DocRangeFormat describes a FormatDocRange call: StartIndex and EndIndex
+// bound the range (Docs-API content indexes, zero-based UTF-16 code units);
+// TabID pins the range to a tab ("" = the API's first-tab default); Bold,
+// Italic, Strikethrough, and Underline switch those text styles on;
+// HeadingLevel > 0 restyles the covered paragraphs as HEADING_<n>. At least
+// one style bool or a heading level must be set: an empty format is an
+// error, not an empty batchUpdate.
+type DocRangeFormat struct {
+	StartIndex    int64
+	EndIndex      int64
+	TabID         string
+	Bold          bool
+	Italic        bool
+	Strikethrough bool
+	Underline     bool
+	HeadingLevel  int64
+}
+
+// FormatDocRange styles a range in ONE batchUpdate: one
+// UpdateTextStyleRequest whose TextStyle carries only the requested style
+// bools true and whose fields mask names exactly those fields (so
+// unrequested styles stay untouched), plus — when HeadingLevel is set — one
+// UpdateParagraphStyleRequest naming HEADING_<n>. With no style bool set
+// and HeadingLevel 0 there is nothing to send, so the call errors before
+// any batchUpdate is issued. The tab ID is forwarded as-is: like
+// InsertDocText, this call makes no read, so a title key must be resolved
+// first via ResolveDocTab.
+func (s *realDriveService) FormatDocRange(ctx context.Context, docID string, format DocRangeFormat) error {
+	if !format.Bold && !format.Italic && !format.Strikethrough && !format.Underline && format.HeadingLevel <= 0 {
+		return fmt.Errorf("formatting range in document %s: no style requested: set at least one style bool or a heading level", docID)
+	}
+	rng := &docs.Range{StartIndex: format.StartIndex, EndIndex: format.EndIndex, TabId: format.TabID}
+	var requests []*docs.Request
+	style, fields := textStyleOf(format)
+	if fields != "" {
+		requests = append(requests, &docs.Request{
+			UpdateTextStyle: &docs.UpdateTextStyleRequest{
+				Range:     rng,
+				TextStyle: style,
+				Fields:    fields,
+			},
+		})
+	}
+	if format.HeadingLevel > 0 {
+		requests = append(requests, &docs.Request{
+			UpdateParagraphStyle: &docs.UpdateParagraphStyleRequest{
+				Range:          rng,
+				ParagraphStyle: &docs.ParagraphStyle{NamedStyleType: fmt.Sprintf("HEADING_%d", format.HeadingLevel)},
+				Fields:         "namedStyleType",
+			},
+		})
+	}
+	if _, err := s.docs.Documents.BatchUpdate(docID, &docs.BatchUpdateDocumentRequest{
+		Requests: requests,
+	}).Context(ctx).Do(); err != nil {
+		return fmt.Errorf("formatting range in document %s: %w", docID, err)
+	}
+	return nil
+}
+
+// textStyleOf builds the TextStyle carrying exactly the requested style
+// bools plus the fields mask naming them ("bold,italic,..."); an empty mask
+// means no text style was requested and the caller omits the request.
+func textStyleOf(f DocRangeFormat) (*docs.TextStyle, string) {
+	style := &docs.TextStyle{
+		Bold:          f.Bold,
+		Italic:        f.Italic,
+		Strikethrough: f.Strikethrough,
+		Underline:     f.Underline,
+	}
+	var fields []string
+	if f.Bold {
+		fields = append(fields, "bold")
+	}
+	if f.Italic {
+		fields = append(fields, "italic")
+	}
+	if f.Strikethrough {
+		fields = append(fields, "strikethrough")
+	}
+	if f.Underline {
+		fields = append(fields, "underline")
+	}
+	return style, strings.Join(fields, ",")
 }
 
 // getDocumentTabs gets the document with includeTabsContent=true so the tabs

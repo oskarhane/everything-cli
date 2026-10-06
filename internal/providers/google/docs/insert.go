@@ -44,17 +44,9 @@ everything-cli google docs insert 1AbCdEfGh --text-file block.txt --index 120`,
 			if err != nil {
 				return err
 			}
-			// InsertDocText forwards the tab ID as-is and makes no read to
-			// resolve a title, so a --tab key is resolved here first via
-			// the service's shared resolution; an empty tab lets the API
-			// apply the insert to the first tab.
-			tabID := ""
-			if tab != "" {
-				resolved, err := svc.ResolveDocTab(cmd.Context(), args[0], tab)
-				if err != nil {
-					return err
-				}
-				tabID = resolved.TabID
+			tabID, err := resolveTabID(cmd.Context(), svc, args[0], tab)
+			if err != nil {
+				return err
 			}
 			if err := svc.InsertDocText(cmd.Context(), args[0], body, index, tabID); err != nil {
 				return err

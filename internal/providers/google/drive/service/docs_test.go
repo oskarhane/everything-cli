@@ -800,3 +800,390 @@ func TestDeleteDocTabSendsTabID(t *testing.T) {
 		t.Fatalf("request kind = %+v, want one deleteTab for t.B", got.Requests[0])
 	}
 }
+
+// TestInsertDocTable drives the insert over a fake docs API: the tab key
+// resolves via the chooseTab contract (a title pins the resolved tab ID on
+// the wire; "" targets the first tab with the tabId omitted), a zero index
+// computes the tab's endBodyIndex, and ONE batchUpdate carries the
+// insertTable request. The returned start index is the insertion index + 1
+// (the API inserts a newline ahead of the table).
+func TestInsertDocTable(t *testing.T) {
+	tests := []struct {
+		name      string
+		spec      DocTableSpec
+		wantIndex int64  // index on the wire
+		wantTabID string // tabId on the wire
+		wantStart int64  // returned table start index
+	}{
+		{
+			name:      "explicit index and title key pins the resolved tab ID",
+			spec:      DocTableSpec{Rows: 2, Columns: 3, Index: 5, TabKey: "Archive"},
+			wantIndex: 5,
+			wantTabID: "t.Child",
+			wantStart: 6,
+		},
+		{
+			name:      "zero index computes the first tab's endBodyIndex",
+			spec:      DocTableSpec{Rows: 1, Columns: 1, Index: 0},
+			wantIndex: 19, // first tab's last endIndex 20 - 1
+			wantTabID: "",
+			wantStart: 20,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got *docs.BatchUpdateDocumentRequest
+			batchUpdates := 0
+			svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == "GET" && r.URL.Path == "/v1/documents/doc-1":
+					writeJSON(w, docs.Document{
+						DocumentId: "doc-1",
+						Tabs: []*docs.Tab{
+							tabEndingAt("t.Root", "Notes", 20),
+							tabEndingAt("t.Child", "Archive", 40),
+						},
+					})
+				case r.Method == "POST" && r.URL.Path == "/v1/documents/doc-1:batchUpdate":
+					req := &docs.BatchUpdateDocumentRequest{}
+					decodeInto(t, r, req)
+					got = req
+					batchUpdates++
+					writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+					http.Error(w, "not found", http.StatusNotFound)
+				}
+			})
+
+			start, err := svc.InsertDocTable(t.Context(), "doc-1", tt.spec)
+			if err != nil {
+				t.Fatalf("InsertDocTable: %v", err)
+			}
+			if start != tt.wantStart {
+				t.Errorf("start index = %d, want %d (insertion index + 1)", start, tt.wantStart)
+			}
+			if batchUpdates != 1 {
+				t.Fatalf("batchUpdate calls = %d, want 1 (no fill pass without cells)", batchUpdates)
+			}
+			if len(got.Requests) != 1 {
+				t.Fatalf("batchUpdate sent %d requests, want 1", len(got.Requests))
+			}
+			ins := got.Requests[0].InsertTable
+			if ins == nil {
+				t.Fatalf("request kind = %+v, want a single insertTable", got.Requests[0])
+			}
+			if ins.Rows != tt.spec.Rows || ins.Columns != tt.spec.Columns {
+				t.Errorf("grid = %dx%d, want %dx%d", ins.Rows, ins.Columns, tt.spec.Rows, tt.spec.Columns)
+			}
+			if ins.Location == nil || ins.Location.Index != tt.wantIndex {
+				t.Fatalf("insert location = %+v, want index %d", ins.Location, tt.wantIndex)
+			}
+			if ins.Location.TabId != tt.wantTabID {
+				t.Errorf("location.tabId = %q, want %q", ins.Location.TabId, tt.wantTabID)
+			}
+		})
+	}
+}
+
+// TestInsertDocTableNegativeIndexErrors guards the tightened spec contract:
+// only Index == 0 computes the tab's endBodyIndex — a negative index errors
+// (naming the index) before any API call goes out.
+func TestInsertDocTableNegativeIndexErrors(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s %s: a negative index must fail before any API call", r.Method, r.URL)
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	_, err := svc.InsertDocTable(t.Context(), "doc-1", DocTableSpec{Rows: 4, Columns: 2, Index: -3, TabKey: "t.Child"})
+	if err == nil {
+		t.Fatal("InsertDocTable: want error for a negative index, got nil")
+	}
+	for _, frag := range []string{"doc-1", "-3"} {
+		if !strings.Contains(err.Error(), frag) {
+			t.Errorf("error %q missing %q (it must name the doc ID and the index)", err, frag)
+		}
+	}
+}
+
+// seedFilledTableDoc returns the post-insert read of a document whose first
+// tab now holds a 2x2 table starting at index 20, each cell's first
+// paragraph at a known start index.
+func seedFilledTableDoc() *docs.Document {
+	cell := func(start int64) *docs.TableCell {
+		return &docs.TableCell{Content: []*docs.StructuralElement{
+			{StartIndex: start, Paragraph: &docs.Paragraph{}},
+		}}
+	}
+	return &docs.Document{
+		DocumentId: "doc-1",
+		Tabs: []*docs.Tab{{
+			TabProperties: &docs.TabProperties{TabId: "t.Main", Title: "Notes"},
+			DocumentTab: &docs.DocumentTab{Body: &docs.Body{Content: []*docs.StructuralElement{
+				{StartIndex: 1, EndIndex: 20},
+				{StartIndex: 20, EndIndex: 46, Table: &docs.Table{TableRows: []*docs.TableRow{
+					{TableCells: []*docs.TableCell{cell(22), cell(26)}},
+					{TableCells: []*docs.TableCell{cell(30), cell(34)}},
+				}}},
+			}}},
+		}},
+	}
+}
+
+// TestInsertDocTableFillCells drives the fill pass: after the insert, the
+// tabs tree is re-read, the table is found at the returned start index, and
+// ONE batchUpdate writes each non-empty cell at its first-paragraph start,
+// ordered by DESCENDING index. Short spec rows pad to the column count and
+// empty texts are skipped.
+func TestInsertDocTableFillCells(t *testing.T) {
+	tests := []struct {
+		name  string
+		cells [][]string
+	}{
+		{name: "skips empty cell texts", cells: [][]string{{"A", ""}, {"B", "C"}}},
+		{name: "pads short spec rows to the column count", cells: [][]string{{"A"}, {"B", "C"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gets := 0
+			var batchUpdates []*docs.BatchUpdateDocumentRequest
+			svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == "GET" && r.URL.Path == "/v1/documents/doc-1":
+					gets++
+					if gets == 1 {
+						// Pre-insert read: tab resolution + endBodyIndex.
+						writeJSON(w, docs.Document{
+							DocumentId: "doc-1",
+							Tabs:       []*docs.Tab{tabEndingAt("t.Main", "Notes", 20)},
+						})
+						return
+					}
+					writeJSON(w, seedFilledTableDoc())
+				case r.Method == "POST" && r.URL.Path == "/v1/documents/doc-1:batchUpdate":
+					req := &docs.BatchUpdateDocumentRequest{}
+					decodeInto(t, r, req)
+					batchUpdates = append(batchUpdates, req)
+					writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+					http.Error(w, "not found", http.StatusNotFound)
+				}
+			})
+
+			start, err := svc.InsertDocTable(t.Context(), "doc-1", DocTableSpec{
+				Rows: 2, Columns: 2, TabKey: "Notes", Cells: tt.cells,
+			})
+			if err != nil {
+				t.Fatalf("InsertDocTable: %v", err)
+			}
+			if start != 20 {
+				t.Errorf("start index = %d, want 20 (endBodyIndex 19 + 1)", start)
+			}
+			if gets != 2 {
+				t.Errorf("document gets = %d, want 2 (insert read + fill re-read)", gets)
+			}
+			if len(batchUpdates) != 2 {
+				t.Fatalf("batchUpdate calls = %d, want 2 (insert + fill)", len(batchUpdates))
+			}
+			if got := batchUpdates[0].Requests[0].InsertTable; got == nil {
+				t.Fatalf("first batchUpdate = %+v, want the insertTable", batchUpdates[0].Requests[0])
+			}
+			fill := batchUpdates[1].Requests
+			if len(fill) != 3 {
+				t.Fatalf("fill sent %d requests, want 3 (one empty/padded cell skipped)", len(fill))
+			}
+			// Descending index order: r1c1 "C" at 34, r1c0 "B" at 30, r0c0 "A" at 22.
+			want := []struct {
+				index int64
+				text  string
+			}{{34, "C"}, {30, "B"}, {22, "A"}}
+			for i, w := range want {
+				ins := fill[i].InsertText
+				if ins == nil {
+					t.Fatalf("fill request %d kind = %+v, want insertText", i, fill[i])
+				}
+				if ins.Location == nil || ins.Location.Index != w.index || ins.Text != w.text {
+					t.Errorf("fill request %d = index %d text %q, want index %d text %q (descending cell order)",
+						i, ins.Location.Index, ins.Text, w.index, w.text)
+				}
+				if ins.Location.TabId != "t.Main" {
+					t.Errorf("fill request %d location.tabId = %q, want t.Main (title key resolved)", i, ins.Location.TabId)
+				}
+			}
+		})
+	}
+}
+
+// TestInsertDocTableFillErrorsWithoutTableElement guards the fill lookup:
+// when the re-read tabs tree has no table element at the returned start
+// index, the error must name the document and the index, and only the insert
+// batchUpdate may have gone out.
+func TestInsertDocTableFillErrorsWithoutTableElement(t *testing.T) {
+	gets := 0
+	batchUpdates := 0
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == "GET" && r.URL.Path == "/v1/documents/doc-1":
+			gets++
+			// Both reads serve the pre-insert body: no table at index 20.
+			writeJSON(w, docs.Document{
+				DocumentId: "doc-1",
+				Tabs:       []*docs.Tab{tabEndingAt("t.Main", "Notes", 20)},
+			})
+		case r.Method == "POST" && r.URL.Path == "/v1/documents/doc-1:batchUpdate":
+			batchUpdates++
+			writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL)
+			http.Error(w, "not found", http.StatusNotFound)
+		}
+	})
+
+	_, err := svc.InsertDocTable(t.Context(), "doc-1", DocTableSpec{
+		Rows: 2, Columns: 2, Cells: [][]string{{"A"}},
+	})
+	if err == nil {
+		t.Fatal("InsertDocTable: want error when no table element sits at the start index, got nil")
+	}
+	for _, frag := range []string{"doc-1", "20"} {
+		if !strings.Contains(err.Error(), frag) {
+			t.Errorf("error %q missing %q (it must name the doc ID and the index)", err, frag)
+		}
+	}
+	if batchUpdates != 1 {
+		t.Errorf("batchUpdate calls = %d, want 1 (the insert; the fill must not run)", batchUpdates)
+	}
+}
+
+// TestFormatDocRange drives the range format over a fake batchUpdate: ONE
+// call carries an updateTextStyle whose TextStyle turns on exactly the
+// requested bools and whose fields mask names exactly those fields, plus —
+// with a heading level — an updateParagraphStyle naming HEADING_<n>.
+func TestFormatDocRange(t *testing.T) {
+	var got *docs.BatchUpdateDocumentRequest
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" || r.URL.Path != "/v1/documents/doc-1:batchUpdate" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		req := &docs.BatchUpdateDocumentRequest{}
+		decodeInto(t, r, req)
+		got = req
+		writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+	})
+
+	err := svc.FormatDocRange(t.Context(), "doc-1", DocRangeFormat{
+		StartIndex: 2, EndIndex: 9, TabID: "t.Main",
+		Bold: true, Italic: true, HeadingLevel: 2,
+	})
+	if err != nil {
+		t.Fatalf("FormatDocRange: %v", err)
+	}
+	if len(got.Requests) != 2 {
+		t.Fatalf("batchUpdate sent %d requests, want 2 (text style + paragraph style)", len(got.Requests))
+	}
+	ts := got.Requests[0].UpdateTextStyle
+	if ts == nil {
+		t.Fatalf("request 0 kind = %+v, want updateTextStyle", got.Requests[0])
+	}
+	if ts.Range == nil || ts.Range.StartIndex != 2 || ts.Range.EndIndex != 9 || ts.Range.TabId != "t.Main" {
+		t.Errorf("range = %+v, want {start 2, end 9, tab t.Main}", ts.Range)
+	}
+	if ts.TextStyle == nil || !ts.TextStyle.Bold || !ts.TextStyle.Italic {
+		t.Fatalf("textStyle = %+v, want bold and italic on", ts.TextStyle)
+	}
+	if ts.TextStyle.Strikethrough || ts.TextStyle.Underline {
+		t.Errorf("textStyle = %+v, want only the requested bools true", ts.TextStyle)
+	}
+	if ts.Fields != "bold,italic" {
+		t.Errorf("fields = %q, want exactly %q", ts.Fields, "bold,italic")
+	}
+	ps := got.Requests[1].UpdateParagraphStyle
+	if ps == nil {
+		t.Fatalf("request 1 kind = %+v, want updateParagraphStyle", got.Requests[1])
+	}
+	if ps.Range == nil || ps.Range.StartIndex != 2 || ps.Range.EndIndex != 9 || ps.Range.TabId != "t.Main" {
+		t.Errorf("paragraph range = %+v, want {start 2, end 9, tab t.Main}", ps.Range)
+	}
+	if ps.ParagraphStyle == nil || ps.ParagraphStyle.NamedStyleType != "HEADING_2" {
+		t.Errorf("paragraphStyle = %+v, want namedStyleType HEADING_2", ps.ParagraphStyle)
+	}
+	if ps.Fields != "namedStyleType" {
+		t.Errorf("paragraph fields = %q, want exactly %q", ps.Fields, "namedStyleType")
+	}
+}
+
+// TestFormatDocRangeEmptyErrors guards the tightened format contract: with
+// no style bool set and HeadingLevel 0 there is nothing to send, so the
+// call errors before any batchUpdate reaches the wire.
+func TestFormatDocRangeEmptyErrors(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s %s: an empty format must fail before any API call", r.Method, r.URL)
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	err := svc.FormatDocRange(t.Context(), "doc-1", DocRangeFormat{StartIndex: 0, EndIndex: 4})
+	if err == nil {
+		t.Fatal("FormatDocRange: want error when no style is requested, got nil")
+	}
+	if !strings.Contains(err.Error(), "doc-1") {
+		t.Errorf("error %q must name the document", err)
+	}
+}
+
+// TestFormatDocRangeWithoutStyles covers the two single-request shapes: a
+// text-style-only format omits the paragraph request, and a heading-only
+// format omits the text-style request (an empty fields mask must not ship).
+func TestFormatDocRangeWithoutStyles(t *testing.T) {
+	tests := []struct {
+		name           string
+		format         DocRangeFormat
+		wantTextStyle  bool
+		wantParagraph  bool
+		wantNamedStyle string
+		wantFields     string
+	}{
+		{
+			name:          "text styles only, no heading",
+			format:        DocRangeFormat{StartIndex: 0, EndIndex: 4, Underline: true, Strikethrough: true},
+			wantTextStyle: true,
+			wantFields:    "strikethrough,underline",
+		},
+		{
+			name:           "heading only, no text styles",
+			format:         DocRangeFormat{StartIndex: 0, EndIndex: 4, HeadingLevel: 1},
+			wantParagraph:  true,
+			wantNamedStyle: "HEADING_1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got *docs.BatchUpdateDocumentRequest
+			svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				req := &docs.BatchUpdateDocumentRequest{}
+				decodeInto(t, r, req)
+				got = req
+				writeJSON(w, &docs.BatchUpdateDocumentResponse{DocumentId: "doc-1"})
+			})
+
+			if err := svc.FormatDocRange(t.Context(), "doc-1", tt.format); err != nil {
+				t.Fatalf("FormatDocRange: %v", err)
+			}
+			if len(got.Requests) != 1 {
+				t.Fatalf("batchUpdate sent %d requests, want 1", len(got.Requests))
+			}
+			if ts := got.Requests[0].UpdateTextStyle; (ts != nil) != tt.wantTextStyle {
+				t.Errorf("updateTextStyle present = %v, want %v", ts != nil, tt.wantTextStyle)
+			} else if ts != nil && ts.Fields != tt.wantFields {
+				t.Errorf("fields = %q, want %q", ts.Fields, tt.wantFields)
+			}
+			if ps := got.Requests[0].UpdateParagraphStyle; (ps != nil) != tt.wantParagraph {
+				t.Errorf("updateParagraphStyle present = %v, want %v", ps != nil, tt.wantParagraph)
+			} else if ps != nil && ps.ParagraphStyle.NamedStyleType != tt.wantNamedStyle {
+				t.Errorf("namedStyleType = %q, want %q", ps.ParagraphStyle.NamedStyleType, tt.wantNamedStyle)
+			}
+		})
+	}
+}
