@@ -19,5 +19,5 @@ func TestNewCmdRegistersLeaves(t *testing.T) {
 	// Note: insert rides the shared InsertDocText service method; comment is
 	// the shared Drive-API comment subtree, attached under both docs and
 	// slides; tabs is the Docs-API tab subtree.
-	require.ElementsMatch(t, []string{"get", "append", "insert", "replace", "delete", "comment", "tabs"}, names)
+	require.ElementsMatch(t, []string{"get", "append", "insert", "insert-table", "replace", "delete", "comment", "tabs"}, names)
 }
