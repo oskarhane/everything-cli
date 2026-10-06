@@ -803,8 +803,8 @@ func TestDeleteDocTabSendsTabID(t *testing.T) {
 
 // TestInsertDocTable drives the insert over a fake docs API: the tab key
 // resolves via the chooseTab contract (a title pins the resolved tab ID on
-// the wire; "" targets the first tab with the tabId omitted), a non-positive
-// index computes the tab's endBodyIndex, and ONE batchUpdate carries the
+// the wire; "" targets the first tab with the tabId omitted), a zero index
+// computes the tab's endBodyIndex, and ONE batchUpdate carries the
 // insertTable request. The returned start index is the insertion index + 1
 // (the API inserts a newline ahead of the table).
 func TestInsertDocTable(t *testing.T) {
@@ -823,18 +823,11 @@ func TestInsertDocTable(t *testing.T) {
 			wantStart: 6,
 		},
 		{
-			name:      "non-positive index computes the first tab's endBodyIndex",
+			name:      "zero index computes the first tab's endBodyIndex",
 			spec:      DocTableSpec{Rows: 1, Columns: 1, Index: 0},
 			wantIndex: 19, // first tab's last endIndex 20 - 1
 			wantTabID: "",
 			wantStart: 20,
-		},
-		{
-			name:      "negative index also computes the endBodyIndex",
-			spec:      DocTableSpec{Rows: 4, Columns: 2, Index: -3, TabKey: "t.Child"},
-			wantIndex: 39, // child tab's last endIndex 40 - 1
-			wantTabID: "t.Child",
-			wantStart: 40,
 		},
 	}
 	for _, tt := range tests {
@@ -890,6 +883,26 @@ func TestInsertDocTable(t *testing.T) {
 				t.Errorf("location.tabId = %q, want %q", ins.Location.TabId, tt.wantTabID)
 			}
 		})
+	}
+}
+
+// TestInsertDocTableNegativeIndexErrors guards the tightened spec contract:
+// only Index == 0 computes the tab's endBodyIndex — a negative index errors
+// (naming the index) before any API call goes out.
+func TestInsertDocTableNegativeIndexErrors(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s %s: a negative index must fail before any API call", r.Method, r.URL)
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	_, err := svc.InsertDocTable(t.Context(), "doc-1", DocTableSpec{Rows: 4, Columns: 2, Index: -3, TabKey: "t.Child"})
+	if err == nil {
+		t.Fatal("InsertDocTable: want error for a negative index, got nil")
+	}
+	for _, frag := range []string{"doc-1", "-3"} {
+		if !strings.Contains(err.Error(), frag) {
+			t.Errorf("error %q missing %q (it must name the doc ID and the index)", err, frag)
+		}
 	}
 }
 
@@ -1099,6 +1112,24 @@ func TestFormatDocRange(t *testing.T) {
 	}
 	if ps.Fields != "namedStyleType" {
 		t.Errorf("paragraph fields = %q, want exactly %q", ps.Fields, "namedStyleType")
+	}
+}
+
+// TestFormatDocRangeEmptyErrors guards the tightened format contract: with
+// no style bool set and HeadingLevel 0 there is nothing to send, so the
+// call errors before any batchUpdate reaches the wire.
+func TestFormatDocRangeEmptyErrors(t *testing.T) {
+	svc := newDocsTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request %s %s: an empty format must fail before any API call", r.Method, r.URL)
+		http.Error(w, "not found", http.StatusNotFound)
+	})
+
+	err := svc.FormatDocRange(t.Context(), "doc-1", DocRangeFormat{StartIndex: 0, EndIndex: 4})
+	if err == nil {
+		t.Fatal("FormatDocRange: want error when no style is requested, got nil")
+	}
+	if !strings.Contains(err.Error(), "doc-1") {
+		t.Errorf("error %q must name the document", err)
 	}
 }
 
