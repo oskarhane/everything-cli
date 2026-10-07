@@ -95,6 +95,13 @@ func TestListNotesPaginatesAcrossTwoPages(t *testing.T) {
 	assert.Equal(t, "grace@example.com", notes[1].Owner.Email)
 	assert.Equal(t, "not_eee555fff666", notes[2].ID)
 
+	// deleted_at decodes both ways: a real RFC3339 timestamp on a deleted
+	// note and nil when the API sends null.
+	require.NotNil(t, notes[0].DeletedAt)
+	assert.Equal(t, time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC), *notes[0].DeletedAt)
+	assert.Nil(t, notes[1].DeletedAt)
+	assert.Nil(t, notes[2].DeletedAt)
+
 	queries := log.all()
 	require.Len(t, queries, 2)
 	// Page one carries the filters and the full page size; page two follows
@@ -141,6 +148,9 @@ func TestGetNoteParsesFullNote(t *testing.T) {
 	assert.Nil(t, note.FolderMembership[0].SpaceID)
 	assert.Empty(t, note.SpaceMembership)
 	assert.Nil(t, note.Transcript)
+
+	require.NotNil(t, note.DeletedAt)
+	assert.Equal(t, time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC), *note.DeletedAt)
 
 	queries := log.all()
 	require.Len(t, queries, 1)

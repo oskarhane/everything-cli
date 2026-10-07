@@ -62,12 +62,13 @@ type Owner struct {
 // NoteSummary is one entry of GET /v1/notes. The JSON tags are the API's
 // wire names (snake_case except hasMore/cursor on the envelope).
 type NoteSummary struct {
-	ID        string    `json:"id"`
-	Object    string    `json:"object"`
-	Title     *string   `json:"title"`
-	Owner     Owner     `json:"owner"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        string     `json:"id"`
+	Object    string     `json:"object"`
+	Title     *string    `json:"title"`
+	Owner     Owner      `json:"owner"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
 }
 
 // Attendee is a meeting attendee; name may be null.
@@ -133,6 +134,7 @@ type Note struct {
 	Owner                Owner               `json:"owner"`
 	CreatedAt            time.Time           `json:"created_at"`
 	UpdatedAt            time.Time           `json:"updated_at"`
+	DeletedAt            *time.Time          `json:"deleted_at"`
 	WebURL               string              `json:"web_url"`
 	CalendarEvent        *CalendarEvent      `json:"calendar_event"`
 	Attendees            []Attendee          `json:"attendees"`

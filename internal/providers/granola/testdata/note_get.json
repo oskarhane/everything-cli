@@ -8,6 +8,7 @@
   },
   "created_at": "2026-08-20T14:00:00Z",
   "updated_at": "2026-08-20T14:35:00Z",
+  "deleted_at": "2026-09-01T12:00:00Z",
   "web_url": "https://notes.granola.ai/t/not_aaa111bbb222",
   "calendar_event": {
     "event_title": "Weekly sync",
