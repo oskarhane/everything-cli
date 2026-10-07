@@ -106,8 +106,9 @@ everything-cli granola note list --account work --format toon
   may fail with `413 TRANSCRIPT_TOO_LARGE`; see Errors).
 
   JSON/TOON output is the full note object: `note_id`, `title`, `owner`
-  (`{name, email}`), `created_at`, `updated_at`, `web_url` (Granola web
-  app URL), `calendar_event` (`event_title`, `invitees`, `organiser`,
+  (`{name, email}`), `created_at`, `updated_at`, `deleted_at` (RFC3339
+  timestamp when the note was deleted, null otherwise), `web_url` (Granola
+  web app URL), `calendar_event` (`event_title`, `invitees`, `organiser`,
   `calendar_event_id`, `scheduled_start_time`, `scheduled_end_time`;
   null when the note is not attached to a meeting), `attendees`
   (`{name, email}`), `folder_membership` (`{id, name,
