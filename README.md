@@ -328,6 +328,8 @@ everything-cli linear issue comments BLA-123
 everything-cli linear issue comment create BLA-123 --body "Looking into this now" [--parent <comment-id>]
 everything-cli linear issue attachment list BLA-123
 everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
+everything-cli linear issue image list BLA-123 [--comments]      # images referenced in the description (and comments)
+everything-cli linear issue image download BLA-123 [--comments] [--out-dir .]   # download them via the acting account
 everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type blocks|blocked-by|duplicates|related
 everything-cli linear issue relation list --issue BLA-123
 everything-cli linear issue relation delete <relation-id>  # relation id from relation list, not an issue id

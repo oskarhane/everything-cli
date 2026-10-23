@@ -330,6 +330,47 @@ everything-cli linear issue attachment create BLA-123 \
   --url https://example.com/pr/482 --title "PR #482" --subtitle "Fix login redirect"
 ```
 
+### issue image list
+
+- `linear issue image list <id>` — every markdown image reference
+  (`![alt](url)`) in one issue's description. `<id>` accepts the issue's
+  UUID or its human identifier (`BLA-123`), like `issue get`. Flag:
+  `--comments` (also scan comment bodies — all pages).
+- Renders one row per image, deduplicated by URL across sources (the
+  description's occurrence wins). JSON/TOON fields: `url`, `filename`
+  (the alt text sanitized to a bare basename), `source` (`description` or
+  `comment`). Table columns: `filename`, `source`, `url`. An issue with
+  no images prints an empty list (`[]` in JSON), like `issue comments`.
+
+```sh
+everything-cli linear issue image list BLA-123
+everything-cli linear issue image list BLA-123 --comments --format json
+```
+
+### issue image download
+
+- `linear issue image download <id>` — discover the issue's images
+  exactly like `image list` and download each through the acting
+  account's credential into `--out-dir` (default `.`, created as
+  needed). Flags: `--comments` (also scan comment bodies),
+  `--out-dir <dir>`.
+- Each local filename derives from the markdown alt text sanitized to a
+  bare basename — no path separators, `..`, or absolute paths; storage
+  URLs' paths are bare UUIDs, so the alt text is the only filename
+  source — and a missing extension is fixed from the response's
+  Content-Type. A repeated name gets a `-2`, `-3`, … suffix, so one run
+  never overwrites its own files.
+- Renders one row per image. Successful rows: `filename`, `path`,
+  `bytes`. A failed row — a non-allowlisted host (only
+  `https://uploads.linear.app` is fetched) or a failed fetch — carries
+  `filename` and the named `error` instead, leaves no partial file, and
+  the command exits non-zero after finishing the remaining images.
+
+```sh
+everything-cli linear issue image download BLA-123 --out-dir shots
+everything-cli linear issue image download BLA-123 --comments
+```
+
 ### issue search
 
 - `linear issue search --query <text>` — full-text search over issue

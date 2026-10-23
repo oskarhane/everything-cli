@@ -39,20 +39,26 @@ func TestFileNewCmdRegistersLeaves(t *testing.T) {
 
 // fakeService is the hermetic service.FileService double: it records the URL
 // it receives, streams the seeded content, and fails every call when err is
-// set.
+// set. DownloadFileMeta reports the byte count it wrote; the file leaf
+// never reads the Content-Type.
 type fakeService struct {
 	err     error
 	gotURL  string
 	content []byte
 }
 
-func (f *fakeService) DownloadFileTo(_ context.Context, fileURL string, w io.Writer) error {
+func (f *fakeService) DownloadFileTo(ctx context.Context, fileURL string, w io.Writer) error {
+	_, err := f.DownloadFileMeta(ctx, fileURL, w)
+	return err
+}
+
+func (f *fakeService) DownloadFileMeta(_ context.Context, fileURL string, w io.Writer) (service.FileMeta, error) {
 	f.gotURL = fileURL
 	if f.err != nil {
-		return f.err
+		return service.FileMeta{}, f.err
 	}
-	_, err := w.Write(f.content)
-	return err
+	n, err := w.Write(f.content)
+	return service.FileMeta{Bytes: int64(n)}, err
 }
 
 // fakeNewSvc hands out svc so leaves run hermetically with no network and no
