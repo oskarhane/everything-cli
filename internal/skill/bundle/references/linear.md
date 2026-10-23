@@ -299,14 +299,18 @@ everything-cli linear issue comment create BLA-123 --body "Fixed in #482" \
 
 - `linear issue attachment list <id>` — every link attachment on one
   issue. `<id>` accepts the issue's UUID or its human identifier
-  (`BLA-123`), like `issue get`.
+  (`BLA-123`), like `issue get`; there is exactly one positional
+  argument and no flags of its own — `--format json|table|toon`
+  resolves the output.
 - Renders one row per attachment. JSON/TOON fields: `id`, `title`, `url`,
   `subtitle` (omitted when empty), `created_at`. Table columns:
   `created_at`, `title`, `url`. An issue with no attachments prints an
-  empty list (`[]` in JSON), like `issue comments`.
+  empty list (`[]` in JSON, like `issue comments`); one attachment
+  renders as a single object.
 
 ```sh
-everything-cli linear issue attachment list BLA-123
+everything-cli linear issue attachment list BLA-123 --format json
+everything-cli linear issue attachment list 8c8a1b2c-... --format table
 ```
 
 ### issue attachment create
@@ -361,10 +365,12 @@ everything-cli linear issue image list BLA-123 --comments --format json
   Content-Type. A repeated name gets a `-2`, `-3`, … suffix, so one run
   never overwrites its own files.
 - Renders one row per image. Successful rows: `filename`, `path`,
-  `bytes`. A failed row — a non-allowlisted host (only
+  `bytes`; a failed row — a non-allowlisted host (only
   `https://uploads.linear.app` is fetched) or a failed fetch — carries
   `filename` and the named `error` instead, leaves no partial file, and
   the command exits non-zero after finishing the remaining images.
+  Table columns: `filename`, `bytes`, `path`, `error` — the error cell
+  is empty on success, so a failed row stays visible in every format.
 
 ```sh
 everything-cli linear issue image download BLA-123 --out-dir shots
@@ -584,6 +590,13 @@ issues — scope it on large workspaces.
 - `issue relation delete` takes the RELATION id from `relation list`
   output, not an issue id; deleting it also removes Linear's
   auto-created inverse relation.
+- Issue card images are markdown-embedded `![alt](url)` references into
+  `uploads.linear.app` — Linear's private file storage, which is
+  auth-gated (a bare GET returns 401). Discover a card image's URL with
+  `linear issue image list <id>`, then fetch it through the acting
+  account with `linear issue image download <id>` or
+  `linear file download <url>` — the auth gating is why the download
+  commands exist.
 - Anything the typed commands do not cover goes through `linear api
   '<graphql>' [--variables ...]` — the raw `data` document comes back
   as JSON.
