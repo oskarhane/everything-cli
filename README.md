@@ -325,6 +325,7 @@ everything-cli linear issue search --query "login redirect"  # full-text over ti
 everything-cli linear issue get BLA-123                    # incl. parent/children, priority, due_date, estimate, cycle, milestone
 everything-cli linear issue comments BLA-123
 everything-cli linear issue comment create BLA-123 --body "Looking into this now" [--parent <comment-id>]
+everything-cli linear issue attachment list BLA-123
 everything-cli linear issue attachment create BLA-123 --url <url> --title "PR #482" [--subtitle "..."]
 everything-cli linear issue relation create --issue BLA-123 --related BLA-456 --type blocks|blocked-by|duplicates|related
 everything-cli linear issue relation list --issue BLA-123
