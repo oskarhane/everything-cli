@@ -30,7 +30,7 @@ func TestNewCmdExposesResourceTrees(t *testing.T) {
 	for _, sub := range cmd.Commands() {
 		names[sub.Name()] = true
 	}
-	for _, want := range []string{"issue", "team", "project", "account"} {
+	for _, want := range []string{"issue", "team", "project", "file", "account"} {
 		require.True(t, names[want], "missing subtree %q", want)
 	}
 }

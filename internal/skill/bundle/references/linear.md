@@ -425,6 +425,37 @@ everything-cli linear label list --team 9c1e2f3a-... --format json
 everything-cli linear label list --team 9c1e2f3a-... --format table
 ```
 
+## file
+
+Download files from Linear's file storage (`https://uploads.linear.app`),
+where issue image uploads live.
+
+### file download
+
+- `linear file download <url>` — stream one Linear file-storage URL's
+  bytes. Flag: `--out <file>` (write the bytes to this file instead of
+  stdout, creating parent directories). No `--format` flag: the output is
+  the file's raw bytes, never framed or redacted.
+- Storage files are private: unauthenticated GETs return 401. The
+  download runs through the acting account's credential (API key or
+  OAuth), like every other linear call. URLs are guarded before any
+  request — only `https://uploads.linear.app` is fetched, and a redirect
+  to another host is refused — so the account's Authorization header can
+  never be sent anywhere else.
+- A storage URL's path is a bare UUID — no filename or extension. The
+  original filename arrives on the response's Content-Disposition, so
+  pick `--out` yourself (e.g. the issue's image filename or the
+  attachment title). Signed URLs (carrying a signature query param from a
+  `public-file-urls-expire-in` GraphQL response) also download fine, with
+  or without a credential, but they expire when the signature TTL does.
+- A non-200 (an unknown or expired UUID) surfaces as an error like every
+  other linear call.
+
+```sh
+everything-cli linear file download https://uploads.linear.app/8c8a1b2c-... --out screenshot.png
+everything-cli linear file download https://uploads.linear.app/8c8a1b2c-... > screenshot.png
+```
+
 ## api
 
 - `linear api <query> [--variables <json>|@file]` — an authenticated

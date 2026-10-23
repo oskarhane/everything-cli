@@ -318,6 +318,7 @@ everything-cli linear team list                              # find a team ID
 everything-cli linear state list --team 9c1e2f3a-...         # workflow states for a team
 everything-cli linear project list
 everything-cli linear label list --team 9c1e2f3a-...         # a team's issue labels
+everything-cli linear file download https://uploads.linear.app/<uuid> [--out screenshot.png]   # private file storage, via the acting account
 
 everything-cli linear issue list [--team 9c1e2f3a-...] [--assignee <uuid|me>] \
     [--created-by <uuid|me>] [--updated-since -7d]       # one server-side filter; empty = workspace-wide
