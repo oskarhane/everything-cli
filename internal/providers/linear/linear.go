@@ -32,6 +32,7 @@ func newLinearCmd(cfg *app.Config) *cobra.Command {
 		Viewer:     dialAs[service.ViewerService](cfg),
 		Comment:    dialAs[service.CommentService](cfg),
 		Attachment: dialAs[service.AttachmentService](cfg),
+		File:       dialAs[service.FileService](cfg),
 		State:      dialAs[service.StateService](cfg),
 		Label:      dialAs[service.LabelService](cfg),
 		Cycle:      dialAs[service.CycleService](cfg),

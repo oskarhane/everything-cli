@@ -15,9 +15,10 @@ import (
 
 // fileServerConfig tunes one hermetic file-storage endpoint.
 type fileServerConfig struct {
-	content    []byte
-	status     int    // 0 => 200
-	redirectTo string // 302 here instead of serving
+	content     []byte
+	contentType string // response Content-Type (empty => none set)
+	status      int    // 0 => 200
+	redirectTo  string // 302 here instead of serving
 }
 
 // fileRecorder records the Authorization header of every request the file
@@ -54,6 +55,9 @@ func newFileServer(t *testing.T, cfg fileServerConfig) (*httptest.Server, *fileR
 		if cfg.status != 0 && cfg.status != http.StatusOK {
 			http.Error(w, "boom", cfg.status)
 			return
+		}
+		if cfg.contentType != "" {
+			w.Header().Set("Content-Type", cfg.contentType)
 		}
 		_, _ = w.Write(cfg.content)
 	}))
@@ -209,4 +213,55 @@ func TestDownloadFileErrorHidesURL(t *testing.T) {
 	// request through to a real dial.
 	require.Contains(t, err.Error(), "calling linear file download")
 	require.NotContains(t, err.Error(), deadURL)
+}
+
+// TestDownloadFileMetaReportsResponseShape: the meta download hands the
+// caller the response's Content-Type and the streamed byte count alongside
+// the same bytes DownloadFileTo streams — an image leaf names its local file
+// from exactly this.
+func TestDownloadFileMetaReportsResponseShape(t *testing.T) {
+	content := bytes.Repeat([]byte{0xAB}, 3*1024)
+	srv, _ := newFileServer(t, fileServerConfig{content: content, contentType: "image/png"})
+	allowFileHost(t, srv)
+	svc := newTestService(srv)
+
+	var buf bytes.Buffer
+	meta, err := svc.DownloadFileMeta(context.Background(), srv.URL+"/file-uuid", &buf)
+
+	require.NoError(t, err)
+	require.Equal(t, content, buf.Bytes())
+	require.Equal(t, "image/png", meta.ContentType)
+	require.Equal(t, int64(len(content)), meta.Bytes)
+}
+
+// TestDownloadFileMetaAllowlistRejects: the meta download carries the same
+// pre-request allowlist as DownloadFileTo — a URL outside it fails fast,
+// with no request issued and no meta reported.
+func TestDownloadFileMetaAllowlistRejects(t *testing.T) {
+	srv, rec := newFileServer(t, fileServerConfig{content: []byte("bytes")})
+	svc := newTestService(srv)
+	// The production allowlist stays in force; the live server stands in for
+	// the attacker, so a leaked request would be recorded.
+
+	meta, err := svc.DownloadFileMeta(context.Background(), "https://files.example.com/file-uuid", io.Discard)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "linear file download refused URL")
+	require.Contains(t, err.Error(), "only https://uploads.linear.app")
+	require.Equal(t, FileMeta{}, meta)
+	require.Empty(t, rec.requests(), "no request may be issued for a refused URL")
+}
+
+// TestDownloadFileMetaNon200SurfacesNoMeta: a failed fetch reports the same
+// status-plus-body error as DownloadFileTo and never hands back a meta the
+// caller could mistake for a completed download.
+func TestDownloadFileMetaNon200SurfacesNoMeta(t *testing.T) {
+	srv, _ := newFileServer(t, fileServerConfig{status: http.StatusUnauthorized})
+	allowFileHost(t, srv)
+	svc := newTestService(srv)
+
+	meta, err := svc.DownloadFileMeta(context.Background(), srv.URL+"/file-uuid", io.Discard)
+
+	require.ErrorContains(t, err, "linear API returned 401")
+	require.Equal(t, FileMeta{}, meta)
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/oskarhane/everything-cli/internal/app"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/attachment"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/comment"
+	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/image"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/issue/relation"
 	"github.com/oskarhane/everything-cli/internal/providers/linear/service"
 )
@@ -18,6 +19,7 @@ type Dialers struct {
 	Viewer     service.Dialer[service.ViewerService]
 	Comment    service.Dialer[service.CommentService]
 	Attachment service.Dialer[service.AttachmentService]
+	File       service.Dialer[service.FileService]
 	State      service.Dialer[service.StateService]
 	Label      service.Dialer[service.LabelService]
 	Cycle      service.Dialer[service.CycleService]
@@ -41,6 +43,7 @@ func NewCmd(cfg *app.Config, d Dialers) *cobra.Command {
 	cmd.AddCommand(newCommentsCmd(cfg, d.Comment))
 	cmd.AddCommand(comment.NewCmd(cfg, d.Comment))
 	cmd.AddCommand(attachment.NewCmd(cfg, d.Attachment))
+	cmd.AddCommand(image.NewCmd(cfg, image.Dialers{Issue: d.Issue, Comment: d.Comment, File: d.File}))
 	cmd.AddCommand(relation.NewCmd(cfg, d.Relation))
 	cmd.AddCommand(newSearchCmd(cfg, d.Search))
 	return cmd
