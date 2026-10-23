@@ -62,9 +62,11 @@ func (s *Service) DownloadFileTo(ctx context.Context, fileURL string, w io.Write
 // client, so private files download with the acting account's credential
 // exactly like the GraphQL calls, and reports what the response said
 // about the file: its Content-Type and its body byte count. fileURL is
-// validated against the allowlist before any request, and a redirect to
-// another host is refused, because the transport re-stamps Authorization
-// on every request — Go's redirect logic would otherwise strip it. A
+// validated against the allowlist before any request, and a redirect that
+// changes the scheme — an https to http downgrade on the same host included
+// — or targets another host is refused, because the transport re-stamps
+// Authorization on every request — Go's redirect logic would otherwise
+// strip it, and a downgrade would put it on the wire in the clear. A
 // non-200 surfaces like every other linear call (status plus a capped
 // body), the body streams (it is never materialized; the caller decides
 // how much to consume), and a network failure surfaces its cause without
@@ -81,6 +83,9 @@ func (s *Service) DownloadFileMeta(ctx context.Context, fileURL string, w io.Wri
 	}
 	client := *s.client
 	client.CheckRedirect = func(next *http.Request, via []*http.Request) error {
+		if next.URL.Scheme != via[0].URL.Scheme {
+			return errors.New("linear file download refused redirect scheme change")
+		}
 		if next.URL.Host != via[0].URL.Host {
 			return errors.New("linear file download refused cross-host redirect")
 		}

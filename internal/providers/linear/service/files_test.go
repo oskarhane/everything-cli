@@ -1,9 +1,13 @@
 package service
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -70,10 +74,17 @@ func newFileServer(t *testing.T, cfg fileServerConfig) (*httptest.Server, *fileR
 // restoring the production policy after.
 func allowFileHost(t *testing.T, srv *httptest.Server) {
 	t.Helper()
-	u, err := url.Parse(srv.URL)
-	require.NoError(t, err)
+	allowFileHostPort(t, urlToHost(t, srv.URL))
+}
+
+// allowFileHostPort stubs the production allowlist to permit exactly
+// hostPort for the test's lifetime. The production policy's https
+// requirement is stubbed away alongside, so a test can drive the guard
+// with an https origin on a loopback port.
+func allowFileHostPort(t *testing.T, hostPort string) {
+	t.Helper()
 	saved := validateFileURL
-	validateFileURL = func(v *url.URL) bool { return v.Host == u.Host }
+	validateFileURL = func(v *url.URL) bool { return v.Host == hostPort }
 	t.Cleanup(func() { validateFileURL = saved })
 }
 
@@ -188,6 +199,177 @@ func TestDownloadFileRefusesCrossHostRedirect(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "cross-host redirect")
 	require.Empty(t, evilRec.requests(), "the redirect target must never receive a request")
+}
+
+// peekedConn replays the byte the protocol sniffer consumed while telling
+// TLS from plaintext.
+type peekedConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (c *peekedConn) Read(p []byte) (int, error) { return c.r.Read(p) }
+
+// chanListener feeds one http.Server from a channel of pre-sniffed
+// connections: Serve blocks in Accept until a connection of its protocol
+// arrives, and Close wakes it so the server exits at cleanup.
+type chanListener struct {
+	conns <-chan net.Conn
+	addr  net.Addr
+	done  chan struct{}
+	once  sync.Once
+}
+
+func (l *chanListener) Accept() (net.Conn, error) {
+	select {
+	case c, ok := <-l.conns:
+		if !ok {
+			return nil, net.ErrClosed
+		}
+		return c, nil
+	case <-l.done:
+		return nil, net.ErrClosed
+	}
+}
+
+func (l *chanListener) Close() error {
+	l.once.Do(func() { close(l.done) })
+	return nil
+}
+
+func (l *chanListener) Addr() net.Addr { return l.addr }
+
+// sniffListener routes each connection on one port to the TLS or the
+// plaintext half by its first byte: 0x16 begins a TLS ClientHello,
+// anything else is plaintext HTTP — so one host:port can serve both
+// schemes, which is what a same-host scheme downgrade needs.
+type sniffListener struct {
+	ln         net.Listener
+	tlsConns   chan net.Conn
+	plainConns chan net.Conn
+	done       chan struct{}
+}
+
+func newSniffListener(ln net.Listener) *sniffListener {
+	s := &sniffListener{
+		ln:         ln,
+		tlsConns:   make(chan net.Conn),
+		plainConns: make(chan net.Conn),
+		done:       make(chan struct{}),
+	}
+	go s.accept()
+	return s
+}
+
+// accept routes connections until the listener dies, then wakes every
+// pending route.
+func (s *sniffListener) accept() {
+	defer close(s.done)
+	for {
+		conn, err := s.ln.Accept()
+		if err != nil {
+			return
+		}
+		go s.route(conn)
+	}
+}
+
+func (s *sniffListener) route(conn net.Conn) {
+	br := bufio.NewReader(conn)
+	b, err := br.Peek(1)
+	if err != nil {
+		_ = conn.Close()
+		return
+	}
+	ch := s.plainConns
+	if b[0] == 0x16 {
+		ch = s.tlsConns
+	}
+	select {
+	case ch <- &peekedConn{Conn: conn, r: br}:
+	case <-s.done:
+		_ = conn.Close()
+	}
+}
+
+// downgradeFileServer is one port serving an https origin and a plaintext
+// redirect target under the same host:port, so the origin's redirect is a
+// genuine same-host scheme downgrade — the shape that slips past a
+// host-only redirect guard while putting the re-stamped Authorization
+// header on the wire in the clear.
+type downgradeFileServer struct {
+	svc       *Service
+	originURL string // https, answers 302 down to the plaintext half
+	plainURL  string // http, the redirect target
+	tlsRec    *fileRecorder
+	plainRec  *fileRecorder
+}
+
+// newDowngradeFileServer starts the dual-protocol origin/target pair. The
+// TLS certificate is the stdlib httptest one, minted by a throwaway
+// httptest TLS server and trusted by the returned service's client.
+func newDowngradeFileServer(t *testing.T) *downgradeFileServer {
+	t.Helper()
+	minted := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	t.Cleanup(minted.Close)
+	pool := x509.NewCertPool()
+	pool.AddCert(minted.Certificate())
+
+	tlsRec, plainRec := &fileRecorder{}, &fileRecorder{}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	sniff := newSniffListener(ln)
+
+	d := &downgradeFileServer{tlsRec: tlsRec, plainRec: plainRec}
+	d.originURL = "https://" + ln.Addr().String()
+	d.plainURL = "http://" + ln.Addr().String()
+
+	// The https origin answers every request with 302 to the plaintext
+	// half on the same host.
+	origin := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tlsRec.record(r.Header.Get("Authorization"))
+		http.Redirect(w, r, d.plainURL+"/stolen", http.StatusFound)
+	})}
+	// The plaintext redirect target: a guard that let the downgrade
+	// through would deliver the re-stamped Authorization header here.
+	target := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainRec.record(r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte("stolen"))
+	})}
+
+	tlsLn := &chanListener{conns: sniff.tlsConns, addr: ln.Addr(), done: make(chan struct{})}
+	plainLn := &chanListener{conns: sniff.plainConns, addr: ln.Addr(), done: make(chan struct{})}
+	go func() { _ = origin.Serve(tls.NewListener(tlsLn, minted.TLS.Clone())) }()
+	go func() { _ = target.Serve(plainLn) }()
+	t.Cleanup(func() {
+		_ = ln.Close()
+		_ = origin.Close()
+		_ = target.Close()
+	})
+
+	trusted := &http.Transport{TLSClientConfig: &tls.Config{RootCAs: pool}}
+	d.svc = NewForEndpoint(&http.Client{Transport: authTransport{key: "test-key-123", base: trusted}}, d.originURL)
+	return d
+}
+
+// TestDownloadFileRefusesSchemeChangeRedirect: a redirect that changes the
+// scheme — an https origin downgrading to an http target on the same host —
+// is refused before any follow, exactly like a cross-host one: the
+// transport re-stamps Authorization on the follow, which would put the
+// account's credential on the wire in the clear, so the plaintext target
+// records zero requests.
+func TestDownloadFileRefusesSchemeChangeRedirect(t *testing.T) {
+	d := newDowngradeFileServer(t)
+	allowFileHostPort(t, urlToHost(t, d.originURL))
+
+	err := d.svc.DownloadFileTo(context.Background(), d.originURL+"/file-uuid", io.Discard)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "linear file download refused redirect scheme change")
+	require.Equal(t, []string{"test-key-123"}, d.tlsRec.requests(),
+		"the initial https request must reach the origin carrying the account's key")
+	require.Empty(t, d.plainRec.requests(),
+		"the plaintext redirect target must never receive a request")
 }
 
 // TestDownloadFileErrorHidesURL: a connection failure surfaces the cause but

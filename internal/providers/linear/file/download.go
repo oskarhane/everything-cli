@@ -12,7 +12,9 @@ import (
 // newDownloadCmd returns `linear file download`: stream one Linear
 // file-storage URL's bytes to stdout or --out. Storage files are private —
 // the service's authenticated client carries the acting account's
-// credential — and only https://uploads.linear.app is fetched.
+// credential — and only https://uploads.linear.app is fetched. A failed
+// download with --out removes the destination, so no zero-byte or partial
+// file is left behind.
 func newDownloadCmd(cfg *app.Config, newSvc service.Dialer[service.FileService]) *cobra.Command {
 	var out string
 	cmd := &cobra.Command{
@@ -35,7 +37,15 @@ everything-cli linear file download https://uploads.linear.app/8c8a1b2c-0000-400
 			if out == "" {
 				return stream(cmd.OutOrStdout())
 			}
-			return app.WriteToFile(cfg.Fs, out, stream)
+			if err := app.WriteToFile(cfg.Fs, out, stream); err != nil {
+				// WriteToFile truncates or creates the destination before
+				// streaming, so a failed download — a refused URL, a
+				// non-200, a mid-stream failure — must remove what it
+				// left rather than keep a zero-byte or partial file.
+				_ = cfg.Fs.Remove(out)
+				return err
+			}
+			return nil
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "Write the bytes to this file instead of stdout")
