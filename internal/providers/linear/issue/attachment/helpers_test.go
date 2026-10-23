@@ -22,11 +22,23 @@ func TestMain(m *testing.M) {
 }
 
 // fakeService is the hermetic service.AttachmentService double: it records
-// the issue id and input it receives and echoes the created attachment.
+// the issue id and input it receives, echoes the created attachment, and
+// serves the seeded attachment list.
 type fakeService struct {
 	err     error // when set, every call fails
 	gotID   string
 	created service.CreateAttachmentInput
+
+	attachments        []service.Attachment
+	attachmentsIssueID string
+}
+
+func (f *fakeService) ListAttachments(_ context.Context, issueID string) ([]service.Attachment, error) {
+	f.attachmentsIssueID = issueID
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.attachments, nil
 }
 
 func (f *fakeService) CreateAttachment(_ context.Context, issueID string, in service.CreateAttachmentInput) (*service.Attachment, error) {

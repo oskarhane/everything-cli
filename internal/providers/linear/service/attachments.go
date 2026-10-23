@@ -28,14 +28,30 @@ type CreateAttachmentInput struct {
 // AttachmentService is the attachment surface the `linear issue attachment`
 // subtree consumes.
 type AttachmentService interface {
+	ListAttachments(ctx context.Context, issueID string) ([]Attachment, error)
 	CreateAttachment(ctx context.Context, issueID string, in CreateAttachmentInput) (*Attachment, error)
 }
 
 // Compile-time proof that Service satisfies the attachment surface.
 var _ AttachmentService = (*Service)(nil)
 
-// attachmentFields is the selection set attachmentCreate returns.
+// attachmentFields is the selection set every attachment query and mutation
+// returns.
 const attachmentFields = `id title url subtitle createdAt updatedAt`
+
+// ListAttachments returns every link attachment on the issue issueID (UUID
+// or human identifier "BLA-123"), following the Relay cursor across pages.
+func (s *Service) ListAttachments(ctx context.Context, issueID string) ([]Attachment, error) {
+	const query = `query($id: String!, $first: Int, $after: String) {
+		issue(id: $id) {
+			attachments(first: $first, after: $after) {
+				nodes { ` + attachmentFields + ` }
+				pageInfo { hasNextPage endCursor }
+			}
+		}
+	}`
+	return collectPages[Attachment](ctx, s, query, map[string]any{"id": issueID}, "issue", "attachments")
+}
 
 // CreateAttachment links a URL to the issue issueID (UUID or human
 // identifier "BLA-123"). Linear treats a repeated url + issueId as an update

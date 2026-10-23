@@ -295,6 +295,20 @@ everything-cli linear issue comment create BLA-123 --body "Fixed in #482" \
   --parent 8c8a1b2c-0000-4000-8000-000000000042
 ```
 
+### issue attachment list
+
+- `linear issue attachment list <id>` — every link attachment on one
+  issue. `<id>` accepts the issue's UUID or its human identifier
+  (`BLA-123`), like `issue get`.
+- Renders one row per attachment. JSON/TOON fields: `id`, `title`, `url`,
+  `subtitle` (omitted when empty), `created_at`. Table columns:
+  `created_at`, `title`, `url`. An issue with no attachments prints an
+  empty list (`[]` in JSON), like `issue comments`.
+
+```sh
+everything-cli linear issue attachment list BLA-123
+```
+
 ### issue attachment create
 
 - `linear issue attachment create <id>` — link an attachment to one
