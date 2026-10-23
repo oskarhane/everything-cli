@@ -46,6 +46,46 @@ func TestDownloadPropagatesServiceError(t *testing.T) {
 	require.Contains(t, err.Error(), "linear API returned 401 Unauthorized")
 }
 
+// TestDownloadOutRemovesFileOnFailure: a failed download with --out removes
+// the destination — WriteToFile truncates or creates it before streaming —
+// so an allowlist-refused URL, a non-200, or a mid-stream failure leaves
+// no zero-byte or partial file behind.
+func TestDownloadOutRemovesFileOnFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		svc       *fakeService
+		errSubstr string
+	}{
+		{
+			name:      "allowlist-refused URL",
+			svc:       &fakeService{err: errors.New("linear file download refused URL: only https://uploads.linear.app is allowed")},
+			errSubstr: "refused URL",
+		},
+		{
+			name:      "non-200 answer",
+			svc:       &fakeService{err: errors.New("linear API returned 502 Bad Gateway: boom")},
+			errSubstr: "linear API returned 502",
+		},
+		{
+			name:      "mid-stream failure",
+			svc:       &fakeService{content: []byte("partial bytes"), streamErr: errors.New("streaming linear file download: connection reset by peer")},
+			errSubstr: "streaming linear file download",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fs := afero.NewMemMapFs()
+			cmd := newLeafCmdWithFs(newDownloadCmd, tt.svc, "json", fs)
+			_, err := cmdtest.RunCmdErr(t, cmd, testFileURL, "--out", "dl/screenshot.png")
+
+			require.ErrorContains(t, err, tt.errSubstr)
+			exists, ferr := afero.Exists(fs, "dl/screenshot.png")
+			require.NoError(t, ferr)
+			require.False(t, exists, "a failed download must remove --out; no zero-byte or partial file may be left")
+		})
+	}
+}
+
 // TestDownloadRequiresExactlyOneArg: the url positional is mandatory.
 func TestDownloadRequiresExactlyOneArg(t *testing.T) {
 	svc := &fakeService{}

@@ -62,13 +62,22 @@ func mockGraphQL(t *testing.T, respond func(call gqlCall) any) (*httptest.Server
 type gqlErrors []map[string]any
 
 // authTransport stamps an API key on every request, mirroring the apikey
-// strategy's transport, so tests can assert the key reaches the server.
-type authTransport struct{ key string }
+// strategy's transport, so tests can assert the key reaches the server
+// (and that a redirect a guard failed to refuse would re-stamp it on the
+// follow). base is the transport to ride; nil means http.DefaultTransport.
+type authTransport struct {
+	key  string
+	base http.RoundTripper
+}
 
 func (t authTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	clone := r.Clone(r.Context())
 	clone.Header.Set("Authorization", t.key)
-	return http.DefaultTransport.RoundTrip(clone)
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	return base.RoundTrip(clone)
 }
 
 // newTestService returns the real service pointed at the mock server, with

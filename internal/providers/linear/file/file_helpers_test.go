@@ -39,12 +39,15 @@ func TestFileNewCmdRegistersLeaves(t *testing.T) {
 
 // fakeService is the hermetic service.FileService double: it records the URL
 // it receives, streams the seeded content, and fails every call when err is
-// set. DownloadFileMeta reports the byte count it wrote; the file leaf
+// set; with streamErr set it writes the content first and fails after, so a
+// download dies mid-stream with bytes already on the writer.
+// DownloadFileMeta reports the byte count it wrote; the file leaf
 // never reads the Content-Type.
 type fakeService struct {
-	err     error
-	gotURL  string
-	content []byte
+	err       error
+	streamErr error
+	gotURL    string
+	content   []byte
 }
 
 func (f *fakeService) DownloadFileTo(ctx context.Context, fileURL string, w io.Writer) error {
@@ -58,6 +61,9 @@ func (f *fakeService) DownloadFileMeta(_ context.Context, fileURL string, w io.W
 		return service.FileMeta{}, f.err
 	}
 	n, err := w.Write(f.content)
+	if f.streamErr != nil {
+		return service.FileMeta{Bytes: int64(n)}, f.streamErr
+	}
 	return service.FileMeta{Bytes: int64(n)}, err
 }
 

@@ -487,8 +487,11 @@ where issue image uploads live.
   download runs through the acting account's credential (API key or
   OAuth), like every other linear call. URLs are guarded before any
   request — only `https://uploads.linear.app` is fetched, and a redirect
-  to another host is refused — so the account's Authorization header can
-  never be sent anywhere else.
+  to another host or a different scheme (an https-to-http downgrade on
+  the same host included) is refused — so the account's Authorization
+  header can never be sent anywhere else, nor in the clear.
+- A failed download with `--out` removes the destination — no zero-byte
+  or partial file is left behind.
 - A storage URL's path is a bare UUID — no filename or extension. The
   original filename arrives on the response's Content-Disposition, so
   pick `--out` yourself (e.g. the issue's image filename or the
