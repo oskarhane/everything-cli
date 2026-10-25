@@ -89,6 +89,46 @@ func TestNoteGetToon(t *testing.T) {
 	assert.Contains(t, stdout, "owner:")
 }
 
+func TestNoteGetAttachments(t *testing.T) {
+	// Manually attached photos surface with their snake_case element keys
+	// in JSON and TOON output; table output stays the scalar summary row.
+	var log requestLog
+	srv := newNotesServer(t, &log)
+	_, root, out := newGranolaEnv(t)
+	stubNotes(t, newHTTPService(srv.Client(), srv.URL))
+
+	stdout, err := execute(t, root, out, "granola", "note", "get", "not_aaa111bbb222", "--format", "json")
+	require.NoError(t, err)
+
+	var note map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &note))
+	attachments, ok := note["attachments"].([]any)
+	require.True(t, ok)
+	require.Len(t, attachments, 1)
+	att, ok := attachments[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "att_4y6LduVdwSKC27", att["id"])
+	assert.Equal(t, "attachment", att["object"])
+	assert.Equal(t, "photo", att["type"])
+	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", att["url"])
+	assert.Equal(t, float64(3024), att["width"])
+	assert.Equal(t, float64(4032), att["height"])
+
+	// Uniform elements render as a TOON table: the header carries every
+	// snake_case element key, the row the values.
+	stdout, err = execute(t, root, out, "granola", "note", "get", "not_aaa111bbb222", "--format", "toon")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "attachments[#1]{height,id,object,type,url,width}:")
+	assert.Contains(t, stdout,
+		`4032,att_4y6LduVdwSKC27,attachment,photo,"https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",3024`)
+
+	stdout, err = execute(t, root, out, "granola", "note", "get", "not_aaa111bbb222", "--format", "table")
+	require.NoError(t, err)
+	assert.Contains(t, stdout, "NOTE_ID")
+	assert.NotContains(t, stdout, "ATTACHMENTS")
+	assert.NotContains(t, stdout, "attachments")
+}
+
 func TestNoteGet413Guidance(t *testing.T) {
 	// The checkpoint's TRANSCRIPT_TOO_LARGE guidance must surface to the
 	// user when --include-transcript overflows one response.

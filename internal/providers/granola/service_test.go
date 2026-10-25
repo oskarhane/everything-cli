@@ -147,6 +147,17 @@ func TestGetNoteParsesFullNote(t *testing.T) {
 	require.Len(t, note.FolderMembership, 1)
 	assert.Nil(t, note.FolderMembership[0].SpaceID)
 	assert.Empty(t, note.SpaceMembership)
+
+	// attachments decode into the pinned struct: one manually attached
+	// photo carrying the documented NoteAttachment element fields.
+	require.Len(t, note.Attachments, 1)
+	assert.Equal(t, "att_4y6LduVdwSKC27", note.Attachments[0].ID)
+	assert.Equal(t, "attachment", note.Attachments[0].Object)
+	assert.Equal(t, "photo", note.Attachments[0].Type)
+	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", note.Attachments[0].URL)
+	assert.Equal(t, 3024.0, note.Attachments[0].Width)
+	assert.Equal(t, 4032.0, note.Attachments[0].Height)
+
 	assert.Nil(t, note.Transcript)
 
 	require.NotNil(t, note.DeletedAt)
@@ -173,7 +184,10 @@ func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
 	// A note in a space carries space_id on its folders and a populated
 	// space_membership. The space element shape is undocumented, so
 	// elements must decode without a pinned struct and re-marshal
-	// verbatim into output instead of failing or dropping data.
+	// verbatim into output instead of failing or dropping data. The live
+	// wire always carries attachments (a required field), so this body
+	// does too — the pinned Attachment struct decodes its elements beside
+	// the raw space elements.
 	const body = `{
 		"id": "not_aaa111bbb222",
 		"object": "note",
@@ -183,6 +197,11 @@ func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
 		"updated_at": "2026-08-20T14:35:00Z",
 		"web_url": "https://notes.granola.ai/t/not_aaa111bbb222",
 		"calendar_event": null,
+		"attachments": [
+			{"id": "att_4y6LduVdwSKC27", "object": "attachment", "type": "photo",
+				"url": "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",
+				"width": 3024, "height": 4032}
+		],
 		"attendees": [],
 		"folder_membership": [
 			{"id": "fol_aaa111bbb222", "object": "folder", "name": "Recipes",
@@ -212,6 +231,9 @@ func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
 	assert.JSONEq(t,
 		`{"id": "spc_aaa111bbb222", "object": "space", "name": "Engineering", "icon": "🥣"}`,
 		string(note.SpaceMembership[0]))
+	require.Len(t, note.Attachments, 1)
+	assert.Equal(t, "photo", note.Attachments[0].Type)
+	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", note.Attachments[0].URL)
 }
 
 func TestStatusErrors(t *testing.T) {
