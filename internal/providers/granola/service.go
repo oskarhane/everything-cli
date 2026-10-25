@@ -92,6 +92,23 @@ type CalendarEvent struct {
 	ScheduledEndTime   *time.Time `json:"scheduled_end_time"`
 }
 
+// Attachment is one element of a note's attachments: the documented
+// NoteAttachment object, a manually attached photo. Type is `photo` for
+// manually attached images (the docs say clients should ignore types
+// they do not recognize). URL is the download URL — it may change
+// (re-fetch the note for the current one) and anyone with it can view the
+// image, so it is sensitive note content. Width/Height are the pixel
+// dimensions; the schema types them as number, so float64 decodes any
+// value it permits.
+type Attachment struct {
+	ID     string  `json:"id"`
+	Object string  `json:"object"`
+	Type   string  `json:"type"`
+	URL    string  `json:"url"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
 // Folder is one folder membership entry (ancestors included). SpaceID is
 // the space the folder belongs to (a `spc_...` id), null for folders in
 // "My notes"; the API added it after the published schema.
@@ -121,7 +138,10 @@ type TranscriptSegment struct {
 
 // Note is the GET /v1/notes/{note_id} response. Transcript is only present
 // with include=transcript; private notes only when the key belongs to the
-// note's creator. SpaceMembership is the spaces the note belongs to; the
+// note's creator. Attachments are the note's manually attached photos (the
+// documented NoteAttachment elements), in stored order — the field is
+// required, so the live wire always carries it, empty when there are none.
+// SpaceMembership is the spaces the note belongs to; the
 // API added it after the published schema and only notes in a space carry
 // elements (a personal key only ever sees an empty array), so the element
 // shape is undocumented and unobservable. Elements are kept as raw JSON —
@@ -137,6 +157,7 @@ type Note struct {
 	DeletedAt            *time.Time          `json:"deleted_at"`
 	WebURL               string              `json:"web_url"`
 	CalendarEvent        *CalendarEvent      `json:"calendar_event"`
+	Attachments          []Attachment        `json:"attachments"`
 	Attendees            []Attendee          `json:"attendees"`
 	FolderMembership     []Folder            `json:"folder_membership"`
 	SpaceMembership      []json.RawMessage   `json:"space_membership"`

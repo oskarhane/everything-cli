@@ -22,6 +22,16 @@
     "scheduled_start_time": "2026-08-20T14:00:00Z",
     "scheduled_end_time": "2026-08-20T14:30:00Z"
   },
+  "attachments": [
+    {
+      "id": "att_4y6LduVdwSKC27",
+      "object": "attachment",
+      "type": "photo",
+      "url": "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",
+      "width": 3024,
+      "height": 4032
+    }
+  ],
   "attendees": [
     {
       "name": "Ada Lovelace",

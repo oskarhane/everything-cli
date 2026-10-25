@@ -110,7 +110,14 @@ everything-cli granola note list --account work --format toon
   timestamp when the note was deleted, null otherwise), `web_url` (Granola
   web app URL), `calendar_event` (`event_title`, `invitees`, `organiser`,
   `calendar_event_id`, `scheduled_start_time`, `scheduled_end_time`;
-  null when the note is not attached to a meeting), `attendees`
+  null when the note is not attached to a meeting), `attachments`
+  (the note's manually attached photos, in stored order — empty when
+  there are none; each element carries `id`, `object`, `type`, `url`,
+  `width`, `height`: `type` is `photo` for manually attached images —
+  ignore types you do not recognize — `width`/`height` are the pixel
+  dimensions, and `url` is the download URL, which is sensitive note
+  content — anyone with the URL can view the image — and may change:
+  fetch the note again for the current URL), `attendees`
   (`{name, email}`), `folder_membership` (`{id, name,
   parent_folder_id, space_id}` — `space_id` is the folder's `spc_...`
   space id, null for folders in "My notes"; ancestor folders included),
