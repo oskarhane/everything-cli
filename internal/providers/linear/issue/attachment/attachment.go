@@ -20,6 +20,7 @@ func NewCmd(cfg *app.Config, newSvc service.Dialer[service.AttachmentService]) *
 		Short: "Manage Linear issue attachments",
 	}
 	cmd.AddCommand(newCreateCmd(cfg, newSvc))
+	cmd.AddCommand(newListCmd(cfg, newSvc))
 	return cmd
 }
 
@@ -33,8 +34,8 @@ type attachmentView struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// createFields are the table columns of attachment create.
-var createFields = []string{"created_at", "title", "url"}
+// tableFields are the table columns of attachment create and list.
+var tableFields = []string{"created_at", "title", "url"}
 
 // toAttachmentView maps the wire attachment to its rendered shape.
 func toAttachmentView(a *service.Attachment) attachmentView {
@@ -45,6 +46,20 @@ func toAttachmentView(a *service.Attachment) attachmentView {
 		Subtitle:  a.Subtitle,
 		CreatedAt: a.CreatedAt,
 	}
+}
+
+// attachmentJSONRow renders a view as a JSON/TOON row; empty subtitle omitted.
+func attachmentJSONRow(v attachmentView) map[string]any {
+	row := map[string]any{
+		"id":         v.ID,
+		"title":      v.Title,
+		"url":        v.URL,
+		"created_at": v.CreatedAt,
+	}
+	if v.Subtitle != "" {
+		row["subtitle"] = v.Subtitle
+	}
+	return row
 }
 
 // attachmentTableRow flattens a view into table-row cells.
@@ -60,6 +75,6 @@ func attachmentTableRow(v attachmentView) map[string]any {
 // one-row-vs-array output convention.
 func printAttachment(cmd *cobra.Command, cfg *app.Config, a *service.Attachment) {
 	v := toAttachmentView(a)
-	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), createFields, v,
+	output.Print(cmd.OutOrStdout(), output.ResolveOutput(cfg.Format), tableFields, v,
 		[]map[string]any{attachmentTableRow(v)})
 }
