@@ -295,6 +295,24 @@ everything-cli linear issue comment create BLA-123 --body "Fixed in #482" \
   --parent 8c8a1b2c-0000-4000-8000-000000000042
 ```
 
+### issue attachment list
+
+- `linear issue attachment list <id>` — every link attachment on one
+  issue. `<id>` accepts the issue's UUID or its human identifier
+  (`BLA-123`), like `issue get`; there is exactly one positional
+  argument and no flags of its own — `--format json|table|toon`
+  resolves the output.
+- Renders one row per attachment. JSON/TOON fields: `id`, `title`, `url`,
+  `subtitle` (omitted when empty), `created_at`. Table columns:
+  `created_at`, `title`, `url`. An issue with no attachments prints an
+  empty list (`[]` in JSON, like `issue comments`); one attachment
+  renders as a single object.
+
+```sh
+everything-cli linear issue attachment list BLA-123 --format json
+everything-cli linear issue attachment list 8c8a1b2c-... --format table
+```
+
 ### issue attachment create
 
 - `linear issue attachment create <id>` — link an attachment to one
@@ -314,6 +332,49 @@ everything-cli linear issue attachment create BLA-123 \
   --url https://example.com/pr/482 --title "PR #482"
 everything-cli linear issue attachment create BLA-123 \
   --url https://example.com/pr/482 --title "PR #482" --subtitle "Fix login redirect"
+```
+
+### issue image list
+
+- `linear issue image list <id>` — every markdown image reference
+  (`![alt](url)`) in one issue's description. `<id>` accepts the issue's
+  UUID or its human identifier (`BLA-123`), like `issue get`. Flag:
+  `--comments` (also scan comment bodies — all pages).
+- Renders one row per image, deduplicated by URL across sources (the
+  description's occurrence wins). JSON/TOON fields: `url`, `filename`
+  (the alt text sanitized to a bare basename), `source` (`description` or
+  `comment`). Table columns: `filename`, `source`, `url`. An issue with
+  no images prints an empty list (`[]` in JSON), like `issue comments`.
+
+```sh
+everything-cli linear issue image list BLA-123
+everything-cli linear issue image list BLA-123 --comments --format json
+```
+
+### issue image download
+
+- `linear issue image download <id>` — discover the issue's images
+  exactly like `image list` and download each through the acting
+  account's credential into `--out-dir` (default `.`, created as
+  needed). Flags: `--comments` (also scan comment bodies),
+  `--out-dir <dir>`.
+- Each local filename derives from the markdown alt text sanitized to a
+  bare basename — no path separators, `..`, or absolute paths; storage
+  URLs' paths are bare UUIDs, so the alt text is the only filename
+  source — and a missing extension is fixed from the response's
+  Content-Type. A repeated name gets a `-2`, `-3`, … suffix, so one run
+  never overwrites its own files.
+- Renders one row per image. Successful rows: `filename`, `path`,
+  `bytes`; a failed row — a non-allowlisted host (only
+  `https://uploads.linear.app` is fetched) or a failed fetch — carries
+  `filename` and the named `error` instead, leaves no partial file, and
+  the command exits non-zero after finishing the remaining images.
+  Table columns: `filename`, `bytes`, `path`, `error` — the error cell
+  is empty on success, so a failed row stays visible in every format.
+
+```sh
+everything-cli linear issue image download BLA-123 --out-dir shots
+everything-cli linear issue image download BLA-123 --comments
 ```
 
 ### issue search
@@ -411,6 +472,40 @@ everything-cli linear label list --team 9c1e2f3a-... --format json
 everything-cli linear label list --team 9c1e2f3a-... --format table
 ```
 
+## file
+
+Download files from Linear's file storage (`https://uploads.linear.app`),
+where issue image uploads live.
+
+### file download
+
+- `linear file download <url>` — stream one Linear file-storage URL's
+  bytes. Flag: `--out <file>` (write the bytes to this file instead of
+  stdout, creating parent directories). No `--format` flag: the output is
+  the file's raw bytes, never framed or redacted.
+- Storage files are private: unauthenticated GETs return 401. The
+  download runs through the acting account's credential (API key or
+  OAuth), like every other linear call. URLs are guarded before any
+  request — only `https://uploads.linear.app` is fetched, and a redirect
+  to another host or a different scheme (an https-to-http downgrade on
+  the same host included) is refused — so the account's Authorization
+  header can never be sent anywhere else, nor in the clear.
+- A failed download with `--out` removes the destination — no zero-byte
+  or partial file is left behind.
+- A storage URL's path is a bare UUID — no filename or extension. The
+  original filename arrives on the response's Content-Disposition, so
+  pick `--out` yourself (e.g. the issue's image filename or the
+  attachment title). Signed URLs (carrying a signature query param from a
+  `public-file-urls-expire-in` GraphQL response) also download fine, with
+  or without a credential, but they expire when the signature TTL does.
+- A non-200 (an unknown or expired UUID) surfaces as an error like every
+  other linear call.
+
+```sh
+everything-cli linear file download https://uploads.linear.app/8c8a1b2c-... --out screenshot.png
+everything-cli linear file download https://uploads.linear.app/8c8a1b2c-... > screenshot.png
+```
+
 ## api
 
 - `linear api <query> [--variables <json>|@file]` — an authenticated
@@ -498,6 +593,13 @@ issues — scope it on large workspaces.
 - `issue relation delete` takes the RELATION id from `relation list`
   output, not an issue id; deleting it also removes Linear's
   auto-created inverse relation.
+- Issue card images are markdown-embedded `![alt](url)` references into
+  `uploads.linear.app` — Linear's private file storage, which is
+  auth-gated (a bare GET returns 401). Discover a card image's URL with
+  `linear issue image list <id>`, then fetch it through the acting
+  account with `linear issue image download <id>` or
+  `linear file download <url>` — the auth gating is why the download
+  commands exist.
 - Anything the typed commands do not cover goes through `linear api
   '<graphql>' [--variables ...]` — the raw `data` document comes back
   as JSON.
