@@ -191,9 +191,70 @@ func TestGetIssueSelectsDetailFields(t *testing.T) {
 	require.Equal(t, "Beta", issue.Milestone.Name)
 }
 
+// TestIssueMutationsSelectDetailFields asserts the create and update
+// mutations select the detail field set and decode the detail-only wire
+// fields into the issue they return, like GetIssue does.
+func TestIssueMutationsSelectDetailFields(t *testing.T) {
+	cases := []struct {
+		name string
+		root string
+		call func(svc *Service) (*Issue, error)
+	}{
+		{
+			name: "create",
+			root: "issueCreate",
+			call: func(svc *Service) (*Issue, error) {
+				return svc.CreateIssue(context.Background(), CreateIssueInput{TeamID: "team_1", Title: "Detailed"})
+			},
+		},
+		{
+			name: "update",
+			root: "issueUpdate",
+			call: func(svc *Service) (*Issue, error) {
+				return svc.UpdateIssue(context.Background(), "ENG-1", UpdateIssueInput{Title: "Detailed"})
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, calls := mockGraphQL(t, func(gqlCall) any {
+				node := issueNode("issue_1", "ENG-1", "Detailed")
+				node["children"] = conn([]any{
+					map[string]any{"id": "issue_2", "identifier": "ENG-2", "title": "Sub task"},
+				}, false, "")
+				node["priority"] = 2
+				node["priorityLabel"] = "High"
+				node["dueDate"] = "2026-10-01"
+				node["estimate"] = 3
+				node["cycle"] = map[string]any{"id": "cycle_1", "name": "Cycle 12"}
+				node["projectMilestone"] = map[string]any{"id": "milestone_1", "name": "Beta"}
+				return map[string]any{tc.root: map[string]any{
+					"success": true, "issue": node,
+				}}
+			})
+			svc := newTestService(srv)
+
+			issue, err := tc.call(svc)
+			require.NoError(t, err)
+
+			query := (*calls)[0].Query
+			require.Contains(t, query, "children { nodes { id identifier title } }")
+			require.Contains(t, query, "priority priorityLabel dueDate estimate")
+			require.Contains(t, query, "cycle { id name } projectMilestone { id name }")
+
+			require.Equal(t, 2, issue.Priority)
+			require.Equal(t, "High", issue.PriorityLabel)
+			require.Equal(t, "2026-10-01", issue.DueDate)
+			require.Equal(t, 3, *issue.Estimate)
+			require.Equal(t, "Cycle 12", issue.Cycle.Name)
+			require.Equal(t, "Beta", issue.Milestone.Name)
+		})
+	}
+}
+
 // TestLeanFieldSetsKeepParentOnly asserts the shared issueFields selection
-// gained parent but stays lean: list and mutation payloads must not select
-// the detail-only fields.
+// gained parent but stays lean: list payloads must not select the
+// detail-only fields.
 func TestLeanFieldSetsKeepParentOnly(t *testing.T) {
 	srv, calls := mockGraphQL(t, func(gqlCall) any {
 		return map[string]any{"issues": conn([]any{
