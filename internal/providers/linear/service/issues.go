@@ -32,8 +32,8 @@ type IssueRef struct {
 // are the wire shape (camelCase); leaves map it to snake_case views. A wire
 // null decodes to the zero value (nil refs, empty timestamps). The detail
 // fields (children, priority, due date, estimate, cycle, milestone) are only
-// populated by GetIssue's wider selection set; list and mutation payloads
-// leave them zero.
+// populated by the wide issueDetailFields selection (GetIssue and the issue
+// mutations); list payloads leave them zero.
 type Issue struct {
 	ID            string     `json:"id"`
 	Identifier    string     `json:"identifier"`
@@ -164,15 +164,17 @@ type UpdateIssueInput struct {
 	ProjectMilestoneID *string
 }
 
-// issueFields is the selection set every issue query and mutation returns.
+// issueFields is the shared selection set under every issue query; list and
+// search payloads select it as-is.
 const issueFields = `id identifier title description url createdAt updatedAt
 	startedAt completedAt canceledAt
 	state { id name type } assignee { id name } creator { id name } team { id name key }
 	parent { id identifier title }`
 
-// issueDetailFields is GetIssue's wider selection set: the shared fields
-// plus the detail-only fields (children, priority, due date, estimate,
-// cycle, milestone) that list and mutation payloads do not need.
+// issueDetailFields is the wide selection set of GetIssue and the issue
+// mutations: the shared fields plus the detail-only fields (children,
+// priority, due date, estimate, cycle, milestone) that list payloads do
+// not need.
 const issueDetailFields = issueFields + `
 	children { nodes { id identifier title } } priority priorityLabel dueDate estimate
 	cycle { id name } projectMilestone { id name }`
@@ -218,7 +220,7 @@ func (s *Service) GetIssue(ctx context.Context, id string) (*Issue, error) {
 // CreateIssue creates an issue and returns it as created.
 func (s *Service) CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue, error) {
 	const mutation = `mutation($input: IssueCreateInput!) {
-		issueCreate(input: $input) { success issue { ` + issueFields + ` } }
+		issueCreate(input: $input) { success issue { ` + issueDetailFields + ` } }
 	}`
 	input := map[string]any{"teamId": in.TeamID, "title": in.Title}
 	if in.Description != "" {
@@ -261,7 +263,7 @@ func (s *Service) CreateIssue(ctx context.Context, in CreateIssueInput) (*Issue,
 // fields of in, and returns it as updated.
 func (s *Service) UpdateIssue(ctx context.Context, id string, in UpdateIssueInput) (*Issue, error) {
 	const mutation = `mutation($id: String!, $input: IssueUpdateInput!) {
-		issueUpdate(id: $id, input: $input) { success issue { ` + issueFields + ` } }
+		issueUpdate(id: $id, input: $input) { success issue { ` + issueDetailFields + ` } }
 	}`
 	input := map[string]any{}
 	if in.Title != "" {
