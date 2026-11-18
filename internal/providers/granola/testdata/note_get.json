@@ -29,7 +29,9 @@
       "type": "photo",
       "url": "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",
       "width": 3024,
-      "height": 4032
+      "height": 4032,
+      "captured_at": "2026-08-20T14:01:23.456Z",
+      "description": "Whiteboard photo of the sprint board"
     }
   ],
   "attendees": [

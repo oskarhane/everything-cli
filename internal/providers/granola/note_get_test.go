@@ -90,8 +90,9 @@ func TestNoteGetToon(t *testing.T) {
 }
 
 func TestNoteGetAttachments(t *testing.T) {
-	// Manually attached photos surface with their snake_case element keys
-	// in JSON and TOON output; table output stays the scalar summary row.
+	// Note attachments surface with their snake_case element keys in JSON
+	// and TOON output — including the post-schema captured_at/description
+	// pair; table output stays the scalar summary row.
 	var log requestLog
 	srv := newNotesServer(t, &log)
 	_, root, out := newGranolaEnv(t)
@@ -113,14 +114,16 @@ func TestNoteGetAttachments(t *testing.T) {
 	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", att["url"])
 	assert.Equal(t, float64(3024), att["width"])
 	assert.Equal(t, float64(4032), att["height"])
+	assert.Equal(t, "2026-08-20T14:01:23.456Z", att["captured_at"])
+	assert.Equal(t, "Whiteboard photo of the sprint board", att["description"])
 
 	// Uniform elements render as a TOON table: the header carries every
 	// snake_case element key, the row the values.
 	stdout, err = execute(t, root, out, "granola", "note", "get", "not_aaa111bbb222", "--format", "toon")
 	require.NoError(t, err)
-	assert.Contains(t, stdout, "attachments[#1]{height,id,object,type,url,width}:")
+	assert.Contains(t, stdout, "attachments[#1]{captured_at,description,height,id,object,type,url,width}:")
 	assert.Contains(t, stdout,
-		`4032,att_4y6LduVdwSKC27,attachment,photo,"https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",3024`)
+		`"2026-08-20T14:01:23.456Z",Whiteboard photo of the sprint board,4032,att_4y6LduVdwSKC27,attachment,photo,"https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",3024`)
 
 	stdout, err = execute(t, root, out, "granola", "note", "get", "not_aaa111bbb222", "--format", "table")
 	require.NoError(t, err)

@@ -111,11 +111,16 @@ everything-cli granola note list --account work --format toon
   web app URL), `calendar_event` (`event_title`, `invitees`, `organiser`,
   `calendar_event_id`, `scheduled_start_time`, `scheduled_end_time`;
   null when the note is not attached to a meeting), `attachments`
-  (the note's manually attached photos, in stored order — empty when
-  there are none; each element carries `id`, `object`, `type`, `url`,
-  `width`, `height`: `type` is `photo` for manually attached images —
-  ignore types you do not recognize — `width`/`height` are the pixel
-  dimensions, and `url` is the download URL, which is sensitive note
+  (the note's attached images, in stored order — `photo` for manually
+  attached images, `screenshot` for Granola's auto-captured meeting
+  screenshots — empty when there are none; each element carries `id`,
+  `object`, `type`, `url`, `width`, `height`, `captured_at`,
+  `description`: ignore types you do not recognize — `width`/`height`
+  are the pixel dimensions, `captured_at` is the RFC3339 timestamp when
+  the attachment was captured (null when the API does not send it — it
+  arrived with auto-captured screenshots after the published schema),
+  `description` is an AI-generated description of the image (null when
+  absent), and `url` is the download URL, which is sensitive note
   content — anyone with the URL can view the image — and may change:
   fetch the note again for the current URL), `attendees`
   (`{name, email}`), `folder_membership` (`{id, name,

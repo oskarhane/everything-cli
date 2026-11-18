@@ -149,7 +149,9 @@ func TestGetNoteParsesFullNote(t *testing.T) {
 	assert.Empty(t, note.SpaceMembership)
 
 	// attachments decode into the pinned struct: one manually attached
-	// photo carrying the documented NoteAttachment element fields.
+	// photo carrying the documented NoteAttachment element fields plus
+	// the post-schema captured_at/description pair (observed 2026-11 on
+	// Granola's auto-captured screenshots, nullable on older elements).
 	require.Len(t, note.Attachments, 1)
 	assert.Equal(t, "att_4y6LduVdwSKC27", note.Attachments[0].ID)
 	assert.Equal(t, "attachment", note.Attachments[0].Object)
@@ -157,6 +159,10 @@ func TestGetNoteParsesFullNote(t *testing.T) {
 	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", note.Attachments[0].URL)
 	assert.Equal(t, 3024.0, note.Attachments[0].Width)
 	assert.Equal(t, 4032.0, note.Attachments[0].Height)
+	require.NotNil(t, note.Attachments[0].CapturedAt)
+	assert.Equal(t, time.Date(2026, 8, 20, 14, 1, 23, 456000000, time.UTC), *note.Attachments[0].CapturedAt)
+	require.NotNil(t, note.Attachments[0].Description)
+	assert.Equal(t, "Whiteboard photo of the sprint board", *note.Attachments[0].Description)
 
 	assert.Nil(t, note.Transcript)
 
@@ -200,7 +206,7 @@ func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
 		"attachments": [
 			{"id": "att_4y6LduVdwSKC27", "object": "attachment", "type": "photo",
 				"url": "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg",
-				"width": 3024, "height": 4032}
+				"width": 3024, "height": 4032, "captured_at": null, "description": null}
 		],
 		"attendees": [],
 		"folder_membership": [
@@ -234,6 +240,11 @@ func TestGetNoteSpaceFieldsPassThrough(t *testing.T) {
 	require.Len(t, note.Attachments, 1)
 	assert.Equal(t, "photo", note.Attachments[0].Type)
 	assert.Equal(t, "https://files.granola.ai/attachments/att_4y6LduVdwSKC27.jpg", note.Attachments[0].URL)
+	// The captured_at/description pair is nullable: an element carrying
+	// explicit nulls (an attachment that predates the pair) decodes to nil
+	// pointers, not an error.
+	assert.Nil(t, note.Attachments[0].CapturedAt)
+	assert.Nil(t, note.Attachments[0].Description)
 }
 
 func TestStatusErrors(t *testing.T) {
