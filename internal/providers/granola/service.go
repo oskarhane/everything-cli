@@ -93,20 +93,27 @@ type CalendarEvent struct {
 }
 
 // Attachment is one element of a note's attachments: the documented
-// NoteAttachment object, a manually attached photo. Type is `photo` for
-// manually attached images (the docs say clients should ignore types
-// they do not recognize). URL is the download URL — it may change
-// (re-fetch the note for the current one) and anyone with it can view the
-// image, so it is sensitive note content. Width/Height are the pixel
-// dimensions; the schema types them as number, so float64 decodes any
-// value it permits.
+// NoteAttachment object — a manually attached photo or one of Granola's
+// auto-captured meeting screenshots. Type is `photo` for manually
+// attached images and `screenshot` for the auto-captured ones (the docs
+// say clients should ignore types they do not recognize). URL is the
+// download URL — it may change (re-fetch the note for the current one)
+// and anyone with it can view the image, so it is sensitive note
+// content. Width/Height are the pixel dimensions; the schema types them
+// as number, so float64 decodes any value it permits. CapturedAt and
+// Description arrived with the auto-captured screenshots after the
+// published schema (observed 2026-11): when the attachment was taken and
+// an AI-generated description of its content. Both are nullable — older
+// elements predate them, so decode tolerates absent and null alike.
 type Attachment struct {
-	ID     string  `json:"id"`
-	Object string  `json:"object"`
-	Type   string  `json:"type"`
-	URL    string  `json:"url"`
-	Width  float64 `json:"width"`
-	Height float64 `json:"height"`
+	ID          string     `json:"id"`
+	Object      string     `json:"object"`
+	Type        string     `json:"type"`
+	URL         string     `json:"url"`
+	Width       float64    `json:"width"`
+	Height      float64    `json:"height"`
+	CapturedAt  *time.Time `json:"captured_at"`
+	Description *string    `json:"description"`
 }
 
 // Folder is one folder membership entry (ancestors included). SpaceID is
